@@ -79,7 +79,7 @@ const PPL_GROUND = [
 function loadSamplePdfKey() {
   // Push the frontend's sample PDF into our storage so free PDFs flow through
   // the real signed-URL pipeline (not a static file).
-  const src = path.resolve(__dirname, '../../../public/sample-notes.pdf')
+  const src = path.resolve(__dirname, '../../../frontend/public/sample-notes.pdf')
   if (!fs.existsSync(src)) return null
   const { storageKey } = saveBuffer(fs.readFileSync(src), 'sample-notes.pdf')
   return storageKey

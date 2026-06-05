@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { CONTENT_TYPES, CONTENT_LANES, defaultLaneForType } from '@vigno/shared'
 import { asyncHandler } from '../utils/asyncHandler.js'
 import { audit } from '../utils/audit.js'
 import { badRequest, notFound } from '../utils/ApiError.js'
@@ -89,8 +90,8 @@ export const createContentSchema = z.object({
   chapterId: z.string().length(24),
   title: z.string().trim().min(1).max(200),
   description: z.string().max(2000).optional(),
-  type: z.enum(['pdf', 'video', '3d', 'game']),
-  lane: z.enum(['stream', 'download']).optional(),
+  type: z.enum(CONTENT_TYPES),
+  lane: z.enum(CONTENT_LANES).optional(),
   isPaid: z.boolean().optional(),
   price: z.number().min(0).optional(),
   externalUrl: z.string().url().optional(),
@@ -104,7 +105,7 @@ export const createContent = asyncHandler(async (req, res) => {
   const content = await Content.create({
     ...body,
     courseKey: chapter.courseKey,
-    lane: body.lane || (body.type === 'game' ? 'download' : 'stream'),
+    lane: body.lane || defaultLaneForType(body.type),
   })
   audit(req, 'cms.content.create', { targetType: 'Content', targetId: content._id })
   res.status(201).json(content)

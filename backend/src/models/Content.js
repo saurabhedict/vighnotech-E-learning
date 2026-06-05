@@ -1,4 +1,5 @@
 import mongoose from 'mongoose'
+import { CONTENT_TYPES, CONTENT_LANES, LANES } from '@vigno/shared'
 
 /**
  * A leaf content file (LLD: contents). Catalog item that can be free or paid.
@@ -14,8 +15,8 @@ const contentSchema = new mongoose.Schema(
     title: { type: String, required: true, trim: true },
     description: { type: String, default: '' },
     // pdf | video | 3d | game (matches the frontend viewers)
-    type: { type: String, enum: ['pdf', 'video', '3d', 'game'], required: true },
-    lane: { type: String, enum: ['stream', 'download'], default: 'stream' },
+    type: { type: String, enum: CONTENT_TYPES, required: true },
+    lane: { type: String, enum: CONTENT_LANES, default: LANES.STREAM },
 
     isPaid: { type: Boolean, default: false },
     price: { type: Number, default: 0, min: 0 }, // in INR (paise handled at payment time)

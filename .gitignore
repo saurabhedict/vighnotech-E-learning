@@ -1,9 +1,18 @@
-node_modules
-dist
-dist-ssr
-.env
-.env.local
+# Dependencies & build artifacts (each package has its own too)
+**/node_modules/
+**/dist/
+**/.vite/
+
+# Env & secrets
+**/.env
+**/.env.local
 *.local
+
+# Backend runtime artifacts — generated signing keys & uploaded objects
+backend/keys/
+backend/storage/
+
+# Logs & OS noise
+*.log
 .DS_Store
-.vscode/*
-!.vscode/extensions.json
+Thumbs.db

@@ -1,12 +1,13 @@
 import mongoose from 'mongoose'
 import bcrypt from 'bcryptjs'
+import { USER_ROLES, ROLES } from '@vigno/shared'
 
 const userSchema = new mongoose.Schema(
   {
     email: { type: String, required: true, unique: true, lowercase: true, trim: true, index: true },
     passwordHash: { type: String, required: true, select: false },
     name: { type: String, trim: true, default: '' },
-    role: { type: String, enum: ['user', 'admin'], default: 'user', index: true },
+    role: { type: String, enum: USER_ROLES, default: ROLES.USER, index: true },
 
     // Security trail / account controls (LLD: Auth & Access)
     twoFAEnabled: { type: Boolean, default: false },

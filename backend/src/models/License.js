@@ -1,4 +1,5 @@
 import mongoose from 'mongoose'
+import { LICENSE_TYPES, LICENSE_STATUS } from '@vigno/shared'
 
 /**
  * Source of truth for ownership (LLD: licenses; Doc 2 §4).
@@ -13,8 +14,8 @@ const licenseSchema = new mongoose.Schema(
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     contentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Content', required: true, index: true },
 
-    type: { type: String, enum: ['stream', 'download'], required: true },
-    status: { type: String, enum: ['active', 'revoked', 'expired'], default: 'active', index: true },
+    type: { type: String, enum: LICENSE_TYPES, required: true },
+    status: { type: String, enum: LICENSE_STATUS, default: 'active', index: true },
 
     // For the download lane: the device this license is bound to.
     deviceId: { type: mongoose.Schema.Types.ObjectId, ref: 'Device', default: null },

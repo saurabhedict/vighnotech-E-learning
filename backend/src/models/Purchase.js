@@ -1,4 +1,5 @@
 import mongoose from 'mongoose'
+import { PURCHASE_STATUS } from '@vigno/shared'
 
 /**
  * Proof of payment (LLD: purchases). A purchase is the trigger that lets the
@@ -20,7 +21,7 @@ const purchaseSchema = new mongoose.Schema(
 
     status: {
       type: String,
-      enum: ['created', 'paid', 'failed', 'refunded'],
+      enum: PURCHASE_STATUS,
       default: 'created',
       index: true,
     },
