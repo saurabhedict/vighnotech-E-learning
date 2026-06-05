@@ -1,0 +1,21 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body, #root { height: 100%; }
+body {
+  margin: 0;
+  color: #f3e9e4;
+  background: linear-gradient(135deg, #7a1f2b 0%, #b23a2e 45%, #e67e22 115%);
+  background-attachment: fixed;
+}
+
+/* Light theme override (toggled from the navbar, stored in Redux). */
+.theme-light {
+  background: linear-gradient(135deg, #fff3ec 0%, #ffe3d2 60%, #ffd2ad 120%);
+  color: #2a1418;
+}
+.theme-light .text-vigno-muted { color: #8a6f66; }
+
+/* Plyr accent to match the Vigno theme */
+:root { --plyr-color-main: #e67e22; }
