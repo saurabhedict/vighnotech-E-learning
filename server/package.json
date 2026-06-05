@@ -1,0 +1,34 @@
+{
+  "name": "vigno-smart-class-server",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Vigno Smart Class — backend API + License Authority (Express + MongoDB + ES256 signed licenses). Implements the Xbox/PlayStation account-owns-a-license model per the HLD/LLD.",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "dev": "node --watch src/index.js",
+    "start": "node src/index.js",
+    "seed": "node src/seed/seed.js",
+    "keys:gen": "node src/scripts/genKeys.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cookie-parser": "^1.4.6",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "express-mongo-sanitize": "^2.2.0",
+    "express-rate-limit": "^7.4.0",
+    "helmet": "^7.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.5.1",
+    "morgan": "^1.10.0",
+    "multer": "^2.1.1",
+    "nanoid": "^5.0.7",
+    "razorpay": "^2.9.4",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "mongodb-memory-server": "^10.0.0"
+  }
+}

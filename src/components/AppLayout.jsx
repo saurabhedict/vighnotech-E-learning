@@ -1,16 +1,34 @@
 import { useEffect } from 'react'
 import { Outlet, useNavigate } from 'react-router-dom'
-import { useSelector } from 'react-redux'
+import { useSelector, useDispatch } from 'react-redux'
 import Navbar from './Navbar'
 import Sidebar from './Sidebar'
+import { authApi } from '../api/authApi'
+import { setUser, logout } from '../store/authSlice'
 
-// Auth-guarded shell. Theme (from Redux) is applied as a class on the wrapper.
+// Auth-guarded shell. Validates the persisted session against the backend on
+// mount (refreshes profile, or logs out if the token is no longer valid).
 export default function AppLayout() {
   const navigate = useNavigate()
+  const dispatch = useDispatch()
   const isLoggedIn = useSelector((s) => s.auth.isLoggedIn)
   const theme = useSelector((s) => s.ui.theme)
 
-  useEffect(() => { if (!isLoggedIn) navigate('/') }, [isLoggedIn, navigate])
+  useEffect(() => {
+    if (!isLoggedIn) {
+      navigate('/')
+      return
+    }
+    // Revalidate the session; axios handles a silent refresh, and on hard
+    // failure dispatches logout (which bounces us to /).
+    authApi
+      .me()
+      .then((user) => dispatch(setUser(user)))
+      .catch(() => dispatch(logout()))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoggedIn])
+
+  if (!isLoggedIn) return null
 
   return (
     <div className={(theme === 'light' ? 'theme-light ' : '') + 'min-h-screen flex flex-col'}>

@@ -1,0 +1,13 @@
+node_modules
+.env
+.env.local
+*.log
+
+# Generated signing keys (KMS stand-in) — NEVER commit private keys
+keys/
+
+# Local file storage (S3 stand-in) — uploaded content
+storage/
+
+# in-memory mongo cache
+.cache/

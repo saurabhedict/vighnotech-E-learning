@@ -58,26 +58,35 @@ const TREE = {
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms))
 
-// Attach media sources used by the secure players (HLS stream + sample PDF).
+// Only fall back to mock data on a true TRANSPORT failure (backend not running).
+// Real HTTP errors (401/403/404/500) must propagate so the auth interceptor and
+// React Query error states work — and so paid gating is never silently bypassed.
+const isNetworkError = (err) => !err?.response
+
+// Attach media + a `locked` flag mirroring the backend contract, so the paywall
+// still shows for paid items when running on the offline mock.
 function withMedia(it) {
-  if (it.type === 'video') return { ...it, src: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8' }
-  if (it.type === 'pdf') return { ...it, url: '/sample-notes.pdf' }
-  return it
+  const base = { ...it, paid: !!it.paid, locked: !!it.paid }
+  if (it.paid) return base // locked: no media until purchased
+  if (it.type === 'video') return { ...base, src: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8' }
+  if (it.type === 'pdf') return { ...base, url: '/sample-notes.pdf' }
+  return base
 }
 
 export async function fetchClasses() {
   try { return (await api.get('/courses')).data }
-  catch { await wait(150); return COURSES }
+  catch (err) { if (!isNetworkError(err)) throw err; await wait(150); return COURSES }
 }
 
 export async function fetchClassTree(className) {
   try { return (await api.get(`/courses/${className}/tree`)).data }
-  catch { await wait(300); return TREE[className] ?? [] }
+  catch (err) { if (!isNetworkError(err)) throw err; await wait(300); return TREE[className] ?? [] }
 }
 
 export async function fetchModule(className, moduleId) {
   try { return (await api.get(`/courses/${className}/modules/${moduleId}`)).data }
-  catch {
+  catch (err) {
+    if (!isNetworkError(err)) throw err
     await wait(250)
     for (const s of TREE[className] ?? [])
       for (const m of s.modules)
@@ -88,7 +97,8 @@ export async function fetchModule(className, moduleId) {
 
 export async function fetchContent(contentId) {
   try { return (await api.get(`/contents/${contentId}`)).data }
-  catch {
+  catch (err) {
+    if (!isNetworkError(err)) throw err
     await wait(200)
     for (const cls of Object.values(TREE))
       for (const s of cls)

@@ -1,23 +1,59 @@
 import axios from 'axios'
 import { store } from '../store'
+import { setCredentials, logout } from '../store/authSlice'
 
-// Configured Axios instance for the future backend.
+// Configured Axios instance for the backend (Express + License Authority).
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000/api',
-  timeout: 8000,
+  timeout: 12000,
+  withCredentials: true, // send httpOnly auth/refresh cookies
 })
 
-// Request interceptor — attach the auth token from Redux to every call.
+// Request — attach the access token from Redux as a Bearer header (the backend
+// accepts either the cookie or this header).
 api.interceptors.request.use((config) => {
-  const user = store.getState().auth.user
-  if (user?.token) config.headers.Authorization = `Bearer ${user.token}`
+  const token = store.getState().auth.user?.token
+  if (token) config.headers.Authorization = `Bearer ${token}`
   return config
 })
 
-// Response interceptor — central error logging.
+// Response — on a 401, try ONE silent refresh (via the httpOnly refresh cookie)
+// then replay the original request. If that fails, log the user out.
+let refreshing = null
+
 api.interceptors.response.use(
   (res) => res,
-  (err) => { console.warn('[api] request failed:', err?.message); return Promise.reject(err) }
+  async (err) => {
+    const original = err.config
+    const status = err.response?.status
+
+    // Only skip the silent-refresh for endpoints that must never trigger it
+    // (login/signup/refresh/logout). /auth/me MUST be allowed to refresh-and-retry,
+    // otherwise returning users get logged out on every reload.
+    const noRefresh = /\/auth\/(login|signup|refresh|logout)/.test(original?.url || '')
+    if (status === 401 && original && !original._retried && !noRefresh) {
+      original._retried = true
+      try {
+        refreshing =
+          refreshing ||
+          axios
+            .post(`${api.defaults.baseURL}/auth/refresh`, {}, { withCredentials: true })
+            .finally(() => {
+              refreshing = null
+            })
+        const { data } = await refreshing
+        const current = store.getState().auth.user || {}
+        store.dispatch(setCredentials({ user: { ...current, ...data.user }, token: data.token }))
+        original.headers.Authorization = `Bearer ${data.token}`
+        return api(original)
+      } catch {
+        store.dispatch(logout())
+      }
+    }
+
+    if (import.meta.env.DEV) console.warn('[api]', original?.url, err?.response?.status, err?.message)
+    return Promise.reject(err)
+  }
 )
 
 export default api

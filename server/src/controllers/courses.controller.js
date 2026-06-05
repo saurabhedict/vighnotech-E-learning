@@ -1,0 +1,78 @@
+import { asyncHandler } from '../utils/asyncHandler.js'
+import { notFound } from '../utils/ApiError.js'
+import { Content } from '../models/Content.js'
+import { listCourseSlugs, getCourseTree, getModule } from '../services/contentTree.js'
+import { hasActiveLicense } from '../services/licenseAuthority.js'
+import { buildStreamUrl } from '../services/signedUrl.js'
+
+// GET /courses → ["PPL_Ground", ...] (matches frontend fetchClasses)
+export const listCourses = asyncHandler(async (_req, res) => {
+  res.json(await listCourseSlugs())
+})
+
+// GET /courses/:className/tree
+export const courseTree = asyncHandler(async (req, res) => {
+  const tree = await getCourseTree(req.params.className)
+  if (!tree) throw notFound('Course not found')
+  res.json(tree)
+})
+
+// GET /courses/:className/modules/:moduleId
+export const moduleView = asyncHandler(async (req, res) => {
+  const mod = await getModule(req.params.className, req.params.moduleId)
+  if (!mod) throw notFound('Module not found')
+  res.json(mod)
+})
+
+/**
+ * GET /contents/:contentId
+ * Returns viewer-ready media for FREE or OWNED content; for paid-and-unowned
+ * content returns catalog info + `locked:true` (no media) so the UI can prompt
+ * to buy. This is the server-side ownership check of the stream lane (Doc 1 §6).
+ */
+export const getContent = asyncHandler(async (req, res) => {
+  const content = await Content.findById(req.params.contentId)
+  if (!content || !content.published) throw notFound('Content not found')
+
+  const owned = content.isPaid && req.user ? await hasActiveLicense(req.user.id, content._id) : false
+  const accessible = !content.isPaid || owned
+
+  const base = {
+    id: content._id.toString(),
+    title: content.title,
+    type: content.type,
+    lane: content.lane,
+    paid: content.isPaid,
+    price: content.price,
+  }
+
+  if (!accessible) {
+    return res.json({ ...base, locked: true })
+  }
+
+  // Download lane: no inline media — the launcher fetches an encrypted file + key.
+  if (content.lane === 'download') {
+    return res.json({ ...base, locked: false, requiresLauncher: true })
+  }
+
+  // Stream lane: external demo stream, or a short-lived signed URL to our storage.
+  if (content.externalUrl) {
+    return res.json({
+      ...base,
+      locked: false,
+      ...(content.type === 'video' ? { src: content.externalUrl } : { url: content.externalUrl }),
+    })
+  }
+
+  const userId = req.user?.id || 'anon'
+  const signed = buildStreamUrl(req, {
+    contentId: content._id.toString(),
+    storageKey: content.storageKey,
+    userId,
+  })
+  res.json({
+    ...base,
+    locked: false,
+    ...(content.type === 'video' ? { src: signed } : { url: signed }),
+  })
+})
