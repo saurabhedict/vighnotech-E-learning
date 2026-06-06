@@ -1,6 +1,22 @@
 import { useParams } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import { useClassTree } from '../hooks/useContent'
+import { discoverApi } from '../api/discoverApi'
 import FolderCard from '../components/FolderCard'
+import ContentCard from '../components/ContentCard'
+
+function DiscoverRow({ title, queryKey, queryFn }) {
+  const { data } = useQuery({ queryKey, queryFn })
+  if (!data?.length) return null
+  return (
+    <section className="mb-7">
+      <h2 className="text-base font-bold mb-2.5 pl-2.5 border-l-4 border-vigno-accent2">{title}</h2>
+      <div className="flex gap-4 overflow-x-auto pb-2">
+        {data.map((it) => <ContentCard key={it.id} item={it} />)}
+      </div>
+    </section>
+  )
+}
 
 export default function Home() {
   const { className } = useParams()
@@ -11,6 +27,9 @@ export default function Home() {
     <div>
       <div className="text-sm text-vigno-muted mb-1">AeroLearn › {displayName}</div>
       <h1 className="text-2xl mb-5">{displayName}</h1>
+
+      <DiscoverRow title="▶ Continue watching" queryKey={['progress', 'mine']} queryFn={() => discoverApi.myProgress(10)} />
+      <DiscoverRow title="✨ Recommended for you" queryKey={['recommended']} queryFn={discoverApi.recommended} />
 
       {isLoading && <p className="text-vigno-muted">Loading course content…</p>}
       {isError && <p className="text-red-300">Failed to load. Try again.</p>}

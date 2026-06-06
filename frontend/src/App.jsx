@@ -8,6 +8,8 @@ import Home from './pages/Home'
 import ModuleView from './pages/ModuleView'
 import ContentViewer from './pages/ContentViewer'
 import Library from './pages/Library'
+import Favorites from './pages/Favorites'
+import Search from './pages/Search'
 import Profile from './pages/Profile'
 import AdminDashboard from './pages/admin/AdminDashboard'
 import NotFound from './pages/NotFound'
@@ -21,6 +23,8 @@ export default function App() {
       <Route path="/app" element={<AppLayout />}>
         <Route index element={<Navigate to="PPL_Ground" replace />} />
         <Route path="library" element={<Library />} />
+        <Route path="favorites" element={<Favorites />} />
+        <Route path="search" element={<Search />} />
         <Route path="profile" element={<Profile />} />
         <Route path="admin" element={<RequireAdmin><AdminDashboard /></RequireAdmin>} />
         <Route path="content/:contentId" element={<ContentViewer />} />

@@ -1,9 +1,12 @@
+import { useEffect, useCallback } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useSelector } from 'react-redux'
 import { useContentItem } from '../hooks/useContent'
+import { discoverApi } from '../api/discoverApi'
 import VideoPlayer from '../components/VideoPlayer'
 import PdfViewer from '../components/PdfViewer'
 import BuyButton from '../components/BuyButton'
+import FavoriteButton from '../components/FavoriteButton'
 
 // Picks the right secure viewer based on content type, and gates paid content
 // behind the buy flow (server-issued license unlocks it).
@@ -11,6 +14,19 @@ export default function ContentViewer() {
   const { className, moduleId, contentId } = useParams()
   const user = useSelector((s) => s.auth.user)
   const { data: item, isLoading, isError, refetch } = useContentItem(contentId)
+
+  const accessible = !!item && !item.locked && !item.requiresLauncher
+
+  // Record a view (recently-viewed / continue-watching) when accessible content opens.
+  useEffect(() => {
+    if (accessible && contentId) discoverApi.saveProgress(contentId, {}).catch(() => {})
+  }, [accessible, contentId])
+
+  // Throttled video progress reporting.
+  const onProgress = useCallback(
+    (p) => { discoverApi.saveProgress(contentId, p).catch(() => {}) },
+    [contentId]
+  )
 
   if (isLoading) return <p className="text-vigno-muted">Opening content…</p>
   if (isError || !item) return <p className="text-red-300">Content not found.</p>
@@ -24,7 +40,10 @@ export default function ContentViewer() {
       <div className="text-sm text-vigno-muted mb-1">
         <Link to={backTo} className="text-vigno-accent2 hover:underline">{backLabel}</Link> › Viewer
       </div>
-      <h1 className="text-2xl mb-1">{item.title}</h1>
+      <h1 className="text-2xl mb-1 flex items-center gap-2">
+        {item.title}
+        <FavoriteButton contentId={item.id} className="text-2xl" />
+      </h1>
       <div className="text-xs text-vigno-muted mb-4 capitalize">
         {item.type} ·{' '}
         {item.type === 'video' ? 'HLS adaptive stream (Plyr + HLS.js)'
@@ -58,9 +77,9 @@ export default function ContentViewer() {
         )}
 
         {/* Unlocked stream content */}
-        {!item.locked && !item.requiresLauncher && (
+        {accessible && (
           <>
-            {item.type === 'video' && <VideoPlayer src={item.src} watermark={watermark} />}
+            {item.type === 'video' && <VideoPlayer src={item.src} watermark={watermark} onProgress={onProgress} />}
             {item.type === 'pdf' && (
               <div className="bg-white rounded-xl p-3 max-h-[70vh] overflow-auto">
                 <PdfViewer url={item.url} watermark={watermark} />
@@ -82,7 +101,7 @@ export default function ContentViewer() {
         )}
       </div>
 
-      {!item.locked && !item.requiresLauncher && (
+      {accessible && (
         <p className="text-xs text-vigno-muted mt-3">
           🔐 Watermarked: {watermark} &nbsp;·&nbsp; download disabled &nbsp;·&nbsp; streamed via short-lived signed URL, not stored
         </p>

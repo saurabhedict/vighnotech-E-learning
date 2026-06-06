@@ -15,7 +15,9 @@ export default function Sidebar() {
       <div className="flex gap-1 bg-black/25 rounded-xl p-1 mb-4 text-xs">
         <span className="flex-1 text-center bg-vigno-accent text-[#1a0d0f] font-bold rounded-lg py-1.5">Ground</span>
         <span className="flex-1 text-center text-vigno-muted/60 rounded-lg py-1.5 cursor-not-allowed" title="Coming soon">Flight</span>
-        <span className="flex-1 text-center text-vigno-muted/60 rounded-lg py-1.5 cursor-not-allowed" title="Coming soon">★ Saved</span>
+        <NavLink to="/app/favorites" className={({ isActive }) =>
+          'flex-1 text-center rounded-lg py-1.5 ' + (isActive ? 'bg-vigno-accent text-[#1a0d0f] font-bold' : 'text-vigno-muted hover:bg-white/10')
+        }>★ Saved</NavLink>
       </div>
 
       <div className="text-xs text-vigno-muted uppercase tracking-wide px-2 mb-1">Courses ▾</div>

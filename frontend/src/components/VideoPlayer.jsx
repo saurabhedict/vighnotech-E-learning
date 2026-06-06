@@ -5,7 +5,7 @@ import 'plyr/dist/plyr.css'
 
 // Secure adaptive video: HLS.js feeds an .m3u8 stream into a Plyr player.
 // "Secure" touches: no download control, right-click disabled, watermark overlay.
-export default function VideoPlayer({ src, watermark }) {
+export default function VideoPlayer({ src, watermark, onProgress }) {
   const videoRef = useRef(null)
 
   useEffect(() => {
@@ -25,12 +25,30 @@ export default function VideoPlayer({ src, watermark }) {
     const blockMenu = (e) => e.preventDefault()
     video.addEventListener('contextmenu', blockMenu)
 
+    // Report playback progress (throttled) for continue-watching.
+    let last = 0
+    const report = () => {
+      if (!onProgress || !video.duration) return
+      onProgress({ position: Math.floor(video.currentTime), duration: Math.floor(video.duration) })
+    }
+    const onTime = () => {
+      const now = Date.now()
+      if (now - last > 10_000) { last = now; report() }
+    }
+    video.addEventListener('timeupdate', onTime)
+    video.addEventListener('pause', report)
+    video.addEventListener('ended', report)
+
     return () => {
+      report()
+      video.removeEventListener('timeupdate', onTime)
+      video.removeEventListener('pause', report)
+      video.removeEventListener('ended', report)
       video.removeEventListener('contextmenu', blockMenu)
       player.destroy()
       if (hls) hls.destroy()
     }
-  }, [src])
+  }, [src, onProgress])
 
   return (
     <div className="relative rounded-xl overflow-hidden">
