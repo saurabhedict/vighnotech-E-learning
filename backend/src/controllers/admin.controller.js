@@ -1,9 +1,10 @@
 import { z } from 'zod'
-import { CONTENT_TYPES, CONTENT_LANES, defaultLaneForType } from '@vigno/shared'
+import { CONTENT_TYPES, CONTENT_LANES, USER_ROLES, ROLES, defaultLaneForType } from '@vigno/shared'
 import { asyncHandler } from '../utils/asyncHandler.js'
 import { audit } from '../utils/audit.js'
-import { badRequest, notFound } from '../utils/ApiError.js'
+import { badRequest, notFound, forbidden } from '../utils/ApiError.js'
 import { slugify } from '../utils/slugify.js'
+import { REPORTS, exportReport } from '../services/reports.js'
 import { TreeNode } from '../models/TreeNode.js'
 import { Content } from '../models/Content.js'
 import { License } from '../models/License.js'
@@ -164,4 +165,66 @@ export const recentAudit = asyncHandler(async (req, res) => {
   const limit = Math.min(Number(req.query.limit) || 50, 200)
   const logs = await AuditLog.find().sort({ time: -1 }).limit(limit).lean()
   res.json({ logs })
+})
+
+// ── Tree / content browse (for the CMS UI) ───────────────────────────────────
+export const listNodes = asyncHandler(async (req, res) => {
+  const filter = {}
+  if (req.query.parentId) filter.parentId = req.query.parentId
+  else if (req.query.parentId === 'null' || req.query.root === 'true') filter.parentId = null
+  if (req.query.kind) filter.kind = req.query.kind
+  const nodes = await TreeNode.find(filter).sort({ order: 1, name: 1 }).lean()
+  res.json({ nodes })
+})
+
+export const listContentByChapter = asyncHandler(async (req, res) => {
+  const items = await Content.find({ chapterId: req.params.chapterId }).sort({ order: 1 }).lean()
+  res.json({ items })
+})
+
+// ── User management (LLD: Admin Management) ──────────────────────────────────
+export const listUsers = asyncHandler(async (req, res) => {
+  const q = (req.query.q || '').trim()
+  const filter = q ? { email: { $regex: q, $options: 'i' } } : {}
+  const users = await User.find(filter).select('email name role emailVerified twoFAEnabled createdAt lastLoginAt').sort({ createdAt: -1 }).limit(200).lean()
+  res.json({ users })
+})
+
+export const setUserRoleSchema = z.object({ role: z.enum(USER_ROLES) })
+
+export const setUserRole = asyncHandler(async (req, res) => {
+  const target = await User.findById(req.params.id)
+  if (!target) throw notFound('User not found')
+  const { role } = req.body
+
+  // Last-admin guard: never leave the system with zero admins.
+  if (target.role === ROLES.ADMIN && role !== ROLES.ADMIN) {
+    const admins = await User.countDocuments({ role: ROLES.ADMIN })
+    if (admins <= 1) throw forbidden('Cannot demote the last remaining admin')
+    if (target._id.toString() === req.user.id) throw forbidden('Admins cannot demote themselves')
+  }
+  target.role = role
+  if (role !== target.role) target.tokenVersion += 1
+  await target.save()
+  audit(req, 'admin.user.role', { targetType: 'User', targetId: target._id, meta: { role } })
+  res.json({ ok: true, user: { id: target._id, email: target.email, role: target.role } })
+})
+
+// ── Reports + export ─────────────────────────────────────────────────────────
+export const getReport = asyncHandler(async (req, res) => {
+  const fn = REPORTS[req.params.type]
+  if (!fn) throw badRequest('Unknown report type')
+  res.json(await fn())
+})
+
+export const exportReportHandler = asyncHandler(async (req, res) => {
+  const fn = REPORTS[req.params.type]
+  if (!fn) throw badRequest('Unknown report type')
+  const format = ['csv', 'xlsx', 'pdf'].includes(req.query.format) ? req.query.format : 'csv'
+  const report = await fn()
+  const { buffer, type, ext } = await exportReport(report, format)
+  audit(req, 'admin.report.export', { meta: { type: req.params.type, format } })
+  res.set('Content-Type', type)
+  res.set('Content-Disposition', `attachment; filename="${req.params.type}-report.${ext}"`)
+  res.send(buffer)
 })

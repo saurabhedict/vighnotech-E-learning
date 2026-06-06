@@ -11,6 +11,33 @@ export const adminApi = {
     const { data } = await api.get('/admin/audit', { params: { limit } })
     return data.logs
   },
+  // Reports
+  report(type) {
+    return api.get(`/admin/reports/${type}`).then((r) => r.data)
+  },
+  async exportReport(type, format) {
+    const res = await api.get(`/admin/reports/${type}/export`, { params: { format }, responseType: 'blob' })
+    const url = URL.createObjectURL(res.data)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${type}-report.${format}`
+    a.click()
+    URL.revokeObjectURL(url)
+  },
+  // Users
+  listUsers(q = '') {
+    return api.get('/admin/users', { params: q ? { q } : {} }).then((r) => r.data.users)
+  },
+  setUserRole(id, role) {
+    return api.patch(`/admin/users/${id}/role`, { role }).then((r) => r.data)
+  },
+  // Tree / content browse
+  listNodes(params = {}) {
+    return api.get('/admin/nodes', { params }).then((r) => r.data.nodes)
+  },
+  listChapterContent(chapterId) {
+    return api.get(`/admin/chapters/${chapterId}/content`).then((r) => r.data.items)
+  },
   // Content tree
   createNode(payload) {
     return api.post('/admin/nodes', payload).then((r) => r.data)

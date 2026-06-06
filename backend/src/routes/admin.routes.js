@@ -15,11 +15,21 @@ router.use(requireAuth, requireRole('admin'))
 router.get('/stats', admin.stats)
 router.get('/audit', admin.recentAudit)
 
+// Reports + export (CSV / XLSX / PDF)
+router.get('/reports/:type', admin.getReport)
+router.get('/reports/:type/export', admin.exportReportHandler)
+
+// Users (LLD: Admin Management — promote/demote with last-admin guard)
+router.get('/users', admin.listUsers)
+router.patch('/users/:id/role', validate({ body: admin.setUserRoleSchema }), admin.setUserRole)
+
 // Content tree (CMS)
+router.get('/nodes', admin.listNodes)
 router.post('/nodes', validate({ body: admin.createNodeSchema }), admin.createNode)
+router.post('/nodes/reorder', validate({ body: admin.reorderSchema }), admin.reorderNodes)
 router.patch('/nodes/:id', admin.updateNode)
 router.delete('/nodes/:id', admin.deleteNode)
-router.post('/nodes/reorder', validate({ body: admin.reorderSchema }), admin.reorderNodes)
+router.get('/chapters/:chapterId/content', admin.listContentByChapter)
 
 // Content files
 router.post('/content', validate({ body: admin.createContentSchema }), admin.createContent)

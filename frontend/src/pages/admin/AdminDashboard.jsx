@@ -2,6 +2,9 @@ import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { adminApi } from '../../api/adminApi'
 import { apiErrorMessage } from '../../api/authApi'
+import CmsManager from './CmsManager'
+import UsersPanel from './UsersPanel'
+import ReportsPanel from './ReportsPanel'
 
 function StatCard({ label, value, accent }) {
   return (
@@ -18,7 +21,7 @@ function Overview() {
   if (stats.isError) return <p className="text-red-300">Failed to load stats.</p>
   const s = stats.data
   return (
-    <div className="flex flex-wrap gap-4 mb-8">
+    <div className="flex flex-wrap gap-4">
       <StatCard label="Users" value={s.users} />
       <StatCard label="Content items" value={s.contents} />
       <StatCard label="Purchases" value={s.purchases} />
@@ -32,20 +35,16 @@ function RevokeLicense() {
   const [jti, setJti] = useState('')
   const [reason, setReason] = useState('refund')
   const [msg, setMsg] = useState(null)
-  const queryClient = useQueryClient()
-
+  const qc = useQueryClient()
   const revoke = async () => {
     setMsg(null)
     try {
       await adminApi.revokeLicense(jti.trim(), reason)
       setMsg({ ok: true, text: `Revoked ${jti}` })
       setJti('')
-      queryClient.invalidateQueries({ queryKey: ['admin', 'stats'] })
-    } catch (e) {
-      setMsg({ ok: false, text: apiErrorMessage(e, 'Revoke failed') })
-    }
+      qc.invalidateQueries({ queryKey: ['admin', 'stats'] })
+    } catch (e) { setMsg({ ok: false, text: apiErrorMessage(e, 'Revoke failed') }) }
   }
-
   const input = 'px-3 py-2 rounded-lg bg-[#1c0e11] border border-vigno-line text-sm outline-none focus:border-vigno-accent'
   return (
     <div>
@@ -54,65 +53,23 @@ function RevokeLicense() {
       <div className="flex flex-wrap gap-2 items-center">
         <input placeholder="lic_…" value={jti} onChange={(e) => setJti(e.target.value)} className={input + ' flex-1 min-w-[200px] font-mono'} />
         <select value={reason} onChange={(e) => setReason(e.target.value)} className={input}>
-          <option value="refund">refund</option>
-          <option value="fraud">fraud</option>
-          <option value="admin_revoke">admin</option>
+          <option value="refund">refund</option><option value="fraud">fraud</option><option value="admin_revoke">admin</option>
         </select>
-        <button onClick={revoke} disabled={!jti.trim()}
-          className="bg-red-500/80 hover:bg-red-500 text-white font-bold px-4 py-2 rounded-lg text-sm disabled:opacity-50">
-          Revoke
-        </button>
-      </div>
-    </div>
-  )
-}
-
-function CreateCourse() {
-  const [name, setName] = useState('')
-  const [msg, setMsg] = useState(null)
-  const queryClient = useQueryClient()
-
-  const create = async () => {
-    setMsg(null)
-    try {
-      const node = await adminApi.createNode({ kind: 'course', name: name.trim() })
-      setMsg({ ok: true, text: `Created course "${node.name}" (${node.slug})` })
-      setName('')
-      queryClient.invalidateQueries({ queryKey: ['classes'] })
-    } catch (e) {
-      setMsg({ ok: false, text: apiErrorMessage(e, 'Create failed') })
-    }
-  }
-
-  const input = 'px-3 py-2 rounded-lg bg-[#1c0e11] border border-vigno-line text-sm outline-none focus:border-vigno-accent'
-  return (
-    <div>
-      <p className="text-xs text-vigno-muted mb-3">Add a top-level course. It appears in the sidebar immediately.</p>
-      {msg && <p className={'text-sm mb-2 ' + (msg.ok ? 'text-green-300' : 'text-red-300')}>{msg.text}</p>}
-      <div className="flex gap-2">
-        <input placeholder="Course name" value={name} onChange={(e) => setName(e.target.value)} className={input + ' flex-1'} />
-        <button onClick={create} disabled={!name.trim()}
-          className="bg-vigno-accent text-[#1a0d0f] font-bold px-4 py-2 rounded-lg text-sm disabled:opacity-50">
-          Create
-        </button>
+        <button onClick={revoke} disabled={!jti.trim()} className="bg-red-500/80 hover:bg-red-500 text-white font-bold px-4 py-2 rounded-lg text-sm disabled:opacity-50">Revoke</button>
       </div>
     </div>
   )
 }
 
 function AuditLog() {
-  const audit = useQuery({ queryKey: ['admin', 'audit'], queryFn: () => adminApi.audit(40) })
+  const audit = useQuery({ queryKey: ['admin', 'audit'], queryFn: () => adminApi.audit(60) })
   if (audit.isLoading) return <p className="text-vigno-muted">Loading activity…</p>
   if (audit.isError) return <p className="text-red-300">Failed to load activity.</p>
   return (
-    <div className="max-h-96 overflow-auto">
+    <div className="max-h-[28rem] overflow-auto">
       <table className="w-full text-sm">
         <thead className="bg-black/20 text-vigno-muted text-xs sticky top-0">
-          <tr>
-            <th className="text-left px-3 py-2">Action</th>
-            <th className="text-left px-3 py-2">Target</th>
-            <th className="text-left px-3 py-2">Time</th>
-          </tr>
+          <tr><th className="text-left px-3 py-2">Action</th><th className="text-left px-3 py-2">Target</th><th className="text-left px-3 py-2">Time</th></tr>
         </thead>
         <tbody>
           {audit.data.map((l) => (
@@ -137,20 +94,34 @@ function Panel({ title, children }) {
   )
 }
 
+const TABS = [
+  { key: 'overview', label: 'Overview' },
+  { key: 'content', label: 'Content (CMS)' },
+  { key: 'users', label: 'Users' },
+  { key: 'reports', label: 'Reports' },
+  { key: 'licenses', label: 'Licenses' },
+  { key: 'audit', label: 'Audit' },
+]
+
 export default function AdminDashboard() {
+  const [tab, setTab] = useState('overview')
+  const tabCls = (a) => 'px-3 py-1.5 rounded-lg text-sm ' + (a ? 'bg-vigno-accent text-[#1a0d0f] font-bold' : 'bg-white/10 hover:bg-white/20')
+
   return (
     <div>
       <div className="text-sm text-vigno-muted mb-1">AeroLearn › Admin</div>
       <h1 className="text-2xl mb-5">🛠 Admin Dashboard</h1>
 
-      <Overview />
-
-      <div className="grid lg:grid-cols-2 gap-6">
-        <Panel title="Create Course"><CreateCourse /></Panel>
-        <Panel title="Revoke License"><RevokeLicense /></Panel>
+      <div className="flex flex-wrap gap-2 mb-6">
+        {TABS.map((t) => <button key={t.key} className={tabCls(tab === t.key)} onClick={() => setTab(t.key)}>{t.label}</button>)}
       </div>
 
-      <Panel title="Recent Activity (Audit Log)"><AuditLog /></Panel>
+      {tab === 'overview' && <><div className="mb-6"><Overview /></div></>}
+      {tab === 'content' && <Panel title="Content Tree Manager"><CmsManager /></Panel>}
+      {tab === 'users' && <Panel title="Users & Roles"><UsersPanel /></Panel>}
+      {tab === 'reports' && <Panel title="Reports & Export"><ReportsPanel /></Panel>}
+      {tab === 'licenses' && <Panel title="Revoke License"><RevokeLicense /></Panel>}
+      {tab === 'audit' && <Panel title="Recent Activity (Audit Log)"><AuditLog /></Panel>}
     </div>
   )
 }
