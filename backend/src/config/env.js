@@ -79,6 +79,18 @@ export const env = {
     maxAttempts: num(process.env.OTP_MAX_ATTEMPTS, 5),
   },
 
+  // Optional studio-grade video DRM (Widevine/FairPlay). Configure a provider
+  // to enable; otherwise the player falls back to the standard HLS stream.
+  drm: {
+    provider: process.env.DRM_PROVIDER || '', // 'mux' | 'vdocipher'
+    muxTokenId: process.env.MUX_TOKEN_ID || '',
+    muxTokenSecret: process.env.MUX_TOKEN_SECRET || '',
+    vdocipherApiSecret: process.env.VDOCIPHER_API_SECRET || '',
+    get configured() {
+      return !!this.provider
+    },
+  },
+
   seed: {
     adminEmail: process.env.SEED_ADMIN_EMAIL || 'admin@vigno.in',
     adminPassword: process.env.SEED_ADMIN_PASSWORD || 'Admin@12345',

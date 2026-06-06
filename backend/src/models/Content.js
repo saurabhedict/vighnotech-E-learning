@@ -26,6 +26,12 @@ const contentSchema = new mongoose.Schema(
     // For external HLS/test streams used in the demo viewer.
     externalUrl: { type: String, default: '' },
 
+    // Optional studio-grade DRM (Widevine/FairPlay via Mux/VdoCipher).
+    drm: {
+      provider: { type: String, enum: ['mux', 'vdocipher', null], default: null },
+      assetId: { type: String, default: '' },
+    },
+
     durationSec: { type: Number },
     sizeBytes: { type: Number },
     tags: { type: [String], default: [] },

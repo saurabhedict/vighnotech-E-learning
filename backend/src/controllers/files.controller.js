@@ -9,6 +9,17 @@ import { Device } from '../models/Device.js'
 import { hasActiveLicense, verifyToken } from '../services/licenseAuthority.js'
 import { buildStreamUrl, verifySignedToken } from '../services/signedUrl.js'
 import { resolveKey, statKey, readStream } from '../services/storage.js'
+import { getDrmPlayback } from '../services/drm.js'
+
+// GET /content/:id/drm-token — ownership-gated DRM playback descriptor.
+// Returns { drm:false } when no provider/asset is configured (HLS fallback).
+export const getDrmToken = asyncHandler(async (req, res) => {
+  const content = await Content.findById(req.params.id)
+  if (!content || !content.published) throw notFound('Content not found')
+  if (content.isPaid && !(await hasActiveLicense(req.user.id, content._id))) throw paymentRequired()
+  const playback = await getDrmPlayback(content)
+  res.json(playback ? { drm: true, ...playback } : { drm: false })
+})
 
 const MIME = {
   '.pdf': 'application/pdf',

@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from 'react'
+import { useEffect, useCallback, lazy, Suspense } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useSelector } from 'react-redux'
 import { useContentItem } from '../hooks/useContent'
@@ -7,6 +7,9 @@ import VideoPlayer from '../components/VideoPlayer'
 import PdfViewer from '../components/PdfViewer'
 import BuyButton from '../components/BuyButton'
 import FavoriteButton from '../components/FavoriteButton'
+
+// Lazy so Three.js is only downloaded when a 3D item is opened.
+const Model3DViewer = lazy(() => import('../components/Model3DViewer'))
 
 // Picks the right secure viewer based on content type, and gates paid content
 // behind the buy flow (server-issued license unlocks it).
@@ -86,10 +89,9 @@ export default function ContentViewer() {
               </div>
             )}
             {item.type === '3d' && (
-              <div className="h-72 flex flex-col items-center justify-center text-vigno-muted">
-                <div className="text-5xl mb-2">✈</div>
-                <div>Interactive 3D aviation model.</div>
-              </div>
+              <Suspense fallback={<div className="h-72 flex items-center justify-center text-vigno-muted">Loading 3D viewer…</div>}>
+                <Model3DViewer src={item.url} watermark={watermark} />
+              </Suspense>
             )}
             {item.type === 'game' && (
               <div className="h-72 flex flex-col items-center justify-center text-vigno-muted text-center">

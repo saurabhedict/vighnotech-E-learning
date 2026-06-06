@@ -8,6 +8,7 @@ import * as files from '../controllers/files.controller.js'
 const router = Router()
 
 router.get('/:id/stream-url', requireAuth, files.getStreamUrl)
+router.get('/:id/drm-token', requireAuth, files.getDrmToken)
 router.get('/:id/download', requireAuth, files.downloadEncrypted)
 router.post('/:id/key', requireAuth, verifyLimiter, validate({ body: files.keySchema }), files.getDecryptionKey)
 
