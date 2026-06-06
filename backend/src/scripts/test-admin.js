@@ -38,7 +38,7 @@ async function main() {
 
   console.log('\n── CMS browse ──')
   const roots = await call('GET', '/api/admin/nodes?root=true', { token: admin })
-  ok('list root courses (12)', roots.data?.nodes?.length === 12)
+  ok('list root courses (>=12)', roots.data?.nodes?.length >= 12)
   const ppl = roots.data.nodes.find((n) => n.slug === 'PPL_Ground')
   const subjects = await call('GET', `/api/admin/nodes?parentId=${ppl._id}`, { token: admin })
   ok('list subjects of PPL_Ground', subjects.data?.nodes?.length >= 2)

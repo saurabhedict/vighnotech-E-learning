@@ -55,6 +55,9 @@ export const env = {
 
   storageDir: process.env.STORAGE_DIR || './storage',
 
+  // Cache: in-memory stand-in by default; set REDIS_URL to back it with Redis.
+  redisUrl: process.env.REDIS_URL || '',
+
   app: {
     name: process.env.APP_NAME || 'Vigno Smart Class',
     url: process.env.APP_URL || 'http://localhost:5173',

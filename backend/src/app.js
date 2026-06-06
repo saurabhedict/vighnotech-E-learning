@@ -3,6 +3,7 @@ import cookieParser from 'cookie-parser'
 import cors from 'cors'
 import helmet from 'helmet'
 import morgan from 'morgan'
+import compression from 'compression'
 import mongoSanitize from 'express-mongo-sanitize'
 
 import { env } from './config/env.js'
@@ -26,7 +27,8 @@ export function createApp() {
   const app = express()
   app.set('trust proxy', 1)
 
-  // ── Security & hardening (Doc 2 §9) ────────────────────────────────────────
+  // ── Performance & hardening (Doc 2 §9) ─────────────────────────────────────
+  app.use(compression()) // gzip/brotli responses
   app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }))
   app.use(
     cors({

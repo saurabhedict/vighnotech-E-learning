@@ -4,10 +4,11 @@ import { Content } from '../models/Content.js'
 import { listCourseSlugs, getCourseTree, getModule } from '../services/contentTree.js'
 import { hasActiveLicense } from '../services/licenseAuthority.js'
 import { buildStreamUrl } from '../services/signedUrl.js'
+import { cache } from '../services/cache.js'
 
-// GET /courses → ["PPL_Ground", ...] (matches frontend fetchClasses)
+// GET /courses → ["PPL_Ground", ...] (matches frontend fetchClasses). Cached.
 export const listCourses = asyncHandler(async (_req, res) => {
-  res.json(await listCourseSlugs())
+  res.json(await cache.wrap('courses:slugs', 30, listCourseSlugs))
 })
 
 // GET /courses/:className/tree

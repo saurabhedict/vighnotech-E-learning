@@ -8,6 +8,7 @@ import { REPORTS, exportReport } from '../services/reports.js'
 import { Coupon } from '../models/Coupon.js'
 import { creditWallet } from '../services/commerce.js'
 import { revokeLicense } from '../services/licenseAuthority.js'
+import { cache } from '../services/cache.js'
 import { TreeNode } from '../models/TreeNode.js'
 import { Content } from '../models/Content.js'
 import { License } from '../models/License.js'
@@ -44,6 +45,7 @@ export const createNode = asyncHandler(async (req, res) => {
   }
   const courseKey = await resolveCourseKey(parentId, kind, slug)
   const node = await TreeNode.create({ kind, name, parentId, slug, courseKey, order: order ?? 0 })
+  if (kind === 'course') cache.del('courses:slugs')
   audit(req, 'cms.node.create', { targetType: 'TreeNode', targetId: node._id, meta: { kind, name } })
   res.status(201).json(node)
 })
@@ -76,6 +78,7 @@ export const deleteNode = asyncHandler(async (req, res) => {
   }
   await Content.deleteMany({ chapterId: { $in: toDelete } })
   await TreeNode.deleteMany({ _id: { $in: toDelete } })
+  cache.del('courses:slugs')
   audit(req, 'cms.node.delete', { targetType: 'TreeNode', targetId: root._id, meta: { removed: toDelete.length } })
   res.json({ ok: true, removed: toDelete.length })
 })
@@ -148,26 +151,27 @@ export const uploadContentFile = asyncHandler(async (req, res) => {
 
 // ── Dashboard (LLD: Admin Dashboard & Reports) ───────────────────────────────
 export const stats = asyncHandler(async (_req, res) => {
-  const [users, contents, paid, activeLicenses, revenueAgg] = await Promise.all([
-    User.countDocuments(),
-    Content.countDocuments(),
-    Purchase.countDocuments({ status: 'paid' }),
-    License.countDocuments({ status: 'active' }),
-    Purchase.aggregate([{ $match: { status: 'paid' } }, { $group: { _id: null, total: { $sum: '$amount' } } }]),
-  ])
-  res.json({
-    users,
-    contents,
-    purchases: paid,
-    activeLicenses,
-    revenue: revenueAgg[0]?.total || 0,
+  const data = await cache.wrap('admin:stats', 15, async () => {
+    const [users, contents, paid, activeLicenses, revenueAgg] = await Promise.all([
+      User.countDocuments(),
+      Content.countDocuments(),
+      Purchase.countDocuments({ status: 'paid' }),
+      License.countDocuments({ status: 'active' }),
+      Purchase.aggregate([{ $match: { status: 'paid' } }, { $group: { _id: null, total: { $sum: '$amount' } } }]),
+    ])
+    return { users, contents, purchases: paid, activeLicenses, revenue: revenueAgg[0]?.total || 0 }
   })
+  res.json(data)
 })
 
 export const recentAudit = asyncHandler(async (req, res) => {
+  const page = Math.max(1, Number(req.query.page) || 1)
   const limit = Math.min(Number(req.query.limit) || 50, 200)
-  const logs = await AuditLog.find().sort({ time: -1 }).limit(limit).lean()
-  res.json({ logs })
+  const [logs, total] = await Promise.all([
+    AuditLog.find().sort({ time: -1 }).skip((page - 1) * limit).limit(limit).lean(),
+    AuditLog.estimatedDocumentCount(),
+  ])
+  res.json({ logs, page, limit, total })
 })
 
 // ── Tree / content browse (for the CMS UI) ───────────────────────────────────
@@ -189,8 +193,13 @@ export const listContentByChapter = asyncHandler(async (req, res) => {
 export const listUsers = asyncHandler(async (req, res) => {
   const q = (req.query.q || '').trim()
   const filter = q ? { email: { $regex: q, $options: 'i' } } : {}
-  const users = await User.find(filter).select('email name role emailVerified twoFAEnabled createdAt lastLoginAt').sort({ createdAt: -1 }).limit(200).lean()
-  res.json({ users })
+  const page = Math.max(1, Number(req.query.page) || 1)
+  const limit = Math.min(Number(req.query.limit) || 50, 200)
+  const [users, total] = await Promise.all([
+    User.find(filter).select('email name role emailVerified twoFAEnabled createdAt lastLoginAt').sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).lean(),
+    User.countDocuments(filter),
+  ])
+  res.json({ users, page, limit, total })
 })
 
 export const setUserRoleSchema = z.object({ role: z.enum(USER_ROLES) })

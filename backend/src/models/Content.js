@@ -43,6 +43,8 @@ const contentSchema = new mongoose.Schema(
 )
 
 contentSchema.index({ courseKey: 1, published: 1 })
+// Full-text index for search (title/description/tags).
+contentSchema.index({ title: 'text', description: 'text', tags: 'text' })
 
 // Public catalog shape (no storage internals leaked).
 contentSchema.methods.toCatalogJSON = function toCatalogJSON() {
