@@ -72,13 +72,17 @@ export default function Library() {
                 <th className="text-left px-4 py-2.5">Amount</th>
                 <th className="text-left px-4 py-2.5">Status</th>
                 <th className="text-left px-4 py-2.5">Date</th>
+                <th className="text-right px-4 py-2.5">Invoice</th>
               </tr>
             </thead>
             <tbody>
               {purchases.data.map((p) => (
                 <tr key={p._id} className="border-t border-vigno-line/50">
                   <td className="px-4 py-2.5">{p.contentId?.title || '—'}</td>
-                  <td className="px-4 py-2.5">₹{p.amount}</td>
+                  <td className="px-4 py-2.5">
+                    ₹{p.amount}
+                    {p.discount > 0 && <span className="text-green-300 text-xs ml-1">(−₹{p.discount}{p.couponCode ? ` ${p.couponCode}` : ''})</span>}
+                  </td>
                   <td className="px-4 py-2.5">
                     <span className={'text-[10px] font-bold px-2 py-0.5 rounded-full ' +
                       (p.status === 'paid' ? 'bg-green-500/20 text-green-300'
@@ -88,6 +92,11 @@ export default function Library() {
                     </span>
                   </td>
                   <td className="px-4 py-2.5 text-vigno-muted">{fmt(p.paidAt || p.createdAt)}</td>
+                  <td className="px-4 py-2.5 text-right">
+                    {['paid', 'refunded'].includes(p.status) && (
+                      <button onClick={() => paymentsApi.downloadInvoice(p._id)} className="text-xs text-vigno-accent2 hover:underline">⬇ PDF</button>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>

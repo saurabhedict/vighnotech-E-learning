@@ -1,13 +1,14 @@
 import api from './axiosClient'
 
 // Payments (Razorpay or the dev mock gateway). The buy flow:
-//   1. createOrder(contentId) → order details
+//   1. createOrder(contentId, couponCode?) → order details
 //   2. (real) open Razorpay checkout → get {payment_id, signature}
 //      (mock) the order already includes mockPaymentId + mockSignature
 //   3. verify(...) → license issued, content unlocks
+// Or pay instantly from wallet balance via walletPay().
 export const paymentsApi = {
-  async createOrder(contentId) {
-    const { data } = await api.post('/payments/order', { contentId })
+  async createOrder(contentId, couponCode) {
+    const { data } = await api.post('/payments/order', { contentId, ...(couponCode ? { couponCode } : {}) })
     return data
   },
   async verify({ orderId, paymentId, signature }) {
@@ -18,8 +19,21 @@ export const paymentsApi = {
     })
     return data
   },
+  async walletPay(contentId, couponCode) {
+    const { data } = await api.post('/payments/wallet', { contentId, ...(couponCode ? { couponCode } : {}) })
+    return data
+  },
   async mine() {
     const { data } = await api.get('/payments/mine')
     return data.purchases
+  },
+  async downloadInvoice(purchaseId) {
+    const res = await api.get(`/payments/${purchaseId}/invoice`, { responseType: 'blob' })
+    const url = URL.createObjectURL(res.data)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `invoice-${purchaseId}.pdf`
+    a.click()
+    URL.revokeObjectURL(url)
   },
 }

@@ -5,6 +5,7 @@ import { apiErrorMessage } from '../../api/authApi'
 import CmsManager from './CmsManager'
 import UsersPanel from './UsersPanel'
 import ReportsPanel from './ReportsPanel'
+import CommercePanel from './CommercePanel'
 
 function StatCard({ label, value, accent }) {
   return (
@@ -99,6 +100,7 @@ const TABS = [
   { key: 'content', label: 'Content (CMS)' },
   { key: 'users', label: 'Users' },
   { key: 'reports', label: 'Reports' },
+  { key: 'commerce', label: 'Commerce' },
   { key: 'licenses', label: 'Licenses' },
   { key: 'audit', label: 'Audit' },
 ]
@@ -120,6 +122,7 @@ export default function AdminDashboard() {
       {tab === 'content' && <Panel title="Content Tree Manager"><CmsManager /></Panel>}
       {tab === 'users' && <Panel title="Users & Roles"><UsersPanel /></Panel>}
       {tab === 'reports' && <Panel title="Reports & Export"><ReportsPanel /></Panel>}
+      {tab === 'commerce' && <Panel title="Coupons & Refunds"><CommercePanel /></Panel>}
       {tab === 'licenses' && <Panel title="Revoke License"><RevokeLicense /></Panel>}
       {tab === 'audit' && <Panel title="Recent Activity (Audit Log)"><AuditLog /></Panel>}
     </div>

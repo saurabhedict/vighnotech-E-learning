@@ -19,8 +19,8 @@ function loadRazorpayScript() {
  *    verify immediately — no external modal.
  *  - LIVE: open the Razorpay checkout modal, then verify the signed response.
  */
-export async function purchaseContent(contentId, user) {
-  const order = await paymentsApi.createOrder(contentId)
+export async function purchaseContent(contentId, user, couponCode) {
+  const order = await paymentsApi.createOrder(contentId, couponCode)
 
   if (order.mock) {
     return paymentsApi.verify({

@@ -41,6 +41,7 @@ export default function Navbar() {
       </form>
 
       <NavLink to="/app/favorites" className={linkCls}>★ Saved</NavLink>
+      <NavLink to="/app/wallet" className={linkCls}>👛 Wallet</NavLink>
       <NavLink to="/app/library" className={linkCls}>📚 Library</NavLink>
       <NavLink to="/app/profile" className={linkCls}>👤 Profile</NavLink>
       {user?.role === 'admin' && <NavLink to="/app/admin" className={linkCls}>🛠 Admin</NavLink>}

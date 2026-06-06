@@ -5,6 +5,9 @@ import { audit } from '../utils/audit.js'
 import { badRequest, notFound, forbidden } from '../utils/ApiError.js'
 import { slugify } from '../utils/slugify.js'
 import { REPORTS, exportReport } from '../services/reports.js'
+import { Coupon } from '../models/Coupon.js'
+import { creditWallet } from '../services/commerce.js'
+import { revokeLicense } from '../services/licenseAuthority.js'
 import { TreeNode } from '../models/TreeNode.js'
 import { Content } from '../models/Content.js'
 import { License } from '../models/License.js'
@@ -227,4 +230,53 @@ export const exportReportHandler = asyncHandler(async (req, res) => {
   res.set('Content-Type', type)
   res.set('Content-Disposition', `attachment; filename="${req.params.type}-report.${ext}"`)
   res.send(buffer)
+})
+
+// ── Coupons (LLD: Coupons/Codes) ─────────────────────────────────────────────
+export const createCouponSchema = z.object({
+  code: z.string().trim().min(3).max(40),
+  kind: z.enum(['percent', 'flat']),
+  value: z.number().positive(),
+  maxRedemptions: z.number().int().min(0).optional(),
+  expiresAt: z.string().datetime().optional(),
+  active: z.boolean().optional(),
+})
+
+export const createCoupon = asyncHandler(async (req, res) => {
+  const body = { ...req.body, code: req.body.code.toUpperCase() }
+  if (body.expiresAt) body.expiresAt = new Date(body.expiresAt)
+  const coupon = await Coupon.create(body)
+  audit(req, 'admin.coupon.create', { targetType: 'Coupon', targetId: coupon._id, meta: { code: coupon.code } })
+  res.status(201).json(coupon)
+})
+
+export const listCoupons = asyncHandler(async (_req, res) => {
+  res.json({ coupons: await Coupon.find().sort({ createdAt: -1 }).lean() })
+})
+
+export const deleteCoupon = asyncHandler(async (req, res) => {
+  const c = await Coupon.findByIdAndDelete(req.params.id)
+  if (!c) throw notFound('Coupon not found')
+  res.json({ ok: true })
+})
+
+// ── Refunds (LLD: Refunds → revoke) ──────────────────────────────────────────
+export const refundPurchase = asyncHandler(async (req, res) => {
+  const { Purchase } = await import('../models/Purchase.js')
+  const purchase = await Purchase.findById(req.params.id)
+  if (!purchase) throw notFound('Purchase not found')
+  if (purchase.status !== 'paid') throw badRequest('Only paid purchases can be refunded')
+
+  // 1) Revoke the license so access stops on the next verify.
+  if (purchase.licenseId) await revokeLicense(purchase.licenseId, 'refund')
+  // 2) Refund to the buyer's wallet as store credit (records a ledger entry).
+  const buyer = await User.findById(purchase.userId)
+  if (buyer) await creditWallet(buyer, purchase.amount, { type: 'refund', note: 'Refund', ref: String(purchase._id) })
+  // 3) Mark refunded. (For Razorpay payments, also call the gateway refund API in prod.)
+  purchase.status = 'refunded'
+  purchase.refundedAt = new Date()
+  await purchase.save()
+
+  audit(req, 'admin.refund', { targetType: 'Purchase', targetId: purchase._id, meta: { amount: purchase.amount } })
+  res.json({ ok: true, refunded: purchase.amount, licenseRevoked: !!purchase.licenseId })
 })

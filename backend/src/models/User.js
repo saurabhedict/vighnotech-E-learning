@@ -19,6 +19,8 @@ const userSchema = new mongoose.Schema(
     backupCodes: { type: [{ codeHash: String, usedAt: Date }], select: false, default: [] },
 
     emailVerified: { type: Boolean, default: false },
+    // Wallet balance (INR) for credits / refunds (LLD: Wallet/Credits).
+    walletBalance: { type: Number, default: 0, min: 0 },
     // Bumped on logout-all / password change to invalidate outstanding refresh tokens.
     tokenVersion: { type: Number, default: 0 },
     lastLoginAt: { type: Date },

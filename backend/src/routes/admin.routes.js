@@ -41,4 +41,12 @@ router.post('/content/:id/upload', upload.single('file'), admin.uploadContentFil
 router.post('/licenses/issue', validate({ body: lic.adminIssueSchema }), lic.adminIssue)
 router.post('/licenses/:jti/revoke', lic.revoke)
 
+// Coupons
+router.get('/coupons', admin.listCoupons)
+router.post('/coupons', validate({ body: admin.createCouponSchema }), admin.createCoupon)
+router.delete('/coupons/:id', admin.deleteCoupon)
+
+// Refunds (refund → revoke license + wallet credit)
+router.post('/purchases/:id/refund', admin.refundPurchase)
+
 export default router

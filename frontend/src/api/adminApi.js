@@ -75,4 +75,18 @@ export const adminApi = {
   revokeLicense(jti, reason) {
     return api.post(`/admin/licenses/${jti}/revoke`, { reason }).then((r) => r.data)
   },
+  // Coupons
+  listCoupons() {
+    return api.get('/admin/coupons').then((r) => r.data.coupons)
+  },
+  createCoupon(payload) {
+    return api.post('/admin/coupons', payload).then((r) => r.data)
+  },
+  deleteCoupon(id) {
+    return api.delete(`/admin/coupons/${id}`).then((r) => r.data)
+  },
+  // Refund a purchase (revokes license + credits wallet)
+  refundPurchase(purchaseId) {
+    return api.post(`/admin/purchases/${purchaseId}/refund`).then((r) => r.data)
+  },
 }

@@ -20,6 +20,7 @@ import contentRoutes from './routes/content.routes.js'
 import filesRoutes from './routes/files.routes.js'
 import devicesRoutes from './routes/devices.routes.js'
 import discoverRoutes from './routes/discover.routes.js'
+import commerceRoutes from './routes/commerce.routes.js'
 
 export function createApp() {
   const app = express()
@@ -58,6 +59,7 @@ export function createApp() {
   app.use('/api/auth', authRoutes)
   app.use('/api', coursesRoutes) // /courses, /contents/:id
   app.use('/api', discoverRoutes) // /search, /favorites, /progress, /recommended
+  app.use('/api', commerceRoutes) // /wallet, /coupons/validate
   app.use('/api/licenses', licenseRoutes)
   app.use('/api/payments', paymentsRoutes)
   app.use('/api/content', contentRoutes)
