@@ -26,6 +26,38 @@ export const authApi = {
     const { data } = await api.post('/auth/change-password', { currentPassword, newPassword })
     return data
   },
+
+  // Second step of a 2FA login.
+  async verify2fa(challenge, code) {
+    const { data } = await api.post('/auth/2fa/verify', { challenge, code })
+    return data
+  },
+
+  // Email verification
+  async sendEmailVerification() {
+    return (await api.post('/auth/send-verification')).data
+  },
+  async verifyEmail(code) {
+    return (await api.post('/auth/verify-email', { code })).data
+  },
+
+  // Password reset (no auth)
+  async forgotPassword(email) {
+    return (await api.post('/auth/forgot-password', { email })).data
+  },
+  async resetPassword(email, code, newPassword) {
+    return (await api.post('/auth/reset-password', { email, code, newPassword })).data
+  },
+
+  // Two-factor management
+  twoFA: {
+    status: () => api.get('/auth/2fa/status').then((r) => r.data),
+    setupTotp: () => api.post('/auth/2fa/totp/setup').then((r) => r.data),
+    enableTotp: (code) => api.post('/auth/2fa/totp/enable', { code }).then((r) => r.data),
+    enableEmail: () => api.post('/auth/2fa/email/enable').then((r) => r.data),
+    disable: (password) => api.post('/auth/2fa/disable', { password }).then((r) => r.data),
+    regenerateBackupCodes: (password) => api.post('/auth/2fa/backup-codes', { password }).then((r) => r.data),
+  },
 }
 
 // Normalize an Axios error into a human message.

@@ -3,6 +3,7 @@ import AppLayout from './components/AppLayout'
 import RequireAdmin from './components/RequireAdmin'
 import Login from './pages/Login'
 import Signup from './pages/Signup'
+import ForgotPassword from './pages/ForgotPassword'
 import Home from './pages/Home'
 import ModuleView from './pages/ModuleView'
 import ContentViewer from './pages/ContentViewer'
@@ -16,6 +17,7 @@ export default function App() {
     <Routes>
       <Route path="/" element={<Login />} />
       <Route path="/signup" element={<Signup />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/app" element={<AppLayout />}>
         <Route index element={<Navigate to="PPL_Ground" replace />} />
         <Route path="library" element={<Library />} />

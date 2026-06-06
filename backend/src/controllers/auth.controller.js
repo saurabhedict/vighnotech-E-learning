@@ -1,3 +1,4 @@
+import crypto from 'node:crypto'
 import { z } from 'zod'
 import ms from '../utils/ms.js'
 import { User } from '../models/User.js'
@@ -9,10 +10,35 @@ import {
   signAccessToken,
   signRefreshToken,
   verifyRefreshToken,
+  sign2faChallenge,
+  verify2faChallenge,
   cookieOpts,
   ACCESS_COOKIE,
   REFRESH_COOKIE,
 } from '../utils/tokens.js'
+import { issueOtp, verifyOtp } from '../services/otpService.js'
+import { sendMail, newDeviceEmail } from '../services/mailer.js'
+import { verifyTotp, consumeBackupCode } from '../services/twoFactor.js'
+
+// Detect a new login device (hash of ip+user-agent). On first sight, email the
+// user a "new sign-in" alert. `user` must be loaded with +loginDevices.
+async function recordLoginDevice(req, user) {
+  const ua = req.headers['user-agent'] || 'unknown'
+  const ip = req.ip || 'unknown'
+  const hash = crypto.createHash('sha256').update(`${ip}|${ua}`).digest('hex')
+  const known = (user.loginDevices || []).find((d) => d.hash === hash)
+  const now = new Date()
+  if (known) {
+    known.lastSeen = now
+  } else {
+    user.loginDevices.push({ hash, label: ua.slice(0, 80), firstSeen: now, lastSeen: now })
+    // Only alert for established accounts (not the very first ever login).
+    if (user.loginDevices.length > 1) {
+      sendMail(newDeviceEmail(user.email, { ip, ua, when: now.toUTCString() })).catch(() => {})
+      audit(req, 'auth.new_device', { targetType: 'User', targetId: user._id })
+    }
+  }
+}
 
 export const signupSchema = z.object({
   email: z.string().email(),
@@ -42,7 +68,11 @@ export const signup = asyncHandler(async (req, res) => {
 
   const user = new User({ email, name: name || '' })
   await user.setPassword(password)
+  await recordLoginDevice(req, user)
   await user.save()
+
+  // Send an email-verification OTP (logged to console in dev).
+  issueOtp({ userId: user._id, email: user.email, purpose: 'email_verify', sendTo: user.email }).catch(() => {})
 
   const token = issueSession(res, user)
   audit(req, 'auth.signup', { targetType: 'User', targetId: user._id })
@@ -51,17 +81,65 @@ export const signup = asyncHandler(async (req, res) => {
 
 export const login = asyncHandler(async (req, res) => {
   const { email, password } = req.body
-  const user = await User.findOne({ email }).select('+passwordHash')
+  const user = await User.findOne({ email }).select('+passwordHash +loginDevices')
   if (!user || !(await user.comparePassword(password))) {
     audit(req, 'auth.login.fail', { meta: { email } })
     throw unauthorized('Invalid email or password')
   }
 
+  // 2FA gate: password is correct but we don't issue a session yet.
+  if (user.twoFAEnabled) {
+    const challenge = sign2faChallenge(user)
+    if (user.twoFAMethod === 'email') {
+      await issueOtp({ userId: user._id, email: user.email, purpose: 'login_2fa', sendTo: user.email })
+    }
+    audit(req, 'auth.login.2fa_required', { targetType: 'User', targetId: user._id })
+    return res.json({ twoFARequired: true, method: user.twoFAMethod, challenge })
+  }
+
   user.lastLoginAt = new Date()
+  await recordLoginDevice(req, user)
   await user.save()
 
   const token = issueSession(res, user)
   audit(req, 'auth.login', { targetType: 'User', targetId: user._id })
+  res.json({ user: user.toSafeJSON(), token })
+})
+
+// Second step of a 2FA login: exchange the challenge + code for a session.
+export const verify2faSchema = z.object({
+  challenge: z.string().min(10),
+  code: z.string().min(4),
+})
+
+export const verify2fa = asyncHandler(async (req, res) => {
+  const { challenge, code } = req.body
+  let payload
+  try {
+    payload = verify2faChallenge(challenge)
+  } catch {
+    throw unauthorized('2FA session expired — please sign in again')
+  }
+  const user = await User.findById(payload.sub).select('+totpSecret +backupCodes +loginDevices')
+  if (!user || !user.twoFAEnabled) throw unauthorized('2FA not active')
+
+  let ok = false
+  if (user.twoFAMethod === 'totp') {
+    ok = verifyTotp(user.totpSecret, code) || (await consumeBackupCode(user, code))
+  } else if (user.twoFAMethod === 'email') {
+    ok = (await verifyOtp({ userId: user._id, purpose: 'login_2fa', code })).ok
+  }
+  if (!ok) {
+    audit(req, 'auth.2fa.fail', { targetType: 'User', targetId: user._id })
+    throw unauthorized('Invalid 2FA code')
+  }
+
+  user.lastLoginAt = new Date()
+  await recordLoginDevice(req, user)
+  await user.save()
+
+  const token = issueSession(res, user)
+  audit(req, 'auth.login.2fa_ok', { targetType: 'User', targetId: user._id })
   res.json({ user: user.toSafeJSON(), token })
 })
 
@@ -122,5 +200,60 @@ export const changePassword = asyncHandler(async (req, res) => {
   user.tokenVersion += 1 // log out other sessions
   await user.save()
   audit(req, 'auth.password_change', { targetType: 'User', targetId: user._id })
+  res.json({ ok: true })
+})
+
+// ── Email verification ───────────────────────────────────────────────────────
+export const sendEmailVerification = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.user.id)
+  if (!user) throw unauthorized()
+  if (user.emailVerified) return res.json({ ok: true, alreadyVerified: true })
+  await issueOtp({ userId: user._id, email: user.email, purpose: 'email_verify', sendTo: user.email })
+  res.json({ ok: true })
+})
+
+export const verifyEmailSchema = z.object({ code: z.string().min(4) })
+
+export const verifyEmail = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.user.id)
+  if (!user) throw unauthorized()
+  const result = await verifyOtp({ userId: user._id, purpose: 'email_verify', code: req.body.code })
+  if (!result.ok) throw badRequest(`Verification failed: ${result.reason}`)
+  user.emailVerified = true
+  await user.save()
+  audit(req, 'auth.email_verified', { targetType: 'User', targetId: user._id })
+  res.json({ ok: true, user: user.toSafeJSON() })
+})
+
+// ── Password reset (forgot → reset with OTP) ─────────────────────────────────
+export const forgotPasswordSchema = z.object({ email: z.string().email() })
+
+export const forgotPassword = asyncHandler(async (req, res) => {
+  const { email } = req.body
+  const user = await User.findOne({ email })
+  // Always respond OK — never reveal whether an account exists.
+  if (user) {
+    await issueOtp({ userId: user._id, email: user.email, purpose: 'password_reset', sendTo: user.email })
+    audit(req, 'auth.forgot_password', { targetType: 'User', targetId: user._id })
+  }
+  res.json({ ok: true, message: 'If that email is registered, a reset code has been sent.' })
+})
+
+export const resetPasswordSchema = z.object({
+  email: z.string().email(),
+  code: z.string().min(4),
+  newPassword: z.string().min(8),
+})
+
+export const resetPassword = asyncHandler(async (req, res) => {
+  const { email, code, newPassword } = req.body
+  const user = await User.findOne({ email })
+  if (!user) throw badRequest('Invalid reset request')
+  const result = await verifyOtp({ userId: user._id, purpose: 'password_reset', code })
+  if (!result.ok) throw badRequest(`Reset failed: ${result.reason}`)
+  await user.setPassword(newPassword)
+  user.tokenVersion += 1 // invalidate all existing sessions
+  await user.save()
+  audit(req, 'auth.password_reset', { targetType: 'User', targetId: user._id })
   res.json({ ok: true })
 })

@@ -25,6 +25,20 @@ export function verifyAccessToken(token) {
   return jwt.verify(token, env.jwt.accessSecret)
 }
 
+// Short-lived token issued after password is OK but BEFORE the 2FA step. The
+// client returns it with the 2FA code to complete login. 5-minute window.
+export function sign2faChallenge(user) {
+  return jwt.sign({ sub: user.id, method: user.twoFAMethod, typ: '2fa' }, env.jwt.accessSecret, {
+    expiresIn: '5m',
+  })
+}
+
+export function verify2faChallenge(token) {
+  const p = jwt.verify(token, env.jwt.accessSecret)
+  if (p.typ !== '2fa') throw new Error('not a 2fa challenge')
+  return p
+}
+
 export function verifyRefreshToken(token) {
   return jwt.verify(token, env.jwt.refreshSecret)
 }

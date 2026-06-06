@@ -55,6 +55,30 @@ export const env = {
 
   storageDir: process.env.STORAGE_DIR || './storage',
 
+  app: {
+    name: process.env.APP_NAME || 'Vigno Smart Class',
+    url: process.env.APP_URL || 'http://localhost:5173',
+  },
+
+  // Email (Nodemailer over generic SMTP). When not configured, the mailer falls
+  // back to logging to the console (dev) so OTP/verification flows still work.
+  email: {
+    host: process.env.SMTP_HOST || '',
+    port: num(process.env.SMTP_PORT, 587),
+    user: process.env.SMTP_USER || '',
+    pass: process.env.SMTP_PASS || '',
+    from: process.env.SMTP_FROM || 'Vigno Smart Class <no-reply@vigno.in>',
+    get configured() {
+      return !!(this.host && this.user && this.pass)
+    },
+  },
+
+  otp: {
+    ttlMin: num(process.env.OTP_TTL_MINUTES, 10),
+    length: num(process.env.OTP_LENGTH, 6),
+    maxAttempts: num(process.env.OTP_MAX_ATTEMPTS, 5),
+  },
+
   seed: {
     adminEmail: process.env.SEED_ADMIN_EMAIL || 'admin@vigno.in',
     adminPassword: process.env.SEED_ADMIN_PASSWORD || 'Admin@12345',
