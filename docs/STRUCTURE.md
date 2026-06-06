@@ -36,12 +36,17 @@ Project/
 │       ├── seed/              # demo data (admin + aviation tree)
 │       └── scripts/           # smoketest.js (38 checks), genKeys.js
 │
+├── launcher/                  # Electron desktop app (download lane)
+│   ├── main.cjs · preload.cjs · index.html · renderer.js
+│   └── (login, device binding, encrypted download, verify, decrypt-in-memory, offline grace)
+│
 ├── shared/                    # @vigno/shared — domain constants (single source of truth)
 │   └── src/{index,constants}.js
 │
 └── docs/
     ├── ARCHITECTURE.md
     ├── STRUCTURE.md           # (this file)
+    ├── DEPLOYMENT.md
     └── design/               # the original HLD / Detailed / LLD PDFs
         ├── Plan-1/ · Plan-2/ · LLD-Design/
 ```
