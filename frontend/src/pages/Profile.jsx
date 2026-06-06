@@ -3,7 +3,7 @@ import { useSelector } from 'react-redux'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { authApi, apiErrorMessage } from '../api/authApi'
 import { devicesApi } from '../api/devicesApi'
-import { getDeviceFingerprint, deviceLabel } from '../lib/fingerprint'
+import { getDeviceFingerprint, deviceLabel } from '../lib/device'
 
 function Card({ title, children }) {
   return (
