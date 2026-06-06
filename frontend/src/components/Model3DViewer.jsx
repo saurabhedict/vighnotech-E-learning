@@ -11,7 +11,7 @@ export default function Model3DViewer({ src, watermark }) {
 
   useEffect(() => {
     const mount = mountRef.current
-    const width = mount.clientWidth
+    const width = mount.clientWidth || 640 // guard against a 0-width first layout pass
     const height = 360
 
     const scene = new THREE.Scene()
@@ -91,6 +91,18 @@ export default function Model3DViewer({ src, watermark }) {
       cancelAnimationFrame(raf)
       window.removeEventListener('resize', onResize)
       controls.dispose()
+      // Free GPU resources (geometries/materials/textures) to avoid leaks
+      // across content navigations.
+      scene.traverse((obj) => {
+        if (obj.geometry) obj.geometry.dispose()
+        if (obj.material) {
+          const mats = Array.isArray(obj.material) ? obj.material : [obj.material]
+          mats.forEach((mm) => {
+            Object.values(mm).forEach((v) => v && v.isTexture && v.dispose())
+            mm.dispose()
+          })
+        }
+      })
       renderer.dispose()
       if (mount.contains(renderer.domElement)) mount.removeChild(renderer.domElement)
     }

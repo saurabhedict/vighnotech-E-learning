@@ -1,26 +1,36 @@
 import PDFDocument from 'pdfkit'
 import { WalletTxn } from '../models/WalletTxn.js'
+import { User } from '../models/User.js'
 import { env } from '../config/env.js'
 
-// Credit a user's wallet and record a ledger entry. Returns the new balance.
+// Credit a user's wallet via an ATOMIC $inc and record a ledger entry with the
+// authoritative post-update balance. Returns the new balance.
 export async function creditWallet(user, amount, { type = 'topup', note = '', ref } = {}) {
-  user.walletBalance = Math.round((user.walletBalance + amount) * 100) / 100
-  await user.save()
-  await WalletTxn.create({ userId: user._id, type, amount, balanceAfter: user.walletBalance, note, ref })
-  return user.walletBalance
+  const amt = Math.round(amount * 100) / 100
+  const updated = await User.findOneAndUpdate({ _id: user._id }, { $inc: { walletBalance: amt } }, { new: true })
+  user.walletBalance = updated.walletBalance
+  await WalletTxn.create({ userId: user._id, type, amount: amt, balanceAfter: updated.walletBalance, note, ref })
+  return updated.walletBalance
 }
 
-// Debit a user's wallet (throws if insufficient). Returns the new balance.
+// Debit a user's wallet ATOMICALLY and conditionally (balance must cover it).
+// The {$gte} filter + $inc is a single atomic op, so concurrent debits can't
+// overdraw or double-spend. Throws code 'INSUFFICIENT' when the balance is short.
 export async function debitWallet(user, amount, { note = '', ref } = {}) {
-  if (user.walletBalance < amount) {
+  const amt = Math.round(amount * 100) / 100
+  const updated = await User.findOneAndUpdate(
+    { _id: user._id, walletBalance: { $gte: amt } },
+    { $inc: { walletBalance: -amt } },
+    { new: true }
+  )
+  if (!updated) {
     const e = new Error('Insufficient wallet balance')
     e.code = 'INSUFFICIENT'
     throw e
   }
-  user.walletBalance = Math.round((user.walletBalance - amount) * 100) / 100
-  await user.save()
-  await WalletTxn.create({ userId: user._id, type: 'spend', amount, balanceAfter: user.walletBalance, note, ref })
-  return user.walletBalance
+  user.walletBalance = updated.walletBalance
+  await WalletTxn.create({ userId: user._id, type: 'spend', amount: amt, balanceAfter: updated.walletBalance, note, ref })
+  return updated.walletBalance
 }
 
 // Build a simple invoice PDF for a paid purchase.

@@ -19,12 +19,15 @@ export default function AppLayout() {
       navigate('/')
       return
     }
-    // Revalidate the session; axios handles a silent refresh, and on hard
-    // failure dispatches logout (which bounces us to /).
+    // Revalidate the session. Only log out on a real auth failure (401/403) —
+    // a transient network error must NOT destroy a valid persisted session.
     authApi
       .me()
       .then((user) => dispatch(setUser(user)))
-      .catch(() => dispatch(logout()))
+      .catch((err) => {
+        const s = err?.response?.status
+        if (s === 401 || s === 403) dispatch(logout())
+      })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoggedIn])
 

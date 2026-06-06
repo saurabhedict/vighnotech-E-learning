@@ -7,6 +7,7 @@ const { authenticator } = otplib
 import bcrypt from 'bcryptjs'
 import { customAlphabet } from 'nanoid'
 import { env } from '../config/env.js'
+import { User } from '../models/User.js'
 
 // Authenticator-app 2FA (TOTP, RFC 6238) + one-time backup codes.
 
@@ -44,13 +45,19 @@ export async function generateBackupCodes(n = 10) {
   return { plain, hashed }
 }
 
-// Try to consume a backup code (mutates the user's backupCodes; caller saves).
+// Try to consume a backup code ATOMICALLY (only one concurrent request wins).
 export async function consumeBackupCode(user, code) {
   const norm = String(code).trim().toUpperCase()
-  for (const bc of user.backupCodes || []) {
+  const codes = user.backupCodes || []
+  for (let i = 0; i < codes.length; i++) {
+    const bc = codes[i]
     if (!bc.usedAt && (await bcrypt.compare(norm, bc.codeHash))) {
-      bc.usedAt = new Date()
-      return true
+      // Mark this exact slot used iff it is still unused — atomic single-use.
+      const r = await User.updateOne(
+        { _id: user._id, [`backupCodes.${i}.usedAt`]: null },
+        { $set: { [`backupCodes.${i}.usedAt`]: new Date() } }
+      )
+      return r.modifiedCount === 1
     }
   }
   return false

@@ -59,6 +59,7 @@ export const updateNode = asyncHandler(async (req, res) => {
   if (slug !== undefined) node.slug = slug
   if (order !== undefined) node.order = order
   await node.save()
+  if (node.kind === 'course') cache.del('courses:slugs') // renamed slug must refresh the catalog list
   audit(req, 'cms.node.update', { targetType: 'TreeNode', targetId: node._id })
   res.json(node)
 })
@@ -223,6 +224,7 @@ export const setUserRole = asyncHandler(async (req, res) => {
   if (!target) throw notFound('User not found')
   const { role } = req.body
 
+  const roleChanged = target.role !== role
   // Last-admin guard: never leave the system with zero admins.
   if (target.role === ROLES.ADMIN && role !== ROLES.ADMIN) {
     const admins = await User.countDocuments({ role: ROLES.ADMIN })
@@ -230,7 +232,8 @@ export const setUserRole = asyncHandler(async (req, res) => {
     if (target._id.toString() === req.user.id) throw forbidden('Admins cannot demote themselves')
   }
   target.role = role
-  if (role !== target.role) target.tokenVersion += 1
+  // Bump tokenVersion so the demoted/promoted user's refresh tokens are invalidated.
+  if (roleChanged) target.tokenVersion += 1
   await target.save()
   audit(req, 'admin.user.role', { targetType: 'User', targetId: target._id, meta: { role } })
   res.json({ ok: true, user: { id: target._id, email: target.email, role: target.role } })
@@ -286,20 +289,22 @@ export const deleteCoupon = asyncHandler(async (req, res) => {
 // ── Refunds (LLD: Refunds → revoke) ──────────────────────────────────────────
 export const refundPurchase = asyncHandler(async (req, res) => {
   const { Purchase } = await import('../models/Purchase.js')
-  const purchase = await Purchase.findById(req.params.id)
-  if (!purchase) throw notFound('Purchase not found')
-  if (purchase.status !== 'paid') throw badRequest('Only paid purchases can be refunded')
+  // Atomically claim the refund so concurrent/duplicate calls can't double-credit.
+  const claimed = await Purchase.findOneAndUpdate(
+    { _id: req.params.id, status: 'paid' },
+    { $set: { status: 'refunded', refundedAt: new Date() } },
+    { new: true }
+  )
+  if (!claimed) throw badRequest('Only a paid, un-refunded purchase can be refunded')
 
   // 1) Revoke the license so access stops on the next verify.
-  if (purchase.licenseId) await revokeLicense(purchase.licenseId, 'refund')
+  if (claimed.licenseId) await revokeLicense(claimed.licenseId, 'refund')
   // 2) Refund to the buyer's wallet as store credit (records a ledger entry).
-  const buyer = await User.findById(purchase.userId)
-  if (buyer) await creditWallet(buyer, purchase.amount, { type: 'refund', note: 'Refund', ref: String(purchase._id) })
-  // 3) Mark refunded. (For Razorpay payments, also call the gateway refund API in prod.)
-  purchase.status = 'refunded'
-  purchase.refundedAt = new Date()
-  await purchase.save()
+  const buyer = await User.findById(claimed.userId)
+  if (buyer) await creditWallet(buyer, claimed.amount, { type: 'refund', note: 'Refund', ref: String(claimed._id) })
+  // 3) Release the coupon redemption slot, if any.
+  if (claimed.couponCode) await Coupon.updateOne({ code: claimed.couponCode, redeemed: { $gt: 0 } }, { $inc: { redeemed: -1 } })
 
-  audit(req, 'admin.refund', { targetType: 'Purchase', targetId: purchase._id, meta: { amount: purchase.amount } })
-  res.json({ ok: true, refunded: purchase.amount, licenseRevoked: !!purchase.licenseId })
+  audit(req, 'admin.refund', { targetType: 'Purchase', targetId: claimed._id, meta: { amount: claimed.amount } })
+  res.json({ ok: true, refunded: claimed.amount, licenseRevoked: !!claimed.licenseId })
 })

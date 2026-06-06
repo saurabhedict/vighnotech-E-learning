@@ -122,7 +122,18 @@ function TwoFactor() {
   const [loading, setLoading] = useState(false)
 
   const refreshUser = async () => {
-    try { dispatch(setUser(await authApi.me())) } catch { /* */ }
+    try { dispatch(setUser(await authApi.me())) }
+    catch { setMsg({ ok: false, text: 'Saved, but could not refresh status — reload to see the latest.' }) }
+  }
+
+  const regenerate = async (e) => {
+    e.preventDefault(); setMsg(null); setLoading(true)
+    try {
+      const r = await authApi.twoFA.regenerateBackupCodes(pwd); setPwd('')
+      setBackup(r.backupCodes)
+      setMsg({ ok: true, text: 'New backup codes generated — save them.' })
+    } catch (err) { setMsg({ ok: false, text: apiErrorMessage(err, 'Could not regenerate') }) }
+    finally { setLoading(false) }
   }
 
   const startTotp = async () => {
@@ -164,10 +175,11 @@ function TwoFactor() {
       <div>
         <Msg msg={msg} />
         <p className="text-sm text-green-300 mb-3">✓ Two-factor is ON ({user.twoFAMethod === 'totp' ? 'authenticator app' : 'email codes'}).</p>
-        <form onSubmit={disable} className="flex gap-2 items-start">
+        <div className="flex gap-2 items-start flex-wrap">
           <input type="password" value={pwd} onChange={(e) => setPwd(e.target.value)} placeholder="Confirm password" className={input + ' max-w-[220px]'} />
-          <button disabled={loading} className={btnGhost}>{loading ? '…' : 'Disable 2FA'}</button>
-        </form>
+          <button disabled={loading || !pwd} onClick={disable} className={btnGhost}>{loading ? '…' : 'Disable 2FA'}</button>
+          <button disabled={loading || !pwd} onClick={regenerate} className={btnGhost}>{loading ? '…' : 'Regenerate backup codes'}</button>
+        </div>
         <BackupCodes codes={backup} />
       </div>
     )

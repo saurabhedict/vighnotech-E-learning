@@ -34,7 +34,13 @@ async function finalizePurchase(purchase, content) {
   const { license, token } = await issueLicense({ userId: purchase.userId, content })
   purchase.licenseId = license._id
   await purchase.save()
-  if (purchase.couponCode) await Coupon.updateOne({ code: purchase.couponCode }, { $inc: { redeemed: 1 } })
+  if (purchase.couponCode) {
+    // Atomic, capped increment so `redeemed` can never exceed maxRedemptions.
+    await Coupon.updateOne(
+      { code: purchase.couponCode, $or: [{ maxRedemptions: 0 }, { $expr: { $lt: ['$redeemed', '$maxRedemptions'] } }] },
+      { $inc: { redeemed: 1 } }
+    )
+  }
   const user = await User.findById(purchase.userId)
   if (user) {
     sendMail(receiptEmail(user.email, {

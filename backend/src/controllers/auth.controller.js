@@ -123,6 +123,12 @@ export const verify2fa = asyncHandler(async (req, res) => {
   const user = await User.findById(payload.sub).select('+totpSecret +backupCodes +loginDevices')
   if (!user || !user.twoFAEnabled) throw unauthorized('2FA not active')
 
+  // Per-account lockout: caps TOTP/backup-code brute force regardless of source IP.
+  if (user.twoFALockUntil && user.twoFALockUntil > new Date()) {
+    audit(req, 'auth.2fa.locked', { targetType: 'User', targetId: user._id })
+    throw unauthorized('Too many 2FA attempts — try again in a few minutes')
+  }
+
   let ok = false
   if (user.twoFAMethod === 'totp') {
     ok = verifyTotp(user.totpSecret, code) || (await consumeBackupCode(user, code))
@@ -130,10 +136,18 @@ export const verify2fa = asyncHandler(async (req, res) => {
     ok = (await verifyOtp({ userId: user._id, purpose: 'login_2fa', code })).ok
   }
   if (!ok) {
+    user.failedTwoFA = (user.failedTwoFA || 0) + 1
+    if (user.failedTwoFA >= 5) {
+      user.failedTwoFA = 0
+      user.twoFALockUntil = new Date(Date.now() + 15 * 60_000)
+    }
+    await user.save()
     audit(req, 'auth.2fa.fail', { targetType: 'User', targetId: user._id })
     throw unauthorized('Invalid 2FA code')
   }
 
+  user.failedTwoFA = 0
+  user.twoFALockUntil = null
   user.lastLoginAt = new Date()
   await recordLoginDevice(req, user)
   await user.save()

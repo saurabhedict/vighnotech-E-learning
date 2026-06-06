@@ -37,8 +37,11 @@ export async function verifyOtp({ email, userId, purpose, code }) {
   const match = await bcrypt.compare(String(code), otp.codeHash)
   if (!match) {
     otp.attempts += 1
+    // Kill the OTP once the attempt cap is hit so it can't be retried at all.
+    const locked = otp.attempts >= env.otp.maxAttempts
+    if (locked) otp.consumedAt = new Date()
     await otp.save()
-    return { ok: false, reason: 'invalid' }
+    return { ok: false, reason: locked ? 'too_many_attempts' : 'invalid' }
   }
   otp.consumedAt = new Date()
   await otp.save()

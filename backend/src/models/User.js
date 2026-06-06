@@ -17,6 +17,9 @@ const userSchema = new mongoose.Schema(
     totpSecret: { type: String, select: false, default: null },
     // One-time recovery codes (hashed). [{ codeHash, usedAt }]
     backupCodes: { type: [{ codeHash: String, usedAt: Date }], select: false, default: [] },
+    // Per-account 2FA brute-force guard (IP-independent).
+    failedTwoFA: { type: Number, default: 0 },
+    twoFALockUntil: { type: Date, default: null },
 
     emailVerified: { type: Boolean, default: false },
     // Wallet balance (INR) for credits / refunds (LLD: Wallet/Credits).
@@ -50,7 +53,9 @@ userSchema.methods.toSafeJSON = function toSafeJSON() {
     name: this.name,
     role: this.role,
     twoFAEnabled: this.twoFAEnabled,
+    twoFAMethod: this.twoFAMethod,
     emailVerified: this.emailVerified,
+    walletBalance: this.walletBalance,
     createdAt: this.createdAt,
   }
 }

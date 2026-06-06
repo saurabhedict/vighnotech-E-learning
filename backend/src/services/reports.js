@@ -88,7 +88,9 @@ export const REPORTS = { sales: salesReport, content: contentReport, users: user
 
 function toCsv({ columns, rows }) {
   const esc = (v) => {
-    const s = String(v ?? '')
+    let s = String(v ?? '')
+    // Neutralize spreadsheet formula injection (=, +, -, @, tab, CR leading chars).
+    if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`
     return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
   }
   const head = columns.map((c) => esc(c.label)).join(',')

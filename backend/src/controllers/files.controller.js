@@ -101,7 +101,13 @@ export const streamFile = asyncHandler(async (req, res, next) => {
   const m = req.headers.range ? /bytes=(\d+)-(\d*)/.exec(req.headers.range) : null
   if (m && stat) {
     const start = Number(m[1])
-    const end = m[2] ? Number(m[2]) : stat.size - 1
+    let end = m[2] ? Number(m[2]) : stat.size - 1
+    end = Math.min(end, stat.size - 1)
+    // Unsatisfiable range → 416 with the valid size, per RFC 7233.
+    if (start >= stat.size || start > end) {
+      res.set('Content-Range', `bytes */${stat.size}`)
+      return res.status(416).end()
+    }
     res.status(206)
     res.set('Content-Range', `bytes ${start}-${end}/${stat.size}`)
     res.set('Accept-Ranges', 'bytes')

@@ -54,14 +54,17 @@ async function main() {
   const inv = await call('GET', `/api/payments/${purchase._id}/invoice`, { token, raw: true })
   ok('invoice → application/pdf', inv.status === 200 && inv.ct?.includes('application/pdf') && inv.len > 500)
 
+  const redeemedBefore = (await call('GET', '/api/admin/coupons', { token: admin })).data?.coupons?.find((c) => c.code === code)?.redeemed
+  ok('coupon redeemed counter incremented', redeemedBefore >= 1)
+
   console.log('\n── Refund (admin) ──')
   const refund = await call('POST', `/api/admin/purchases/${purchase._id}/refund`, { token: admin })
   ok('refund ok + license revoked', refund.data?.ok === true && refund.data?.licenseRevoked === true)
   ok('wallet credited back to 1000', (await call('GET', '/api/wallet', { token })).data?.balance === 1000)
   ok('content locked again after refund', (await call('GET', `/api/contents/${paid.id}`, { token })).data?.locked === true)
-
-  const coupons = await call('GET', '/api/admin/coupons', { token: admin })
-  ok('coupon redeemed counter incremented', coupons.data?.coupons?.find((c) => c.code === code)?.redeemed >= 1)
+  ok('refund is idempotent (second → 400)', (await call('POST', `/api/admin/purchases/${purchase._id}/refund`, { token: admin })).status === 400)
+  const redeemedAfter = (await call('GET', '/api/admin/coupons', { token: admin })).data?.coupons?.find((c) => c.code === code)?.redeemed
+  ok('coupon redemption released on refund', redeemedAfter === redeemedBefore - 1)
 
   console.log('\n── Guards ──')
   ok('insufficient wallet → 402', (await call('POST', '/api/payments/wallet', { token, body: { contentId: paid.id } })).status === 402 || true) // already owns→409/402; lenient

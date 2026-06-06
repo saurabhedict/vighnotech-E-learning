@@ -20,7 +20,7 @@ router.post('/change-password', requireAuth, validate({ body: auth.changePasswor
 
 // ── Email verification ───────────────────────────────────────────────────────
 router.post('/send-verification', requireAuth, authLimiter, auth.sendEmailVerification)
-router.post('/verify-email', requireAuth, validate({ body: auth.verifyEmailSchema }), auth.verifyEmail)
+router.post('/verify-email', requireAuth, authLimiter, validate({ body: auth.verifyEmailSchema }), auth.verifyEmail)
 
 // ── Password reset ───────────────────────────────────────────────────────────
 router.post('/forgot-password', authLimiter, validate({ body: auth.forgotPasswordSchema }), auth.forgotPassword)

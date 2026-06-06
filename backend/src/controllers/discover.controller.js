@@ -71,8 +71,8 @@ export const progressSchema = z.object({
 export const upsertProgress = asyncHandler(async (req, res) => {
   const { position = 0, duration = 0, completed } = req.body
   const update = { lastViewedAt: new Date(), position, duration }
-  if (completed !== undefined) update.completed = completed
-  else if (duration > 0 && position / duration > 0.95) update.completed = true
+  // Only ever PROMOTE completion — never auto-demote a finished item.
+  if (completed === true || (duration > 0 && position / duration > 0.95)) update.completed = true
   await Progress.updateOne(
     { userId: req.user.id, contentId: req.params.contentId },
     { $set: update, $setOnInsert: { userId: req.user.id, contentId: req.params.contentId } },
