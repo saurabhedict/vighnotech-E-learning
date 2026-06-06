@@ -3,24 +3,33 @@ import { customAlphabet } from 'nanoid'
 import { Otp } from '../models/Otp.js'
 import { env } from '../config/env.js'
 import { sendMail, otpEmail } from './mailer.js'
+import { sendSms, sendWhatsApp } from './sms.js'
 
 const genCode = () => customAlphabet('0123456789', env.otp.length)()
 
 /**
- * Issue an email OTP for a purpose. Invalidates any prior unconsumed OTP for the
- * same identity+purpose, stores the new one hashed, and emails it (or logs it in
- * dev). The plaintext code is never returned or persisted.
+ * Issue an OTP for a purpose over a channel (email | sms | whatsapp).
+ * Invalidates any prior unconsumed OTP for the same identity+purpose, stores the
+ * new one hashed, and delivers it via the chosen channel (or logs it in dev).
+ * The plaintext code is never returned or persisted.
  */
-export async function issueOtp({ email, userId, purpose, sendTo }) {
+export async function issueOtp({ email, userId, purpose, channel = 'email', to }) {
   const code = genCode()
   const codeHash = await bcrypt.hash(code, 10)
   const expiresAt = new Date(Date.now() + env.otp.ttlMin * 60_000)
 
   const identity = userId ? { userId } : { email }
   await Otp.updateMany({ ...identity, purpose, consumedAt: null }, { $set: { consumedAt: new Date() } })
-  await Otp.create({ ...identity, email: email || undefined, purpose, codeHash, expiresAt })
+  await Otp.create({ ...identity, email: email || undefined, purpose, channel, codeHash, expiresAt })
 
-  await sendMail(otpEmail(sendTo || email, code, purpose))
+  const dest = to || email
+  if (channel === 'sms') {
+    await sendSms(dest, `Your ${env.app.name} verification code is ${code}. It expires in ${env.otp.ttlMin} min.`)
+  } else if (channel === 'whatsapp') {
+    await sendWhatsApp(dest, `Your ${env.app.name} verification code is *${code}*. It expires in ${env.otp.ttlMin} min.`)
+  } else {
+    await sendMail(otpEmail(dest, code, purpose))
+  }
 }
 
 /**
@@ -45,5 +54,5 @@ export async function verifyOtp({ email, userId, purpose, code }) {
   }
   otp.consumedAt = new Date()
   await otp.save()
-  return { ok: true }
+  return { ok: true, channel: otp.channel }
 }

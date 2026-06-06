@@ -19,7 +19,7 @@ router.post('/logout-all', requireAuth, auth.logoutAll)
 router.post('/change-password', requireAuth, validate({ body: auth.changePasswordSchema }), auth.changePassword)
 
 // ── Email verification ───────────────────────────────────────────────────────
-router.post('/send-verification', requireAuth, authLimiter, auth.sendEmailVerification)
+router.post('/send-verification', requireAuth, authLimiter, validate({ body: auth.sendVerificationSchema }), auth.sendEmailVerification)
 router.post('/verify-email', requireAuth, authLimiter, validate({ body: auth.verifyEmailSchema }), auth.verifyEmail)
 
 // ── Password reset ───────────────────────────────────────────────────────────

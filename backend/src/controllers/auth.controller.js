@@ -18,6 +18,7 @@ import {
 } from '../utils/tokens.js'
 import { issueOtp, verifyOtp } from '../services/otpService.js'
 import { sendMail, newDeviceEmail } from '../services/mailer.js'
+import { normalizePhone } from '../services/sms.js'
 import { verifyTotp, consumeBackupCode } from '../services/twoFactor.js'
 
 // Detect a new login device (hash of ip+user-agent). On first sight, email the
@@ -44,6 +45,7 @@ export const signupSchema = z.object({
   email: z.string().email(),
   password: z.string().min(8, 'Password must be at least 8 characters'),
   name: z.string().trim().max(80).optional(),
+  phone: z.string().trim().max(20).optional(),
 })
 
 export const loginSchema = z.object({
@@ -62,18 +64,17 @@ function issueSession(res, user) {
 }
 
 export const signup = asyncHandler(async (req, res) => {
-  const { email, password, name } = req.body
+  const { email, password, name, phone } = req.body
   const exists = await User.findOne({ email })
   if (exists) throw conflict('An account with this email already exists')
 
-  const user = new User({ email, name: name || '' })
+  const user = new User({ email, name: name || '', phone: phone ? normalizePhone(phone) : '' })
   await user.setPassword(password)
   await recordLoginDevice(req, user)
   await user.save()
 
-  // Send an email-verification OTP (logged to console in dev).
-  issueOtp({ userId: user._id, email: user.email, purpose: 'email_verify', sendTo: user.email }).catch(() => {})
-
+  // Auto-login; the client then drives account verification via /send-verification
+  // (the user chooses email / SMS / WhatsApp).
   const token = issueSession(res, user)
   audit(req, 'auth.signup', { targetType: 'User', targetId: user._id })
   res.status(201).json({ user: user.toSafeJSON(), token })
@@ -217,13 +218,33 @@ export const changePassword = asyncHandler(async (req, res) => {
   res.json({ ok: true })
 })
 
-// ── Email verification ───────────────────────────────────────────────────────
+// ── Account verification (multi-channel OTP: email / sms / whatsapp) ──────────
+export const sendVerificationSchema = z.object({
+  channel: z.enum(['email', 'sms', 'whatsapp']).optional(),
+  phone: z.string().trim().max(20).optional(),
+})
+
 export const sendEmailVerification = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user.id)
   if (!user) throw unauthorized()
-  if (user.emailVerified) return res.json({ ok: true, alreadyVerified: true })
-  await issueOtp({ userId: user._id, email: user.email, purpose: 'email_verify', sendTo: user.email })
-  res.json({ ok: true })
+  const channel = req.body?.channel || 'email'
+
+  let to = user.email
+  if (channel === 'sms' || channel === 'whatsapp') {
+    // Accept a phone here (verify step) and save it to the account.
+    if (req.body?.phone) {
+      user.phone = normalizePhone(req.body.phone)
+      await user.save()
+    }
+    if (!user.phone) throw badRequest('Add a phone number to receive an SMS/WhatsApp code')
+    to = user.phone
+  } else if (user.emailVerified) {
+    return res.json({ ok: true, alreadyVerified: true })
+  }
+
+  await issueOtp({ userId: user._id, email: user.email, purpose: 'email_verify', channel, to })
+  audit(req, 'auth.verify.send', { targetType: 'User', targetId: user._id, meta: { channel } })
+  res.json({ ok: true, channel, sentTo: channel === 'email' ? maskEmail(to) : maskPhone(to) })
 })
 
 export const verifyEmailSchema = z.object({ code: z.string().min(4) })
@@ -233,11 +254,16 @@ export const verifyEmail = asyncHandler(async (req, res) => {
   if (!user) throw unauthorized()
   const result = await verifyOtp({ userId: user._id, purpose: 'email_verify', code: req.body.code })
   if (!result.ok) throw badRequest(`Verification failed: ${result.reason}`)
-  user.emailVerified = true
+  // Mark the contact that actually received the code as verified.
+  if (result.channel === 'sms' || result.channel === 'whatsapp') user.phoneVerified = true
+  else user.emailVerified = true
   await user.save()
-  audit(req, 'auth.email_verified', { targetType: 'User', targetId: user._id })
+  audit(req, 'auth.verified', { targetType: 'User', targetId: user._id, meta: { channel: result.channel } })
   res.json({ ok: true, user: user.toSafeJSON() })
 })
+
+const maskEmail = (e = '') => e.replace(/^(.).*(@.*)$/, '$1***$2')
+const maskPhone = (p = '') => p.replace(/.(?=.{2})/g, '•')
 
 // ── Password reset (forgot → reset with OTP) ─────────────────────────────────
 export const forgotPasswordSchema = z.object({ email: z.string().email() })

@@ -7,8 +7,8 @@ export const authApi = {
     const { data } = await api.post('/auth/login', { email, password })
     return data
   },
-  async signup(email, password, name) {
-    const { data } = await api.post('/auth/signup', { email, password, name })
+  async signup(email, password, name, phone) {
+    const { data } = await api.post('/auth/signup', { email, password, name, ...(phone ? { phone } : {}) })
     return data
   },
   async me() {
@@ -33,9 +33,11 @@ export const authApi = {
     return data
   },
 
-  // Email verification
-  async sendEmailVerification() {
-    return (await api.post('/auth/send-verification')).data
+  // Account verification (channel: 'email' | 'sms' | 'whatsapp')
+  async sendVerification(channel = 'email', phone) {
+    const body = { channel }
+    if (phone) body.phone = phone
+    return (await api.post('/auth/send-verification', body)).data
   },
   async verifyEmail(code) {
     return (await api.post('/auth/verify-email', { code })).data

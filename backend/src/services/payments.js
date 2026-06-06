@@ -22,17 +22,23 @@ export const isMock = () => env.razorpay.mock
 
 // Create an order. Amount is in INR (rupees); Razorpay expects paise.
 export async function createOrder({ amountInr, receipt }) {
+  const amount = Math.round(amountInr * 100)
+  // Razorpay caps `receipt` at 40 chars — truncate defensively.
+  const rcpt = String(receipt || '').slice(0, 40)
   if (isMock()) {
-    return {
-      id: `order_mock_${mockId()}`,
-      amount: Math.round(amountInr * 100),
-      currency: 'INR',
-      receipt,
-      mock: true,
-    }
+    return { id: `order_mock_${mockId()}`, amount, currency: 'INR', receipt: rcpt, mock: true }
   }
   const client = await getClient()
-  return client.orders.create({ amount: Math.round(amountInr * 100), currency: 'INR', receipt })
+  try {
+    return await client.orders.create({ amount, currency: 'INR', receipt: rcpt })
+  } catch (e) {
+    // Razorpay SDK errors are plain objects ({ statusCode, error:{description} }),
+    // so surface a real message instead of a generic 500.
+    const desc = e?.error?.description || e?.message || 'Razorpay order creation failed'
+    const err = new Error(`Razorpay: ${desc}`)
+    err.status = 400
+    throw err
+  }
 }
 
 // HMAC the way Razorpay does: sha256(order_id + "|" + payment_id, key_secret).

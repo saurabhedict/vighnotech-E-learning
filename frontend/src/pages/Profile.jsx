@@ -5,6 +5,7 @@ import { setUser } from '../store/authSlice'
 import { authApi, apiErrorMessage } from '../api/authApi'
 import { devicesApi } from '../api/devicesApi'
 import { getDeviceFingerprint, deviceLabel } from '../lib/device'
+import VerifyContact from '../components/VerifyContact'
 
 function Card({ title, children }) {
   return (
@@ -68,45 +69,20 @@ function ChangePassword() {
 }
 
 function EmailVerification() {
-  const dispatch = useDispatch()
   const user = useSelector((s) => s.auth.user)
-  const [sent, setSent] = useState(false)
-  const [code, setCode] = useState('')
-  const [msg, setMsg] = useState(null)
-  const [loading, setLoading] = useState(false)
-
-  if (user?.emailVerified) {
-    return <p className="text-sm text-green-300">✓ Your email is verified.</p>
+  if (user?.emailVerified || user?.phoneVerified) {
+    return (
+      <p className="text-sm text-green-300">
+        ✓ Your account is verified{user.phoneVerified && !user.emailVerified ? ' (via phone)' : ''}.
+      </p>
+    )
   }
-
-  const send = async () => {
-    setMsg(null); setLoading(true)
-    try { await authApi.sendEmailVerification(); setSent(true); setMsg({ ok: true, text: 'Code sent (check your email — or the server console in dev).' }) }
-    catch (err) { setMsg({ ok: false, text: apiErrorMessage(err) }) }
-    finally { setLoading(false) }
-  }
-  const verify = async (e) => {
-    e.preventDefault(); setMsg(null); setLoading(true)
-    try {
-      const r = await authApi.verifyEmail(code.trim())
-      dispatch(setUser(r.user))
-      setMsg({ ok: true, text: 'Email verified!' })
-    } catch (err) { setMsg({ ok: false, text: apiErrorMessage(err, 'Verification failed') }) }
-    finally { setLoading(false) }
-  }
-
   return (
     <div>
-      <Msg msg={msg} />
-      <p className="text-sm text-vigno-muted mb-3">Your email isn't verified yet. Verifying enables email-based 2FA and security alerts.</p>
-      {!sent ? (
-        <button onClick={send} disabled={loading} className={btn}>{loading ? 'Sending…' : 'Send verification code'}</button>
-      ) : (
-        <form onSubmit={verify} className="flex gap-2 items-start">
-          <input value={code} onChange={(e) => setCode(e.target.value)} placeholder="123456" className={input + ' max-w-[160px] tracking-widest'} />
-          <button disabled={loading} className={btn}>{loading ? 'Verifying…' : 'Verify'}</button>
-        </form>
-      )}
+      <p className="text-sm text-vigno-muted mb-3">
+        Your account isn't verified yet. Choose a channel to receive a one-time code.
+      </p>
+      <VerifyContact defaultPhone={user?.phone || ''} />
     </div>
   )
 }
@@ -266,7 +242,7 @@ export default function Profile() {
         </div>
       </Card>
 
-      <Card title="Email Verification"><EmailVerification /></Card>
+      <Card title="Account Verification"><EmailVerification /></Card>
       <Card title="Two-Factor Authentication"><TwoFactor /></Card>
       <Card title="Change Password"><ChangePassword /></Card>
       <Card title="My Devices"><Devices /></Card>

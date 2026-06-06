@@ -76,6 +76,17 @@ export const env = {
     },
   },
 
+  // SMS + WhatsApp OTP via Twilio. Not configured → codes log to the console.
+  sms: {
+    accountSid: process.env.TWILIO_ACCOUNT_SID || '',
+    authToken: process.env.TWILIO_AUTH_TOKEN || '',
+    smsFrom: process.env.TWILIO_SMS_FROM || '', // e.g. +12025550123
+    whatsappFrom: process.env.TWILIO_WHATSAPP_FROM || 'whatsapp:+14155238886', // Twilio sandbox
+    get configured() {
+      return !!(this.accountSid && this.authToken)
+    },
+  },
+
   otp: {
     ttlMin: num(process.env.OTP_TTL_MINUTES, 10),
     length: num(process.env.OTP_LENGTH, 6),

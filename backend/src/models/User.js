@@ -9,6 +9,10 @@ const userSchema = new mongoose.Schema(
     name: { type: String, trim: true, default: '' },
     role: { type: String, enum: USER_ROLES, default: ROLES.USER, index: true },
 
+    // Phone (E.164, e.g. +9198…) for SMS / WhatsApp OTP.
+    phone: { type: String, trim: true, default: '' },
+    phoneVerified: { type: Boolean, default: false },
+
     // Security trail / account controls (LLD: Auth & Access)
     twoFAEnabled: { type: Boolean, default: false },
     // 'totp' (authenticator app) | 'email' (email OTP) | null
@@ -55,6 +59,9 @@ userSchema.methods.toSafeJSON = function toSafeJSON() {
     twoFAEnabled: this.twoFAEnabled,
     twoFAMethod: this.twoFAMethod,
     emailVerified: this.emailVerified,
+    phone: this.phone,
+    phoneVerified: this.phoneVerified,
+    verified: this.emailVerified || this.phoneVerified,
     walletBalance: this.walletBalance,
     createdAt: this.createdAt,
   }
