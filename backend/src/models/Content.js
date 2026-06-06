@@ -21,8 +21,16 @@ const contentSchema = new mongoose.Schema(
     isPaid: { type: Boolean, default: false },
     price: { type: Number, default: 0, min: 0 }, // in INR (paise handled at payment time)
 
-    // Storage (S3 stand-in). `storageKey` points at the encrypted object.
+    // Storage (S3 stand-in). `storageKey` points at the (encrypted) object.
     storageKey: { type: String, default: '' },
+    // AES-256-GCM encryption-at-rest params for download-lane objects.
+    // `salt` derives the key; `iv`/`tag` are needed to decrypt. Never expose salt.
+    enc: {
+      encrypted: { type: Boolean, default: false },
+      iv: { type: String, select: false },
+      tag: { type: String, select: false },
+      salt: { type: String, select: false },
+    },
     // For external HLS/test streams used in the demo viewer.
     externalUrl: { type: String, default: '' },
 

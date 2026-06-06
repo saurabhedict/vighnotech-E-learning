@@ -10,6 +10,7 @@ import { hasActiveLicense, verifyToken } from '../services/licenseAuthority.js'
 import { buildStreamUrl, verifySignedToken } from '../services/signedUrl.js'
 import { resolveKey, statKey, readStream } from '../services/storage.js'
 import { getDrmPlayback } from '../services/drm.js'
+import { deriveContentKey } from '../services/contentCrypto.js'
 
 // GET /content/:id/drm-token — ownership-gated DRM playback descriptor.
 // Returns { drm:false } when no provider/asset is configured (HLS fallback).
@@ -144,7 +145,7 @@ export const keySchema = z.object({
 })
 
 export const getDecryptionKey = asyncHandler(async (req, res) => {
-  const content = await Content.findById(req.params.id)
+  const content = await Content.findById(req.params.id).select('+enc.salt +enc.iv +enc.tag')
   if (!content) throw notFound('Content not found')
 
   const { token, deviceId } = req.body
@@ -169,16 +170,14 @@ export const getDecryptionKey = asyncHandler(async (req, res) => {
     await result.license.save()
   }
 
-  // Per-content key derived from a DEDICATED secret (not the URL-signing one).
-  // The key material never leaves the server except this short-lived, license-
-  // and device-gated response.
-  const key = crypto
-    .createHmac('sha256', env.license.contentKeySecret)
-    .update(`content-key:${content._id}:${content.storageKey}`)
-    .digest('base64')
+  // Per-content key derived from a DEDICATED secret + per-content salt. The key
+  // material never leaves the server except this short-lived, license- and
+  // device-gated response. iv/tag let the launcher decrypt the GCM ciphertext.
+  if (!content.enc?.encrypted) throw badRequest('Content is not encrypted (upload a file first)')
+  const key = deriveContentKey(content._id.toString(), content.enc.salt).toString('base64')
 
   device.lastSeenAt = new Date()
   await device.save()
   audit(req, 'file.key.grant', { targetType: 'Content', targetId: content._id })
-  res.json({ key, alg: 'aes-256-gcm', expiresInSec: 300 })
+  res.json({ key, iv: content.enc.iv, tag: content.enc.tag, alg: 'aes-256-gcm', expiresInSec: 300 })
 })

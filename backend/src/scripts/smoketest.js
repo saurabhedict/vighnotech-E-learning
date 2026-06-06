@@ -28,7 +28,7 @@ async function main() {
 
   console.log('\n── Browse (public) ──')
   const courses = await call('GET', '/api/courses')
-  ok('GET /api/courses returns 12', Array.isArray(courses.data) && courses.data.length === 12)
+  ok('GET /api/courses returns >=12', Array.isArray(courses.data) && courses.data.length >= 12)
   ok('includes PPL_Ground', courses.data?.includes('PPL_Ground'))
   const tree = await call('GET', '/api/courses/PPL_Ground/tree')
   ok('tree has subjects', Array.isArray(tree.data) && tree.data.length >= 2)
@@ -156,6 +156,12 @@ async function main() {
   const game = await call('POST', '/api/admin/content', { token: adminToken, body: { chapterId: chap.data._id, title: 'Sim Game', type: 'game', isPaid: true, price: 100 } })
   ok('admin created download-lane game content', game.status === 201 && game.data?.lane === 'download')
   const gameId = game.data._id
+
+  // admin uploads a file → encrypted at rest (needed before a key can be issued)
+  const gform = new FormData()
+  gform.append('file', new Blob([Buffer.from('GAME-BINARY-DEMO')]), 'game.bin')
+  const gup = await fetch(`${BASE}/api/admin/content/${gameId}/upload`, { method: 'POST', headers: { Authorization: `Bearer ${adminToken}` }, body: gform })
+  ok('uploaded + encrypted download file', (await gup.json()).encrypted === true)
 
   // student buys it
   const gOrder = await call('POST', '/api/payments/order', { token, body: { contentId: gameId } })

@@ -1,4 +1,5 @@
 import fs from 'node:fs'
+import crypto from 'node:crypto'
 import path from 'node:path'
 import { customAlphabet } from 'nanoid'
 import { env } from '../config/env.js'
@@ -25,6 +26,24 @@ export function saveBuffer(buffer, originalName = '') {
   const key = `obj_${newName()}${ext}`
   fs.writeFileSync(path.join(objectsDir, key), buffer)
   return { storageKey: key, sizeBytes: buffer.length }
+}
+
+// Encrypt a buffer with AES-256-GCM and persist the ciphertext (download lane).
+// Returns the storageKey plus the iv/tag needed to decrypt later.
+export function saveEncryptedBuffer(buffer, keyBuf) {
+  ensure()
+  const iv = crypto.randomBytes(12)
+  const cipher = crypto.createCipheriv('aes-256-gcm', keyBuf, iv)
+  const ciphertext = Buffer.concat([cipher.update(buffer), cipher.final()])
+  const tag = cipher.getAuthTag()
+  const key = `obj_${newName()}.enc`
+  fs.writeFileSync(path.join(objectsDir, key), ciphertext)
+  return {
+    storageKey: key,
+    iv: iv.toString('base64'),
+    tag: tag.toString('base64'),
+    sizeBytes: ciphertext.length,
+  }
 }
 
 export function resolveKey(storageKey) {

@@ -15,7 +15,8 @@ import { License } from '../models/License.js'
 import { Purchase } from '../models/Purchase.js'
 import { User } from '../models/User.js'
 import { AuditLog } from '../models/AuditLog.js'
-import { saveBuffer } from '../services/storage.js'
+import { saveBuffer, saveEncryptedBuffer } from '../services/storage.js'
+import { deriveContentKey, newSalt } from '../services/contentCrypto.js'
 
 const KINDS = ['board', 'class', 'course', 'subject', 'module', 'chapter']
 
@@ -140,13 +141,26 @@ export const uploadContentFile = asyncHandler(async (req, res) => {
   if (!req.file) throw badRequest('No file uploaded (field name: "file")')
   const content = await Content.findById(req.params.id)
   if (!content) throw notFound('Content not found')
-  const { storageKey, sizeBytes } = saveBuffer(req.file.buffer, req.file.originalname)
-  content.storageKey = storageKey
-  content.sizeBytes = sizeBytes
-  content.externalUrl = '' // now served from our storage
+
+  if (content.lane === 'download') {
+    // Encrypt at rest (AES-256-GCM). The launcher fetches the key + iv/tag and
+    // decrypts in memory after a license + device check.
+    const salt = newSalt()
+    const key = deriveContentKey(content._id.toString(), salt)
+    const { storageKey, iv, tag, sizeBytes } = saveEncryptedBuffer(req.file.buffer, key)
+    content.storageKey = storageKey
+    content.sizeBytes = sizeBytes
+    content.enc = { encrypted: true, iv, tag, salt }
+  } else {
+    const { storageKey, sizeBytes } = saveBuffer(req.file.buffer, req.file.originalname)
+    content.storageKey = storageKey
+    content.sizeBytes = sizeBytes
+    content.enc = { encrypted: false }
+  }
+  content.externalUrl = ''
   await content.save()
-  audit(req, 'cms.content.upload', { targetType: 'Content', targetId: content._id, meta: { sizeBytes } })
-  res.json({ ok: true, storageKey, sizeBytes })
+  audit(req, 'cms.content.upload', { targetType: 'Content', targetId: content._id, meta: { encrypted: content.lane === 'download' } })
+  res.json({ ok: true, encrypted: content.lane === 'download' })
 })
 
 // ── Dashboard (LLD: Admin Dashboard & Reports) ───────────────────────────────
