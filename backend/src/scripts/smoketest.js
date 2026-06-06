@@ -49,7 +49,7 @@ async function main() {
   ok('bad password → 401', badLogin.status === 401)
   const login = await call('POST', '/api/auth/login', { body: { email: 'cadet@aerolearn.in', password: 'password' } })
   ok('student login → token', login.status === 200 && !!login.data?.token)
-  const token = login.data.token
+  let token = login.data.token // reassigned to a fresh user below so the run is idempotent
   const meRes = await call('GET', '/api/auth/me', { token })
   ok('GET /me returns user', meRes.data?.user?.email === 'cadet@aerolearn.in')
   ok('/me without token → 401', (await call('GET', '/api/auth/me')).status === 401)
@@ -59,6 +59,8 @@ async function main() {
   const signup = await call('POST', '/api/auth/signup', { body: { email, password: 'secret123' } })
   ok('signup → 201 + token', signup.status === 201 && !!signup.data?.token)
   ok('duplicate signup → 409', (await call('POST', '/api/auth/signup', { body: { email, password: 'secret123' } })).status === 409)
+  // Use the fresh user for all ownership-sensitive checks so re-runs stay clean.
+  token = signup.data.token
 
   console.log('\n── Content access (stream lane) ──')
   const freePdf = await call('GET', `/api/contents/${freePdfId}`, { token })
