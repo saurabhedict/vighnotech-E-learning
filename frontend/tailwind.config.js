@@ -5,9 +5,15 @@ export default {
     extend: {
       colors: {
         vigno: {
-          bg1: '#7a1f2b', bg2: '#b23a2e', bg3: '#e67e22',
-          panel: '#2a1418', card: '#241317', line: '#5a2b30',
-          txt: '#f3e9e4', muted: '#caa9a2', accent: '#e67e22', accent2: '#ffb24d',
+          // Aviation: midnight navy backgrounds
+          bg1: '#0a0f1e', bg2: '#0d1530', bg3: '#1a2a5e',
+          // Panels
+          panel: '#0f1829', card: '#0c1422', line: '#1e3060',
+          // Text
+          txt: '#e8f0ff', muted: '#7a9cc4',
+          // Accents: gold + sky blue
+          accent: '#f0c040',   // instrument gold (primary CTA)
+          accent2: '#4da6ff',  // sky blue (links, highlights)
         },
       },
       fontFamily: { sans: ['Segoe UI', 'system-ui', 'Arial', 'sans-serif'] },

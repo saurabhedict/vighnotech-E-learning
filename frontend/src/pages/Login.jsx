@@ -11,8 +11,8 @@ export default function Login() {
   const [password, setPassword] = useState('password')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [showPass, setShowPass] = useState(false)
 
-  // 2FA step state
   const [challenge, setChallenge] = useState(null)
   const [method, setMethod] = useState(null)
   const [code, setCode] = useState('')
@@ -28,17 +28,11 @@ export default function Login() {
     setLoading(true)
     try {
       const res = await authApi.login(email, password)
-      if (res.twoFARequired) {
-        setChallenge(res.challenge)
-        setMethod(res.method)
-      } else {
-        finish(res.user, res.token)
-      }
+      if (res.twoFARequired) { setChallenge(res.challenge); setMethod(res.method) }
+      else finish(res.user, res.token)
     } catch (err) {
       setError(apiErrorMessage(err, 'Login failed'))
-    } finally {
-      setLoading(false)
-    }
+    } finally { setLoading(false) }
   }
 
   const submit2fa = async (e) => {
@@ -50,63 +44,124 @@ export default function Login() {
       finish(res.user, res.token)
     } catch (err) {
       setError(apiErrorMessage(err, 'Invalid code'))
-    } finally {
-      setLoading(false)
-    }
+    } finally { setLoading(false) }
   }
 
-  const input =
-    'w-full mb-3.5 px-3 py-2.5 rounded-lg bg-[#1c0e11] border border-vigno-line text-sm outline-none focus:border-vigno-accent'
+  const inputCls = [
+    'w-full px-4 py-3 rounded-xl text-sm outline-none transition-all duration-200',
+    'bg-[#060d1f] border border-[#1e3060]',
+    'text-vigno-txt placeholder-vigno-muted/50',
+    'focus:border-vigno-accent2 focus:ring-2 focus:ring-vigno-accent2/20',
+  ].join(' ')
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-5">
-      <div className="bg-vigno-panel border border-vigno-line rounded-2xl p-8 w-[380px] shadow-2xl">
-        <h2 className="text-xl font-bold mb-1">
-          <span className="text-vigno-accent2">✈</span>Aero<span className="font-extrabold">Learn</span>
-        </h2>
-        <p className="text-vigno-muted text-sm mb-5">Aviation Training Platform · Sign in to continue</p>
+    <div className="relative min-h-screen flex items-center justify-center p-5 z-10">
+      {/* Horizon glow */}
+      <div className="fixed bottom-0 left-0 right-0 h-40 pointer-events-none"
+        style={{ background: 'linear-gradient(to top, rgba(77,166,255,0.06) 0%, transparent 100%)' }} />
 
-        {error && (
-          <div className="mb-4 text-sm bg-red-500/15 border border-red-500/40 text-red-200 rounded-lg px-3 py-2">{error}</div>
-        )}
+      <div className="w-full max-w-sm">
+        {/* Logo */}
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center gap-2 mb-2">
+            <span className="text-3xl">✈</span>
+            <span className="text-2xl font-black tracking-tight text-vigno-txt">
+              Aero<span className="text-vigno-accent">Learn</span>
+            </span>
+          </div>
+          <p className="text-vigno-muted text-xs tracking-widest uppercase">Aviation Training Platform</p>
+        </div>
 
-        {!challenge ? (
-          <form onSubmit={submit}>
-            <label className="text-xs text-vigno-muted block mb-1.5">Email</label>
-            <input name="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" className={input} />
-            <label className="text-xs text-vigno-muted block mb-1.5">Password</label>
-            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" className={input} />
-            <div className="text-right -mt-1 mb-2">
-              <Link to="/forgot-password" className="text-xs text-vigno-accent2 hover:underline">Forgot password?</Link>
-            </div>
-            <button type="submit" disabled={loading}
-              className="w-full bg-vigno-accent text-[#1a0d0f] font-extrabold py-3 rounded-xl hover:brightness-110 disabled:opacity-60">
-              {loading ? 'Signing in…' : 'Sign In'}
-            </button>
-            <p className="text-xs text-vigno-muted mt-4 text-center">
-              New here? <Link to="/signup" className="text-vigno-accent2 hover:underline">Create an account</Link>
-            </p>
-            <p className="text-[11px] text-vigno-muted/70 mt-3 text-center">
-              Demo: cadet@aerolearn.in / password · admin@vigno.in / Admin@12345
-            </p>
-          </form>
-        ) : (
-          <form onSubmit={submit2fa}>
-            <p className="text-sm text-vigno-muted mb-3">
-              {method === 'email'
-                ? 'Enter the 6-digit code sent to your email.'
-                : 'Enter the 6-digit code from your authenticator app (or a backup code).'}
-            </p>
-            <input autoFocus value={code} onChange={(e) => setCode(e.target.value)} placeholder="123456"
-              className={input + ' tracking-widest text-center text-lg'} />
-            <button type="submit" disabled={loading}
-              className="w-full bg-vigno-accent text-[#1a0d0f] font-extrabold py-3 rounded-xl hover:brightness-110 disabled:opacity-60">
-              {loading ? 'Verifying…' : 'Verify'}
-            </button>
-            <button type="button" onClick={() => { setChallenge(null); setCode(''); setError('') }}
-              className="w-full mt-2 text-xs text-vigno-muted hover:text-vigno-txt">← Back</button>
-          </form>
-        )}
+        {/* Card */}
+        <div className="rounded-2xl border border-[#1e3060] shadow-2xl overflow-hidden"
+          style={{ background: 'linear-gradient(160deg, #0d1829 0%, #0a1422 100%)', backdropFilter: 'blur(12px)' }}>
+
+          {/* Card header stripe */}
+          <div className="h-1 w-full" style={{ background: 'linear-gradient(90deg, #4da6ff, #f0c040, #4da6ff)' }} />
+
+          <div className="p-8">
+            {!challenge ? (
+              <>
+                <h2 className="text-lg font-bold text-vigno-txt mb-1">Welcome back, Cadet</h2>
+                <p className="text-vigno-muted text-xs mb-6">Sign in to continue your training</p>
+
+                {error && (
+                  <div className="mb-4 text-xs bg-red-500/10 border border-red-500/30 text-red-300 rounded-lg px-3 py-2">{error}</div>
+                )}
+
+                <form onSubmit={submit} className="space-y-4">
+                  <div>
+                    <label className="text-xs text-vigno-muted block mb-1.5 font-medium">Email</label>
+                    <input
+                      name="email" value={email}
+                      onChange={e => setEmail(e.target.value)}
+                      autoComplete="email" placeholder="cadet@aerolearn.in"
+                      className={inputCls}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs text-vigno-muted block mb-1.5 font-medium">Password</label>
+                    <div className="relative">
+                      <input
+                        type={showPass ? 'text' : 'password'}
+                        value={password}
+                        onChange={e => setPassword(e.target.value)}
+                        autoComplete="current-password"
+                        className={inputCls + ' pr-10'}
+                      />
+                      <button type="button" onClick={() => setShowPass(p => !p)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-vigno-muted hover:text-vigno-accent2 transition-colors text-xs">
+                        {showPass ? '🙈' : '👁'}
+                      </button>
+                    </div>
+                    <div className="text-right mt-1">
+                      <Link to="/forgot-password" className="text-xs text-vigno-accent2 hover:underline">Forgot password?</Link>
+                    </div>
+                  </div>
+
+                  <button type="submit" disabled={loading}
+                    className="w-full py-3 rounded-xl font-extrabold text-sm tracking-wide transition-all duration-200 disabled:opacity-60"
+                    style={{ background: 'linear-gradient(135deg, #f0c040, #f0a020)', color: '#0a0f1e', boxShadow: '0 4px 20px rgba(240,192,64,0.3)' }}>
+                    {loading ? 'Signing in…' : 'Sign In'}
+                  </button>
+
+                  <p className="text-xs text-vigno-muted text-center pt-1">
+                    New here?{' '}
+                    <Link to="/signup" className="text-vigno-accent2 font-semibold hover:underline">Create an account</Link>
+                  </p>
+
+                  <p className="text-[10px] text-vigno-muted/40 text-center border-t border-[#1e3060] pt-3">
+                    Demo: cadet@aerolearn.in / password
+                  </p>
+                </form>
+              </>
+            ) : (
+              <form onSubmit={submit2fa} className="space-y-4">
+                <h2 className="text-lg font-bold text-vigno-txt mb-1">Two-Factor Auth</h2>
+                <p className="text-vigno-muted text-xs mb-4">
+                  {method === 'email' ? 'Enter the 6-digit code sent to your email.' : 'Enter the code from your authenticator app.'}
+                </p>
+                {error && (
+                  <div className="mb-4 text-xs bg-red-500/10 border border-red-500/30 text-red-300 rounded-lg px-3 py-2">{error}</div>
+                )}
+                <input autoFocus value={code} onChange={e => setCode(e.target.value)}
+                  placeholder="123456" className={inputCls + ' tracking-widest text-center text-lg'} />
+                <button type="submit" disabled={loading}
+                  className="w-full py-3 rounded-xl font-extrabold text-sm transition-all disabled:opacity-60"
+                  style={{ background: 'linear-gradient(135deg, #f0c040, #f0a020)', color: '#0a0f1e' }}>
+                  {loading ? 'Verifying…' : 'Verify'}
+                </button>
+                <button type="button" onClick={() => { setChallenge(null); setCode(''); setError('') }}
+                  className="w-full text-xs text-vigno-muted hover:text-vigno-txt transition-colors">← Back</button>
+              </form>
+            )}
+          </div>
+        </div>
+
+        <p className="text-center text-[10px] text-vigno-muted/40 mt-6">
+          AeroLearn © 2025 · Aviation Excellence
+        </p>
       </div>
     </div>
   )

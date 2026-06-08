@@ -1,5 +1,7 @@
 import crypto from 'node:crypto'
 import { z } from 'zod'
+import { PDFDocument } from 'pdf-lib'
+import fs from 'node:fs'
 import { asyncHandler } from '../utils/asyncHandler.js'
 import { audit } from '../utils/audit.js'
 import { badRequest, notFound, paymentRequired, forbidden } from '../utils/ApiError.js'
@@ -31,6 +33,45 @@ const MIME = {
   '.bin': 'application/octet-stream',
 }
 const mimeFor = (key) => MIME[(key.match(/\.[a-z0-9]+$/i) || ['.bin'])[0].toLowerCase()] || 'application/octet-stream'
+
+// Add watermark with user email to PDF
+async function addPdfWatermark(pdfBuffer, email) {
+  try {
+    const pdfDoc = await PDFDocument.load(pdfBuffer)
+    const pages = pdfDoc.getPages()
+    const helveticaFont = await pdfDoc.embedFont('Helvetica')
+
+    for (const page of pages) {
+      const { width, height } = page.getSize()
+
+      // Add diagonal watermark text with user email
+      page.drawText(email, {
+        x: width / 6,
+        y: height / 2,
+        size: 48,
+        font: helveticaFont,
+        color: { red: 0.7, green: 0.7, blue: 0.7 },
+        opacity: 0.25,
+      })
+
+      // Add footer with email
+      page.drawText(`Licensed to: ${email}`, {
+        x: 50,
+        y: 20,
+        size: 10,
+        font: helveticaFont,
+        color: { red: 0.5, green: 0.5, blue: 0.5 },
+        opacity: 0.4,
+      })
+    }
+
+    const watermarkedBytes = await pdfDoc.save()
+    return Buffer.from(watermarkedBytes)
+  } catch (error) {
+    console.error('Error adding watermark to PDF:', error)
+    throw error
+  }
+}
 
 // Pipe a file read stream to the response with proper error handling so a
 // mid-transfer storage failure can never crash the process (unhandled 'error').
@@ -96,6 +137,25 @@ export const streamFile = asyncHandler(async (req, res, next) => {
   // Never let secure content be cached by intermediaries.
   res.set('Cache-Control', 'private, no-store')
   res.set('Content-Type', type)
+
+  // Check if this is a PDF file - if so, add watermark with user email
+  const isPdf = content.storageKey.toLowerCase().endsWith('.pdf')
+  if (isPdf && req.user && req.user.email) {
+    try {
+      // Read the entire PDF file
+      const pdfBuffer = fs.readFileSync(full)
+      // Add watermark with user's email
+      const watermarkedPdf = await addPdfWatermark(pdfBuffer, req.user.email)
+      // Send watermarked PDF
+      res.set('Content-Length', String(watermarkedPdf.length))
+      res.set('Content-Disposition', `inline; filename="${content.storageKey}"`)
+      audit(req, 'file.stream', { targetType: 'Content', targetId: content._id })
+      return res.send(watermarkedPdf)
+    } catch (error) {
+      console.error('Error watermarking PDF:', error)
+      // Fall through to regular streaming if watermarking fails
+    }
+  }
 
   // Only honor a well-formed byte range; anything else falls through to full file.
   const m = req.headers.range ? /bytes=(\d+)-(\d*)/.exec(req.headers.range) : null

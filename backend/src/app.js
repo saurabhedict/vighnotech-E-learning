@@ -5,6 +5,8 @@ import helmet from 'helmet'
 import morgan from 'morgan'
 import compression from 'compression'
 import mongoSanitize from 'express-mongo-sanitize'
+import path from 'path'
+import { fileURLToPath } from 'url'
 
 import { env } from './config/env.js'
 import { globalLimiter } from './middleware/rateLimit.js'
@@ -26,6 +28,11 @@ import commerceRoutes from './routes/commerce.routes.js'
 export function createApp() {
   const app = express()
   app.set('trust proxy', 1)
+
+  // ── Static files ───────────────────────────────────────────────────────────
+  const __dirname = path.dirname(fileURLToPath(import.meta.url))
+  const publicPath = path.join(__dirname, '../../frontend/public')
+  app.use('/public', express.static(publicPath))
 
   // ── Performance & hardening (Doc 2 §9) ─────────────────────────────────────
   app.use(compression()) // gzip/brotli responses
