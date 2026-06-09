@@ -1,7 +1,8 @@
 import { useEffect } from 'react'
 
-// Small centered dialog. Props: title, onClose, children, width.
-export default function Modal({ title, onClose, children, width = 420 }) {
+// Small centered dialog. Props: title, onClose, children, width, overflowVisible
+// (allow content like dropdowns to extend past the dialog edge).
+export default function Modal({ title, onClose, children, width = 420, overflowVisible = false }) {
   useEffect(() => {
     const onKey = (e) => e.key === 'Escape' && onClose()
     window.addEventListener('keydown', onKey)
@@ -11,7 +12,7 @@ export default function Modal({ title, onClose, children, width = 420 }) {
   return (
     <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm grid place-items-center p-4" onClick={onClose}>
       <div
-        className="bg-vigno-panel border border-vigno-line rounded-2xl shadow-2xl w-full overflow-hidden"
+        className={'bg-vigno-panel border border-vigno-line rounded-2xl shadow-2xl w-full ' + (overflowVisible ? '' : 'overflow-hidden')}
         style={{ maxWidth: width }}
         onClick={(e) => e.stopPropagation()}
       >

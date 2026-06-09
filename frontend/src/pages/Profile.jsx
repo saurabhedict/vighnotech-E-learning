@@ -9,7 +9,8 @@ import { getDeviceFingerprint, deviceLabel } from '../lib/device'
 import VerifyContact from '../components/VerifyContact'
 import AvatarUploader from '../components/AvatarUploader'
 import Modal from '../components/Modal'
-import { COUNTRIES, flagEmoji, DIAL_CODES } from '../lib/countryCodes'
+import CountrySelect from '../components/CountrySelect'
+import { DIAL_CODES } from '../lib/countryCodes'
 
 function Card({ title, children }) {
   return (
@@ -105,18 +106,13 @@ function AddPhone() {
     finally { setLoading(false) }
   }
 
-  const selectCls = 'w-36 shrink-0 px-2.5 py-2.5 rounded-lg bg-vigno-bg2 border border-vigno-line text-sm outline-none focus:border-vigno-accent'
   const numCls = 'flex-1 px-3 py-2.5 rounded-lg bg-vigno-bg2 border border-vigno-line text-sm outline-none focus:border-vigno-accent tracking-wider'
   return (
     <form onSubmit={submit}>
       <Msg msg={msg} />
       <label className="text-xs text-vigno-muted block mb-1.5">Phone number</label>
       <div className="flex gap-2 mb-1">
-        <select value={cc} onChange={(e) => setCc(e.target.value)} className={selectCls} title="Country code">
-          {COUNTRIES.map((c) => (
-            <option key={c.iso} value={c.dial}>{flagEmoji(c.iso)} {c.name} ({c.dial})</option>
-          ))}
-        </select>
+        <CountrySelect value={cc} onChange={setCc} />
         <input
           value={national}
           onChange={(e) => setNational(e.target.value.replace(/\D/g, '').slice(0, 10))}
@@ -423,7 +419,7 @@ export default function Profile() {
       {modal === '2fa' && <Modal title="Two-Factor Authentication" width={460} onClose={close}><TwoFactor /></Modal>}
       {modal === 'devices' && <Modal title="My Devices" width={460} onClose={close}><Devices /></Modal>}
       {modal === 'verify' && <Modal title="Verify Account" onClose={close}><VerifyContact defaultPhone={user?.phone || ''} onVerified={close} /></Modal>}
-      {modal === 'addPhone' && <Modal title={user?.phone ? 'Edit Phone Number' : 'Add Phone Number'} onClose={close}><AddPhone /></Modal>}
+      {modal === 'addPhone' && <Modal title={user?.phone ? 'Edit Phone Number' : 'Add Phone Number'} overflowVisible onClose={close}><AddPhone /></Modal>}
       {modal === 'verifyPhone' && <Modal title="Verify Phone Number" onClose={close}><VerifyContact phoneOnly defaultPhone={user?.phone || ''} onVerified={close} /></Modal>}
       {modal === 'delete' && <Modal title="Delete Account" onClose={close}><DeleteAccount /></Modal>}
     </div>
