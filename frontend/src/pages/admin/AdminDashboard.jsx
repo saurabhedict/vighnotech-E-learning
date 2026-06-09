@@ -98,7 +98,7 @@ function Panel({ title, children }) {
 const TABS = [
   { key: 'overview', label: 'Overview' },
   { key: 'content', label: 'Content (CMS)' },
-  { key: 'users', label: 'Users' },
+  { key: 'users', label: '👥 Manage Users' },
   { key: 'reports', label: 'Reports' },
   { key: 'commerce', label: 'Commerce' },
   { key: 'licenses', label: 'Licenses' },
@@ -120,7 +120,7 @@ export default function AdminDashboard() {
 
       {tab === 'overview' && <><div className="mb-6"><Overview /></div></>}
       {tab === 'content' && <Panel title="Content Tree Manager"><CmsManager /></Panel>}
-      {tab === 'users' && <Panel title="Users & Roles"><UsersPanel /></Panel>}
+      {tab === 'users' && <Panel title="Manage Users"><UsersPanel /></Panel>}
       {tab === 'reports' && <Panel title="Reports & Export"><ReportsPanel /></Panel>}
       {tab === 'commerce' && <Panel title="Coupons & Refunds"><CommercePanel /></Panel>}
       {tab === 'licenses' && <Panel title="Revoke License"><RevokeLicense /></Panel>}

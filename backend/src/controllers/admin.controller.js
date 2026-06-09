@@ -207,11 +207,17 @@ export const listContentByChapter = asyncHandler(async (req, res) => {
 // ── User management (LLD: Admin Management) ──────────────────────────────────
 export const listUsers = asyncHandler(async (req, res) => {
   const q = (req.query.q || '').trim()
-  const filter = q ? { email: { $regex: q, $options: 'i' } } : {}
+  const rx = q ? { $regex: q, $options: 'i' } : null
+  const filter = rx ? { $or: [{ email: rx }, { name: rx }, { phone: rx }] } : {}
   const page = Math.max(1, Number(req.query.page) || 1)
   const limit = Math.min(Number(req.query.limit) || 50, 200)
   const [users, total] = await Promise.all([
-    User.find(filter).select('email name role emailVerified twoFAEnabled createdAt lastLoginAt').sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).lean(),
+    User.find(filter)
+      .select('email name phone role emailVerified phoneVerified twoFAEnabled createdAt lastLoginAt')
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .lean(),
     User.countDocuments(filter),
   ])
   res.json({ users, page, limit, total })
@@ -237,6 +243,28 @@ export const setUserRole = asyncHandler(async (req, res) => {
   await target.save()
   audit(req, 'admin.user.role', { targetType: 'User', targetId: target._id, meta: { role } })
   res.json({ ok: true, user: { id: target._id, email: target.email, role: target.role } })
+})
+
+// DELETE /admin/users/:id — remove a user and their personal records.
+export const deleteUser = asyncHandler(async (req, res) => {
+  const target = await User.findById(req.params.id)
+  if (!target) throw notFound('User not found')
+  if (target._id.toString() === req.user.id) throw forbidden('You cannot delete your own account')
+  if (target.role === ROLES.ADMIN) {
+    const admins = await User.countDocuments({ role: ROLES.ADMIN })
+    if (admins <= 1) throw forbidden('Cannot delete the last remaining admin')
+  }
+  // Clean up the user's personal data (licenses/purchases/devices/favorites/progress).
+  await Promise.all([
+    License.deleteMany({ userId: target._id }),
+    Purchase.deleteMany({ userId: target._id }),
+    import('../models/Device.js').then((m) => m.Device.deleteMany({ userId: target._id })),
+    import('../models/Favorite.js').then((m) => m.Favorite.deleteMany({ userId: target._id })).catch(() => {}),
+    import('../models/Progress.js').then((m) => m.Progress.deleteMany({ userId: target._id })).catch(() => {}),
+  ])
+  await target.deleteOne()
+  audit(req, 'admin.user.delete', { targetType: 'User', targetId: target._id, meta: { email: target.email } })
+  res.json({ ok: true })
 })
 
 // ── Reports + export ─────────────────────────────────────────────────────────

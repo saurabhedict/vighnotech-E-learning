@@ -31,6 +31,9 @@ export const adminApi = {
   setUserRole(id, role) {
     return api.patch(`/admin/users/${id}/role`, { role }).then((r) => r.data)
   },
+  deleteUser(id) {
+    return api.delete(`/admin/users/${id}`).then((r) => r.data)
+  },
   // Tree / content browse
   listNodes(params = {}) {
     return api.get('/admin/nodes', { params }).then((r) => r.data.nodes)

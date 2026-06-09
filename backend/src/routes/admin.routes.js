@@ -22,6 +22,7 @@ router.get('/reports/:type/export', admin.exportReportHandler)
 // Users (LLD: Admin Management — promote/demote with last-admin guard)
 router.get('/users', admin.listUsers)
 router.patch('/users/:id/role', validate({ body: admin.setUserRoleSchema }), admin.setUserRole)
+router.delete('/users/:id', admin.deleteUser)
 
 // Content tree (CMS)
 router.get('/nodes', admin.listNodes)
