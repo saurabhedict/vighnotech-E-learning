@@ -3,18 +3,18 @@ import { useSelector } from 'react-redux'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { adminApi } from '../../api/adminApi'
 import { apiErrorMessage } from '../../api/authApi'
+import Avatar from '../../components/Avatar'
 
 function fmtDate(d) {
   return d ? new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'
 }
 
 function UserCard({ u, isSelf, onRole, onDelete, busy }) {
-  const initial = (u.name || u.email || '?').trim().charAt(0).toUpperCase()
   const verified = u.emailVerified || u.phoneVerified
   return (
     <div className="flex items-center gap-4 bg-vigno-card border border-vigno-line rounded-2xl px-4 py-3">
-      <div className="w-11 h-11 flex-none rounded-full bg-vigno-accent/20 text-vigno-accent2 grid place-items-center font-bold text-lg">
-        {initial}
+      <div className="flex-none">
+        <Avatar user={u} size={44} verified={verified} />
       </div>
 
       <div className="flex-1 min-w-0">

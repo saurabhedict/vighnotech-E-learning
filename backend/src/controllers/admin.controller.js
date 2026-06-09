@@ -213,7 +213,7 @@ export const listUsers = asyncHandler(async (req, res) => {
   const limit = Math.min(Number(req.query.limit) || 50, 200)
   const [users, total] = await Promise.all([
     User.find(filter)
-      .select('email name phone role emailVerified phoneVerified twoFAEnabled createdAt lastLoginAt')
+      .select('email name phone role emailVerified phoneVerified twoFAEnabled createdAt lastLoginAt avatar')
       .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
       .limit(limit)
