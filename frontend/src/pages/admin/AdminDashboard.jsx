@@ -7,6 +7,7 @@ import UsersPanel from './UsersPanel'
 import ReportsPanel from './ReportsPanel'
 import CommercePanel from './CommercePanel'
 import SettingsPanel from './SettingsPanel'
+import Breadcrumb from '../../components/Breadcrumb'
 
 function StatCard({ label, value, accent }) {
   return (
@@ -113,7 +114,7 @@ export default function AdminDashboard() {
 
   return (
     <div>
-      <div className="text-sm text-vigno-muted mb-1">AeroLearn › Admin</div>
+      <Breadcrumb trail="Admin" />
       <h1 className="text-2xl mb-5">🛠 Admin Dashboard</h1>
 
       <div className="flex flex-wrap gap-2 mb-6">

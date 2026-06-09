@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { discoverApi } from '../api/discoverApi'
 import ContentCard from '../components/ContentCard'
+import Breadcrumb from '../components/Breadcrumb'
 
 const TYPES = ['', 'pdf', 'video', '3d', 'game']
 
@@ -31,7 +32,7 @@ export default function Search() {
   const input = 'px-3 py-2.5 rounded-lg bg-vigno-bg2 border border-vigno-line text-sm outline-none focus:border-vigno-accent'
   return (
     <div>
-      <div className="text-sm text-vigno-muted mb-1">AeroLearn › Search</div>
+      <Breadcrumb trail="Search" />
       <h1 className="text-2xl mb-4">🔍 Search</h1>
 
       <div className="flex flex-wrap gap-2 mb-6 max-w-2xl">

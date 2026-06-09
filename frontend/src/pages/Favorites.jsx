@@ -1,12 +1,13 @@
 import { useQuery } from '@tanstack/react-query'
 import { discoverApi } from '../api/discoverApi'
 import ContentCard from '../components/ContentCard'
+import Breadcrumb from '../components/Breadcrumb'
 
 export default function Favorites() {
   const favs = useQuery({ queryKey: ['favorites', 'mine'], queryFn: discoverApi.myFavorites })
   return (
     <div>
-      <div className="text-sm text-vigno-muted mb-1">AeroLearn › Favorites</div>
+      <Breadcrumb trail="Favorites" />
       <h1 className="text-2xl mb-5">★ Favorites</h1>
       {favs.isLoading && <p className="text-vigno-muted">Loading…</p>}
       {favs.isError && <p className="text-red-300">Failed to load favorites.</p>}

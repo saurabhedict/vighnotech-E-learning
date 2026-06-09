@@ -4,6 +4,7 @@ import { useClassTree } from '../hooks/useContent'
 import { discoverApi } from '../api/discoverApi'
 import FolderCard from '../components/FolderCard'
 import ContentCard from '../components/ContentCard'
+import Breadcrumb from '../components/Breadcrumb'
 
 function DiscoverRow({ title, queryKey, queryFn }) {
   const { data } = useQuery({ queryKey, queryFn })
@@ -25,7 +26,7 @@ export default function Home() {
 
   return (
     <div>
-      <div className="text-sm text-vigno-muted mb-1">AeroLearn › {displayName}</div>
+      <Breadcrumb trail={displayName} />
       <h1 className="text-2xl mb-5">{displayName}</h1>
 
       <DiscoverRow title="▶ Continue watching" queryKey={['progress', 'mine']} queryFn={() => discoverApi.myProgress(10)} />

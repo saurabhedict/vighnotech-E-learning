@@ -4,6 +4,7 @@ import { useDispatch } from 'react-redux'
 import { setCredentials } from '../store/authSlice'
 import { authApi, apiErrorMessage } from '../api/authApi'
 import VerifyContact from '../components/VerifyContact'
+import { useSiteSettings } from '../hooks/useSiteSettings'
 
 function PasswordRule({ ok, label }) {
   return (
@@ -19,6 +20,8 @@ function PasswordRule({ ok, label }) {
 export default function Signup() {
   const navigate = useNavigate()
   const dispatch = useDispatch()
+  const { data: settings } = useSiteSettings()
+  const brandName = settings?.brand?.name || 'AeroLearn'
   const [step, setStep] = useState(1)
   const [form, setForm] = useState({ name: '', email: '', phone: '', password: '' })
   const [showPass, setShowPass] = useState(false)
@@ -67,9 +70,7 @@ export default function Signup() {
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-2 mb-2">
             <span className="text-3xl">✈</span>
-            <span className="text-2xl font-black tracking-tight text-vigno-txt">
-              Aero<span className="text-vigno-accent">Learn</span>
-            </span>
+            <span className="text-2xl font-black tracking-tight text-vigno-txt">{brandName}</span>
           </div>
           <p className="text-vigno-muted text-xs tracking-widest uppercase">Start your exam preparation journey</p>
         </div>
@@ -84,7 +85,7 @@ export default function Signup() {
             {step === 1 ? (
               <>
                 <h2 className="text-lg font-bold text-vigno-txt mb-1">Create Account</h2>
-                <p className="text-vigno-muted text-xs mb-6">Join the AeroLearn training community</p>
+                <p className="text-vigno-muted text-xs mb-6">Join the {brandName} community</p>
 
                 {error && (
                   <div className="mb-4 text-xs bg-red-500/10 border border-red-500/30 text-red-300 rounded-lg px-3 py-2">{error}</div>
@@ -194,7 +195,7 @@ export default function Signup() {
         </div>
 
         <p className="text-center text-[10px] text-vigno-muted/40 mt-6">
-          AeroLearn © 2025 · Aviation Excellence
+          {brandName} © {new Date().getFullYear()}
         </p>
       </div>
     </div>

@@ -1,4 +1,11 @@
 import { paymentsApi } from '../api/paymentsApi'
+import { queryClient } from './queryClient'
+import { SITE_SETTINGS_KEY } from '../hooks/useSiteSettings'
+
+// Brand name shown in the Razorpay checkout modal — read from cached settings.
+function brandName() {
+  return queryClient.getQueryData(SITE_SETTINGS_KEY)?.brand?.name || 'AeroLearn'
+}
 
 // Lazily load the Razorpay checkout script (only needed for live payments).
 function loadRazorpayScript() {
@@ -36,7 +43,7 @@ export async function purchaseContent(contentId, user, couponCode) {
       key: order.keyId,
       amount: order.amount,
       currency: order.currency,
-      name: 'AeroLearn',
+      name: brandName(),
       description: 'Course content license',
       order_id: order.orderId,
       prefill: { email: user?.email },
@@ -79,7 +86,7 @@ export async function topupWallet(amount, user) {
       key: order.keyId,
       amount: order.amount,
       currency: order.currency,
-      name: 'AeroLearn',
+      name: brandName(),
       description: `Wallet top-up ₹${amount}`,
       order_id: order.orderId,
       prefill: { email: user?.email },

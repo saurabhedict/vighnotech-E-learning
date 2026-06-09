@@ -1,10 +1,13 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { authApi, apiErrorMessage } from '../api/authApi'
+import { useSiteSettings } from '../hooks/useSiteSettings'
 
 // Two-step reset: request a code, then set a new password with it.
 export default function ForgotPassword() {
   const navigate = useNavigate()
+  const { data: settings } = useSiteSettings()
+  const brandName = settings?.brand?.name || 'AeroLearn'
   const [step, setStep] = useState(1)
   const [email, setEmail] = useState('')
   const [code, setCode] = useState('')
@@ -41,7 +44,7 @@ export default function ForgotPassword() {
   return (
     <div className="min-h-screen flex items-center justify-center p-5">
       <div className="bg-vigno-panel border border-vigno-line rounded-2xl p-8 w-[380px] shadow-2xl">
-        <h2 className="text-xl font-bold mb-1"><span className="text-vigno-accent2">✈</span>Aero<span className="font-extrabold">Learn</span></h2>
+        <h2 className="text-xl font-bold mb-1"><span className="text-vigno-accent2">✈</span> {brandName}</h2>
         <p className="text-vigno-muted text-sm mb-5">Reset your password</p>
 
         {msg && (

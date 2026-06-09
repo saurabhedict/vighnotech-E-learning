@@ -3,10 +3,14 @@ import { useNavigate, Link } from 'react-router-dom'
 import { useDispatch } from 'react-redux'
 import { setCredentials } from '../store/authSlice'
 import { authApi, apiErrorMessage } from '../api/authApi'
+import { useSiteSettings } from '../hooks/useSiteSettings'
 
 export default function Login() {
   const navigate = useNavigate()
   const dispatch = useDispatch()
+  const { data: settings } = useSiteSettings()
+  const brandName = settings?.brand?.name || 'AeroLearn'
+  const tagline = settings?.brand?.tagline || 'Aviation Training Platform'
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -76,11 +80,9 @@ export default function Login() {
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-2 mb-2">
             <span className="text-3xl">✈</span>
-            <span className="text-2xl font-black tracking-tight text-vigno-txt">
-              Aero<span className="text-vigno-accent">Learn</span>
-            </span>
+            <span className="text-2xl font-black tracking-tight text-vigno-txt">{brandName}</span>
           </div>
-          <p className="text-vigno-muted text-xs tracking-widest uppercase">Aviation Training Platform</p>
+          <p className="text-vigno-muted text-xs tracking-widest uppercase">{tagline}</p>
         </div>
 
         {/* Card */}
@@ -170,7 +172,7 @@ export default function Login() {
         </div>
 
         <p className="text-center text-[10px] text-vigno-muted/40 mt-6">
-          AeroLearn © 2025 · Aviation Excellence
+          {brandName} © {new Date().getFullYear()}
         </p>
       </div>
     </div>

@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { commerceApi } from '../api/commerceApi'
 import { topupWallet } from '../lib/buy'
 import { apiErrorMessage } from '../api/authApi'
+import Breadcrumb from '../components/Breadcrumb'
 
 const TYPE_STYLE = {
   topup: 'text-green-300',
@@ -38,7 +39,7 @@ export default function Wallet() {
   const input = 'px-3 py-2 rounded-lg bg-vigno-bg2 border border-vigno-line text-sm outline-none focus:border-vigno-accent'
   return (
     <div>
-      <div className="text-sm text-vigno-muted mb-1">AeroLearn › Wallet</div>
+      <Breadcrumb trail="Wallet" />
       <h1 className="text-2xl mb-5">👛 Wallet</h1>
 
       <div className="max-w-2xl bg-vigno-card border border-vigno-line rounded-2xl p-5 mb-6">

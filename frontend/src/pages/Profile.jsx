@@ -10,6 +10,7 @@ import VerifyContact from '../components/VerifyContact'
 import AvatarUploader from '../components/AvatarUploader'
 import Modal from '../components/Modal'
 import CountrySelect from '../components/CountrySelect'
+import Breadcrumb from '../components/Breadcrumb'
 import { DIAL_CODES } from '../lib/countryCodes'
 
 function Card({ title, children }) {
@@ -353,7 +354,7 @@ export default function Profile() {
 
   return (
     <div className="max-w-3xl">
-      <div className="text-sm text-vigno-muted mb-1">AeroLearn › Profile</div>
+      <Breadcrumb trail="Profile" />
       <h1 className="text-2xl mb-5">👤 Profile</h1>
 
       {/* Account */}

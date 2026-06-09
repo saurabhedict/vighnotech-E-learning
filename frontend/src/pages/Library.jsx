@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { licenseApi } from '../api/licenseApi'
 import { paymentsApi } from '../api/paymentsApi'
+import Breadcrumb from '../components/Breadcrumb'
 
 const ICON = { pdf: '📄', video: '🎬', game: '🎮', '3d': '✈' }
 const STATUS = {
@@ -20,7 +21,7 @@ export default function Library() {
 
   return (
     <div>
-      <div className="text-sm text-vigno-muted mb-1">AeroLearn › My Library</div>
+      <Breadcrumb trail="My Library" />
       <h1 className="text-2xl mb-5">📚 My Library</h1>
 
       {/* Owned licenses */}
