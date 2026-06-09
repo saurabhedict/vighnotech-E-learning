@@ -23,6 +23,19 @@ export const paymentsApi = {
     const { data } = await api.post('/payments/wallet', { contentId, ...(couponCode ? { couponCode } : {}) })
     return data
   },
+  // Wallet top-up: order → (checkout) → verify → balance credited.
+  async createTopupOrder(amount) {
+    const { data } = await api.post('/payments/topup/order', { amount })
+    return data
+  },
+  async verifyTopup({ orderId, paymentId, signature }) {
+    const { data } = await api.post('/payments/topup/verify', {
+      razorpay_order_id: orderId,
+      razorpay_payment_id: paymentId,
+      razorpay_signature: signature,
+    })
+    return data
+  },
   async mine() {
     const { data } = await api.get('/payments/mine')
     return data.purchases

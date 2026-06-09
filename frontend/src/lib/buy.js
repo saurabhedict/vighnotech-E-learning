@@ -56,3 +56,46 @@ export async function purchaseContent(contentId, user, couponCode) {
     rzp.open()
   })
 }
+
+/**
+ * Top up the wallet through the payment gateway. Same two modes as a purchase:
+ * MOCK verifies instantly; LIVE opens the Razorpay checkout. Resolves with the
+ * verify result ({ ok, balance }).
+ */
+export async function topupWallet(amount, user) {
+  const order = await paymentsApi.createTopupOrder(amount)
+
+  if (order.mock) {
+    return paymentsApi.verifyTopup({
+      orderId: order.orderId,
+      paymentId: order.mockPaymentId,
+      signature: order.mockSignature,
+    })
+  }
+
+  await loadRazorpayScript()
+  return new Promise((resolve, reject) => {
+    const rzp = new window.Razorpay({
+      key: order.keyId,
+      amount: order.amount,
+      currency: order.currency,
+      name: 'AeroLearn',
+      description: `Wallet top-up ₹${amount}`,
+      order_id: order.orderId,
+      prefill: { email: user?.email },
+      theme: { color: '#e67e22' },
+      handler: (resp) => {
+        paymentsApi
+          .verifyTopup({
+            orderId: resp.razorpay_order_id,
+            paymentId: resp.razorpay_payment_id,
+            signature: resp.razorpay_signature,
+          })
+          .then(resolve)
+          .catch(reject)
+      },
+      modal: { ondismiss: () => reject(new Error('Payment cancelled')) },
+    })
+    rzp.open()
+  })
+}

@@ -7,6 +7,7 @@ import { WalletTxn } from '../models/WalletTxn.js'
 import { Coupon } from '../models/Coupon.js'
 import { Content } from '../models/Content.js'
 import { creditWallet } from '../services/commerce.js'
+import { isMock } from '../services/payments.js'
 
 // ── Wallet (LLD: Wallet/Credits) ─────────────────────────────────────────────
 export const getWallet = asyncHandler(async (req, res) => {
@@ -17,11 +18,17 @@ export const getWallet = asyncHandler(async (req, res) => {
 
 export const topupSchema = z.object({ amount: z.number().int().positive().max(100000) })
 
-// Mock top-up (in production this would itself go through Razorpay).
+// Direct instant credit — DEV-ONLY seam (mock gateway, no real keys). Once real
+// Razorpay keys are configured, balance can ONLY be added through the paid
+// top-up flow (POST /payments/topup/order → /payments/topup/verify), so users
+// can't mint free credit.
 export const topupWallet = asyncHandler(async (req, res) => {
+  if (!isMock()) {
+    throw badRequest('Direct top-up is disabled. Use the Razorpay top-up flow on the Wallet page.')
+  }
   const user = await User.findById(req.user.id)
-  const balance = await creditWallet(user, req.body.amount, { type: 'topup', note: 'Wallet top-up' })
-  audit(req, 'wallet.topup', { meta: { amount: req.body.amount } })
+  const balance = await creditWallet(user, req.body.amount, { type: 'topup', note: 'Wallet top-up (dev)' })
+  audit(req, 'wallet.topup.dev', { meta: { amount: req.body.amount } })
   res.json({ ok: true, balance })
 })
 

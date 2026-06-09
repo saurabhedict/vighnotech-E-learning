@@ -5,6 +5,7 @@ import { badRequest, notFound, conflict, paymentRequired } from '../utils/ApiErr
 import { env } from '../config/env.js'
 import { Content } from '../models/Content.js'
 import { Purchase } from '../models/Purchase.js'
+import { WalletTopup } from '../models/WalletTopup.js'
 import { Coupon } from '../models/Coupon.js'
 import { User } from '../models/User.js'
 import {
@@ -15,7 +16,7 @@ import {
   mockSignature,
 } from '../services/payments.js'
 import { issueLicense, hasActiveLicense } from '../services/licenseAuthority.js'
-import { debitWallet, invoicePdf } from '../services/commerce.js'
+import { creditWallet, debitWallet, invoicePdf } from '../services/commerce.js'
 import { sendMail, receiptEmail } from '../services/mailer.js'
 
 // Compute final price after an optional coupon (throws on invalid coupon).
@@ -165,6 +166,75 @@ export const walletPay = asyncHandler(async (req, res) => {
   res.json({ ok: true, licenseId: license._id, token, balance: user.walletBalance })
 })
 
+// ── Wallet top-up via Razorpay (or mock) ─────────────────────────────────────
+// Same order → verify handshake as a content purchase, but on success it credits
+// the wallet instead of issuing a license. This is the ONLY way to add balance.
+
+// POST /payments/topup/order { amount }
+export const createTopupOrderSchema = z.object({ amount: z.number().int().positive().max(100000) })
+
+export const createTopupOrder = asyncHandler(async (req, res) => {
+  const amount = req.body.amount
+  const order = await createOrder({ amountInr: amount, receipt: `topup_${req.user.id}` })
+
+  await WalletTopup.create({
+    userId: req.user.id,
+    amount,
+    provider: isMock() ? 'mock' : 'razorpay',
+    razorpayOrderId: order.id,
+    status: 'created',
+  })
+
+  audit(req, 'wallet.topup.order', { meta: { orderId: order.id, amount } })
+  res.status(201).json({
+    orderId: order.id,
+    amount: order.amount,
+    currency: order.currency,
+    topupAmount: amount,
+    keyId: env.razorpay.keyId || null,
+    mock: isMock(),
+    ...(isMock()
+      ? (() => {
+          const paymentId = `pay_mock_${order.id.slice(-8)}`
+          return { mockPaymentId: paymentId, mockSignature: mockSignature(order.id, paymentId) }
+        })()
+      : {}),
+  })
+})
+
+// POST /payments/topup/verify — confirm gateway payment then credit the wallet.
+export const verifyTopup = asyncHandler(async (req, res) => {
+  const { razorpay_order_id: orderId, razorpay_payment_id: paymentId, razorpay_signature: signature } = req.body
+
+  if (!verifyPaymentSignature({ orderId, paymentId, signature })) {
+    audit(req, 'wallet.topup.verify.fail', { meta: { orderId } })
+    throw badRequest('Payment signature verification failed')
+  }
+
+  const topup = await WalletTopup.findOne({ razorpayOrderId: orderId, userId: req.user.id })
+  if (!topup) throw notFound('Top-up order not found')
+
+  const user = await User.findById(req.user.id)
+  if (topup.status === 'paid') {
+    return res.json({ ok: true, balance: user.walletBalance, alreadyProcessed: true })
+  }
+
+  // Atomic claim so verify + webhook can never credit twice.
+  const claimed = await WalletTopup.findOneAndUpdate(
+    { _id: topup._id, status: { $ne: 'paid' } },
+    { $set: { status: 'paid', razorpayPaymentId: paymentId, razorpaySignature: signature, paidAt: new Date() } },
+    { new: true }
+  )
+  if (!claimed) {
+    const fresh = await User.findById(req.user.id)
+    return res.json({ ok: true, balance: fresh.walletBalance, alreadyProcessed: true })
+  }
+
+  const balance = await creditWallet(user, claimed.amount, { type: 'topup', note: 'Wallet top-up (Razorpay)', ref: orderId })
+  audit(req, 'wallet.topup.verify', { targetType: 'WalletTopup', targetId: claimed._id, meta: { amount: claimed.amount } })
+  res.json({ ok: true, balance })
+})
+
 /**
  * POST /payments/webhook — Razorpay server-to-server confirmation.
  * Mounted with a raw-body parser so the signature can be verified. Idempotent.
@@ -187,6 +257,17 @@ export const webhook = asyncHandler(async (req, res) => {
     if (claimed) {
       const content = await Content.findById(claimed.contentId)
       if (content) await finalizePurchase(claimed, content)
+    } else {
+      // Not a content purchase — maybe a wallet top-up. Claim + credit once.
+      const topup = await WalletTopup.findOneAndUpdate(
+        { razorpayOrderId: orderId, status: { $ne: 'paid' } },
+        { $set: { status: 'paid', razorpayPaymentId: entity.id, paidAt: new Date() } },
+        { new: true }
+      )
+      if (topup) {
+        const user = await User.findById(topup.userId)
+        if (user) await creditWallet(user, topup.amount, { type: 'topup', note: 'Wallet top-up (Razorpay)', ref: orderId })
+      }
     }
   }
   res.json({ received: true })

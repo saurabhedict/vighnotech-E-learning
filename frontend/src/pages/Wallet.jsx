@@ -1,6 +1,8 @@
 import { useState } from 'react'
+import { useSelector } from 'react-redux'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { commerceApi } from '../api/commerceApi'
+import { topupWallet } from '../lib/buy'
 import { apiErrorMessage } from '../api/authApi'
 
 const TYPE_STYLE = {
@@ -11,6 +13,7 @@ const TYPE_STYLE = {
 
 export default function Wallet() {
   const qc = useQueryClient()
+  const user = useSelector((s) => s.auth.user)
   const wallet = useQuery({ queryKey: ['wallet'], queryFn: commerceApi.wallet })
   const [amount, setAmount] = useState(500)
   const [busy, setBusy] = useState(false)
@@ -20,10 +23,13 @@ export default function Wallet() {
     setErr('')
     setBusy(true)
     try {
-      await commerceApi.topup(amt)
+      const r = await topupWallet(amt, user)
       qc.invalidateQueries({ queryKey: ['wallet'] })
+      if (r?.balance != null) qc.setQueryData(['wallet'], (old) => (old ? { ...old, balance: r.balance } : old))
     } catch (e) {
-      setErr(apiErrorMessage(e, 'Top-up failed'))
+      // The user closing the Razorpay modal isn't an error worth shouting about.
+      if (e?.message === 'Payment cancelled') setErr('')
+      else setErr(apiErrorMessage(e, 'Top-up failed'))
     } finally {
       setBusy(false)
     }
@@ -52,7 +58,7 @@ export default function Wallet() {
           </button>
         </div>
         {err && <p className="text-sm text-red-300 mt-2">{err}</p>}
-        <p className="text-[11px] text-vigno-muted/70 mt-3">Demo top-up adds store credit instantly. In production this routes through Razorpay.</p>
+        <p className="text-[11px] text-vigno-muted/70 mt-3">🔒 Top-ups are processed securely through Razorpay. (Test mode — use a Razorpay test card.)</p>
       </div>
 
       <h2 className="text-base font-bold mb-2.5 pl-2.5 border-l-4 border-vigno-accent">History</h2>
