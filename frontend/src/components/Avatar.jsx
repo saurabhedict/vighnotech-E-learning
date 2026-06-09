@@ -9,8 +9,10 @@ export default function Avatar({ user, size = 40, className = '' }) {
     )
   }
   return (
-    <div style={style}
-      className={'rounded-full bg-vigno-accent/25 text-vigno-accent2 grid place-items-center font-bold select-none ' + className}>
+    <div
+      style={{ ...style, fontSize: Math.round(size * 0.42) }}
+      className={'rounded-full bg-gradient-to-br from-vigno-bg3 to-vigno-card text-vigno-accent2 border border-vigno-line grid place-items-center font-bold select-none ' + className}
+    >
       {initial}
     </div>
   )

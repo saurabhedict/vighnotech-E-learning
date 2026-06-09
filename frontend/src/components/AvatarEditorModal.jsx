@@ -27,30 +27,44 @@ export default function AvatarEditorModal({ file, onCancel, onApply }) {
     return () => URL.revokeObjectURL(url)
   }, [file])
 
-  // Redraw on any change.
+  // Redraw on any change (guarded so a draw hiccup can never blank the page).
   useEffect(() => {
     const cv = canvasRef.current
     const img = imgRef.current
     if (!cv || !img || !ready) return
-    const ctx = cv.getContext('2d')
-    ctx.clearRect(0, 0, OUT, OUT)
-    ctx.fillStyle = '#0b1220'
-    ctx.fillRect(0, 0, OUT, OUT)
-    ctx.save()
-    ctx.translate(OUT / 2 + offset.x, OUT / 2 + offset.y)
-    ctx.rotate((rotate * Math.PI) / 180)
-    const cover = Math.max(OUT / img.width, OUT / img.height)
-    const s = cover * zoom
-    ctx.drawImage(img, (-img.width * s) / 2, (-img.height * s) / 2, img.width * s, img.height * s)
-    ctx.restore()
+    try {
+      const ctx = cv.getContext('2d')
+      ctx.clearRect(0, 0, OUT, OUT)
+      ctx.fillStyle = '#0b1220'
+      ctx.fillRect(0, 0, OUT, OUT)
+      ctx.save()
+      ctx.translate(OUT / 2 + offset.x, OUT / 2 + offset.y)
+      ctx.rotate((rotate * Math.PI) / 180)
+      const cover = Math.max(OUT / img.width, OUT / img.height)
+      const s = cover * zoom
+      ctx.drawImage(img, (-img.width * s) / 2, (-img.height * s) / 2, img.width * s, img.height * s)
+      ctx.restore()
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error('[avatar] draw failed', err)
+    }
   }, [zoom, rotate, offset, ready])
 
-  // Drag to reposition (pointer = mouse + touch).
-  const onDown = (e) => { dragRef.current = { x: e.clientX, y: e.clientY }; e.currentTarget.setPointerCapture?.(e.pointerId) }
+  // Drag to reposition (pointer = mouse + touch). preventDefault stops the
+  // browser's native image-drag (which could otherwise navigate away).
+  const onDown = (e) => {
+    e.preventDefault()
+    dragRef.current = { x: e.clientX, y: e.clientY }
+    try { e.currentTarget.setPointerCapture?.(e.pointerId) } catch { /* ignore */ }
+  }
   const onMove = (e) => {
     if (!dragRef.current) return
+    e.preventDefault()
     const k = OUT / VIEW // canvas px per CSS px
-    setOffset((o) => ({ x: o.x + (e.clientX - dragRef.current.x) * k, y: o.y + (e.clientY - dragRef.current.y) * k }))
+    const dx = (e.clientX - dragRef.current.x) * k
+    const dy = (e.clientY - dragRef.current.y) * k
+    if (!Number.isFinite(dx) || !Number.isFinite(dy)) return
+    setOffset((o) => ({ x: o.x + dx, y: o.y + dy }))
     dragRef.current = { x: e.clientX, y: e.clientY }
   }
   const onUp = () => { dragRef.current = null }
@@ -76,8 +90,10 @@ export default function AvatarEditorModal({ file, onCancel, onApply }) {
               ref={canvasRef}
               width={OUT}
               height={OUT}
-              style={{ width: VIEW, height: VIEW, touchAction: 'none' }}
-              className="block cursor-grab active:cursor-grabbing"
+              draggable={false}
+              onDragStart={(e) => e.preventDefault()}
+              style={{ width: VIEW, height: VIEW, touchAction: 'none', userSelect: 'none' }}
+              className="block cursor-grab active:cursor-grabbing select-none"
               onPointerDown={onDown}
               onPointerMove={onMove}
               onPointerUp={onUp}
@@ -123,7 +139,7 @@ export default function AvatarEditorModal({ file, onCancel, onApply }) {
             Cancel
           </button>
           <button onClick={apply} disabled={!ready}
-            className="flex-1 bg-vigno-accent text-white font-bold rounded-xl py-2.5 text-sm shadow-lg shadow-vigno-accent/20 hover:brightness-110 disabled:opacity-60">
+            className="flex-1 bg-vigno-accent text-[#1a0d0f] font-bold rounded-xl py-2.5 text-sm shadow-lg shadow-vigno-accent/20 hover:brightness-110 disabled:opacity-60">
             ✓ Apply &amp; Upload
           </button>
         </div>

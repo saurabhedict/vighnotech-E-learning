@@ -50,8 +50,8 @@ export default function AvatarUploader({ size = 76 }) {
       <Avatar user={user} size={size} />
 
       <button onClick={() => setMenu((m) => !m)} title="Change photo" disabled={busy}
-        className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-vigno-accent text-white grid place-items-center text-sm shadow-lg ring-2 ring-vigno-panel hover:brightness-110 disabled:opacity-60">
-        📷
+        className="absolute bottom-0 right-0 w-7 h-7 rounded-full bg-vigno-accent2 text-white grid place-items-center text-xs shadow-md ring-2 ring-vigno-card hover:bg-[#3a92ec] transition-colors disabled:opacity-60">
+        <span className="-mt-px">📷</span>
       </button>
 
       {menu && (
