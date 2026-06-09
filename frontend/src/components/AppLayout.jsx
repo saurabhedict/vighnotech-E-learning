@@ -3,6 +3,7 @@ import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { useSelector, useDispatch } from 'react-redux'
 import Navbar from './Navbar'
 import Sidebar from './Sidebar'
+import Footer from './Footer'
 import { authApi } from '../api/authApi'
 import { setUser, logout } from '../store/authSlice'
 
@@ -44,16 +45,19 @@ export default function AppLayout() {
       <Navbar />
       <div className="flex flex-1">
         <Sidebar />
-        <main className="flex-1 p-7 overflow-auto">
-          {showBack && (
-            <button
-              onClick={() => navigate(-1)}
-              className="mb-4 inline-flex items-center gap-1.5 text-sm bg-white/10 hover:bg-white/20 border border-vigno-line rounded-lg px-3 py-1.5"
-            >
-              ← Back
-            </button>
-          )}
-          <Outlet />
+        <main className="flex-1 overflow-auto flex flex-col">
+          <div className="flex-1 p-7">
+            {showBack && (
+              <button
+                onClick={() => navigate(-1)}
+                className="mb-4 inline-flex items-center gap-1.5 text-sm bg-white/10 hover:bg-white/20 border border-vigno-line rounded-lg px-3 py-1.5"
+              >
+                ← Back
+              </button>
+            )}
+            <Outlet />
+          </div>
+          <Footer />
         </main>
       </div>
     </div>

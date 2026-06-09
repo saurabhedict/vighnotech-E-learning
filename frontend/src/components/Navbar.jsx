@@ -4,6 +4,7 @@ import { useSelector, useDispatch } from 'react-redux'
 import { logout } from '../store/authSlice'
 import { toggleTheme } from '../store/uiSlice'
 import { authApi } from '../api/authApi'
+import { useSiteSettings } from '../hooks/useSiteSettings'
 import Avatar from './Avatar'
 
 const linkCls = ({ isActive }) =>
@@ -14,6 +15,8 @@ export default function Navbar() {
   const dispatch = useDispatch()
   const user = useSelector((s) => s.auth.user)
   const theme = useSelector((s) => s.ui.theme)
+  const { data: settings } = useSiteSettings()
+  const brandName = settings?.brand?.name || 'AeroLearn'
   const [q, setQ] = useState('')
 
   const doLogout = async () => {
@@ -30,7 +33,7 @@ export default function Navbar() {
   return (
     <header className="flex items-center gap-3 px-5 py-3 bg-black/30 backdrop-blur">
       <NavLink to="/app" className="font-extrabold text-lg shrink-0" title="Home">
-        <span className="text-vigno-accent2">✈</span>Aero<span className="text-vigno-accent">Learn</span>
+        <span className="text-vigno-accent2">✈</span> {brandName}
       </NavLink>
       {user?.role === 'admin' && (
         <span className="text-[10px] bg-vigno-accent/25 text-vigno-accent2 rounded-full px-2 py-0.5 font-bold">ADMIN</span>

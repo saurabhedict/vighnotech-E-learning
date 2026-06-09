@@ -6,6 +6,7 @@ import CmsManager from './CmsManager'
 import UsersPanel from './UsersPanel'
 import ReportsPanel from './ReportsPanel'
 import CommercePanel from './CommercePanel'
+import SettingsPanel from './SettingsPanel'
 
 function StatCard({ label, value, accent }) {
   return (
@@ -102,6 +103,7 @@ const TABS = [
   { key: 'reports', label: 'Reports' },
   { key: 'commerce', label: 'Commerce' },
   { key: 'licenses', label: 'Licenses' },
+  { key: 'settings', label: '⚙ Site Settings' },
   { key: 'audit', label: 'Audit' },
 ]
 
@@ -124,6 +126,7 @@ export default function AdminDashboard() {
       {tab === 'reports' && <Panel title="Reports & Export"><ReportsPanel /></Panel>}
       {tab === 'commerce' && <Panel title="Coupons & Refunds"><CommercePanel /></Panel>}
       {tab === 'licenses' && <Panel title="Revoke License"><RevokeLicense /></Panel>}
+      {tab === 'settings' && <Panel title="Site Settings — Footer & Branding"><SettingsPanel /></Panel>}
       {tab === 'audit' && <Panel title="Recent Activity (Audit Log)"><AuditLog /></Panel>}
     </div>
   )

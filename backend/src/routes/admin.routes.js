@@ -4,6 +4,7 @@ import { validate } from '../middleware/validate.js'
 import { requireAuth, requireRole } from '../middleware/auth.js'
 import * as admin from '../controllers/admin.controller.js'
 import * as lic from '../controllers/license.controller.js'
+import * as settings from '../controllers/settings.controller.js'
 
 const router = Router()
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 200 * 1024 * 1024 } })
@@ -49,5 +50,8 @@ router.delete('/coupons/:id', admin.deleteCoupon)
 
 // Refunds (refund → revoke license + wallet credit)
 router.post('/purchases/:id/refund', admin.refundPurchase)
+
+// Site settings (branding + footer) — fully admin-editable, no code changes
+router.put('/settings', validate({ body: settings.updateSettingsSchema }), settings.updateSettings)
 
 export default router
