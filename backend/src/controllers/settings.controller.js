@@ -15,6 +15,16 @@ export const getSettings = asyncHandler(async (_req, res) => {
 const linkZ = z.object({ label: z.string().trim().max(60).default(''), url: z.string().trim().max(300).default('') })
 const socialZ = z.object({ platform: z.string().trim().max(30), url: z.string().trim().max(300).default('') })
 
+// A modular footer column. Only the fields relevant to its type are used.
+const sectionZ = z.object({
+  type: z.enum(['links', 'contact', 'social']),
+  title: z.string().trim().max(60).default(''),
+  links: z.array(linkZ).max(30).optional(),
+  phones: z.array(z.string().trim().max(40)).max(15).optional(),
+  emails: z.array(z.string().trim().max(120)).max(15).optional(),
+  items: z.array(socialZ).max(15).optional(),
+})
+
 export const updateSettingsSchema = z.object({
   brand: z
     .object({
@@ -25,11 +35,7 @@ export const updateSettingsSchema = z.object({
   footer: z
     .object({
       blurb: z.string().trim().max(400).optional(),
-      quickLinks: z.array(linkZ).max(20).optional(),
-      services: z.array(linkZ).max(20).optional(),
-      phones: z.array(z.string().trim().max(40)).max(10).optional(),
-      emails: z.array(z.string().trim().max(120)).max(10).optional(),
-      socials: z.array(socialZ).max(12).optional(),
+      sections: z.array(sectionZ).max(10).optional(),
       copyright: z.string().trim().max(200).optional(),
     })
     .optional(),
@@ -39,7 +45,12 @@ export const updateSettingsSchema = z.object({
 export const updateSettings = asyncHandler(async (req, res) => {
   const doc = await SiteSettings.getSingleton()
   if (req.body.brand) doc.brand = { ...doc.brand.toObject(), ...req.body.brand }
-  if (req.body.footer) doc.footer = { ...doc.footer.toObject(), ...req.body.footer }
+  if (req.body.footer) {
+    const fb = req.body.footer
+    if (fb.blurb !== undefined) doc.footer.blurb = fb.blurb
+    if (fb.copyright !== undefined) doc.footer.copyright = fb.copyright
+    if (fb.sections !== undefined) doc.footer.sections = fb.sections
+  }
   await doc.save()
   cache.del(CACHE_KEY)
   audit(req, 'admin.settings.update', { targetType: 'SiteSettings' })

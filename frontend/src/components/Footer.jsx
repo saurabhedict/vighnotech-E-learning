@@ -10,39 +10,49 @@ const ICONS = {
   youtube: 'M23.5 6.2a3.02 3.02 0 0 0-2.12-2.14C19.5 3.55 12 3.55 12 3.55s-7.5 0-9.38.51A3.02 3.02 0 0 0 .5 6.2 31.5 31.5 0 0 0 0 12a31.5 31.5 0 0 0 .5 5.8 3.02 3.02 0 0 0 2.12 2.14C4.5 20.45 12 20.45 12 20.45s7.5 0 9.38-.51a3.02 3.02 0 0 0 2.12-2.14A31.5 31.5 0 0 0 24 12a31.5 31.5 0 0 0-.5-5.8ZM9.55 15.57V8.43L15.82 12l-6.27 3.57Z',
 }
 
+const linkCls = 'text-vigno-muted hover:text-vigno-accent2 transition text-sm'
+
 function SocialIcon({ platform, url }) {
   const path = ICONS[platform?.toLowerCase()] || ICONS.facebook
   return (
-    <a
-      href={url || '#'}
-      target="_blank"
-      rel="noreferrer"
-      title={platform}
-      aria-label={platform}
-      className="grid place-items-center w-9 h-9 rounded-full bg-white/10 hover:bg-vigno-accent hover:text-[#1a0d0f] text-vigno-txt transition"
-    >
-      <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true">
-        <path d={path} />
-      </svg>
+    <a href={url || '#'} target="_blank" rel="noreferrer" title={platform} aria-label={platform}
+      className="grid place-items-center w-9 h-9 rounded-full bg-white/10 hover:bg-vigno-accent hover:text-[#1a0d0f] text-vigno-txt transition">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><path d={path} /></svg>
     </a>
   )
 }
 
-// Render an internal route (/app/...) with <Link>, anything else (http, mailto,
-// tel, or a bare #) as a plain <a> so admins can point links anywhere.
+// Internal route (/app/...) → <Link>; everything else (http/mailto/tel/#) → <a>.
 function FooterLink({ to, children }) {
-  const cls = 'text-vigno-muted hover:text-vigno-accent2 transition text-sm'
-  if (to && to.startsWith('/') && !to.startsWith('//')) {
-    return <Link to={to} className={cls}>{children}</Link>
-  }
-  return <a href={to || '#'} className={cls}>{children}</a>
+  if (to && to.startsWith('/') && !to.startsWith('//')) return <Link to={to} className={linkCls}>{children}</Link>
+  return <a href={to || '#'} className={linkCls}>{children}</a>
 }
 
-function Column({ title, children }) {
+// Render one modular footer column based on its type.
+function Section({ section: s }) {
   return (
-    <div>
-      <h4 className="text-vigno-txt font-bold text-sm mb-3">{title}</h4>
-      <ul className="space-y-2">{children}</ul>
+    <div className="min-w-[150px]">
+      {s.title && <h4 className="text-vigno-txt font-bold text-sm mb-3">{s.title}</h4>}
+      {s.type === 'links' && (
+        <ul className="space-y-2">
+          {(s.links || []).map((l, i) => <li key={i}><FooterLink to={l.url}>{l.label}</FooterLink></li>)}
+        </ul>
+      )}
+      {s.type === 'contact' && (
+        <ul className="space-y-2">
+          {(s.phones || []).map((p, i) => (
+            <li key={`p${i}`}><a href={`tel:${p.replace(/\s+/g, '')}`} className={linkCls}>📞 {p}</a></li>
+          ))}
+          {(s.emails || []).map((e, i) => (
+            <li key={`e${i}`}><a href={`mailto:${e}`} className={linkCls + ' break-all'}>✉ {e}</a></li>
+          ))}
+        </ul>
+      )}
+      {s.type === 'social' && (
+        <div className="flex flex-wrap gap-2">
+          {(s.items || []).map((it, i) => <SocialIcon key={i} platform={it.platform} url={it.url} />)}
+        </div>
+      )}
     </div>
   )
 }
@@ -51,66 +61,28 @@ export default function Footer() {
   const { data } = useSiteSettings()
   const brand = data?.brand || {}
   const f = data?.footer || {}
+  const sections = f.sections || []
   const copyright = (f.copyright || '').replace('{year}', new Date().getFullYear())
 
   return (
-    <footer className="bg-black/40 border-t border-vigno-line mt-12">
+    <footer className="bg-vigno-card border-t border-vigno-line mt-12">
       <div className="max-w-7xl mx-auto px-6 py-10">
-        <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4">
-          {/* Brand + tagline + socials */}
-          <div className="lg:pr-6">
+        <div className="flex flex-wrap gap-x-12 gap-y-8">
+          {/* Brand identity (always present) */}
+          <div className="min-w-[220px] max-w-sm flex-1">
             <div className="font-extrabold text-lg mb-2">
               <span className="text-vigno-accent2">✈</span> {brand.name || 'AeroLearn'}
             </div>
-            <p className="text-vigno-muted text-sm leading-relaxed mb-4">{f.blurb}</p>
-            {!!(f.socials && f.socials.length) && (
-              <>
-                <h4 className="text-vigno-txt font-bold text-sm mb-2">Follow Us</h4>
-                <div className="flex gap-2">
-                  {f.socials.map((s, i) => (
-                    <SocialIcon key={i} platform={s.platform} url={s.url} />
-                  ))}
-                </div>
-              </>
-            )}
+            {f.blurb && <p className="text-vigno-muted text-sm leading-relaxed">{f.blurb}</p>}
           </div>
 
-          {/* Quick Links */}
-          <Column title="Quick Links">
-            {(f.quickLinks || []).map((l, i) => (
-              <li key={i}><FooterLink to={l.url}>{l.label}</FooterLink></li>
-            ))}
-          </Column>
-
-          {/* Services */}
-          <Column title="Services">
-            {(f.services || []).map((l, i) => (
-              <li key={i}><FooterLink to={l.url}>{l.label}</FooterLink></li>
-            ))}
-          </Column>
-
-          {/* Contact */}
-          <Column title="Contact">
-            {(f.phones || []).map((p, i) => (
-              <li key={`p${i}`}>
-                <a href={`tel:${p.replace(/\s+/g, '')}`} className="text-vigno-muted hover:text-vigno-accent2 transition text-sm">
-                  📞 {p}
-                </a>
-              </li>
-            ))}
-            {(f.emails || []).map((e, i) => (
-              <li key={`e${i}`}>
-                <a href={`mailto:${e}`} className="text-vigno-muted hover:text-vigno-accent2 transition text-sm break-all">
-                  ✉ {e}
-                </a>
-              </li>
-            ))}
-          </Column>
+          {/* Modular columns */}
+          {sections.map((s, i) => <Section key={i} section={s} />)}
         </div>
 
-        <div className="border-t border-vigno-line/60 mt-8 pt-5 text-center text-xs text-vigno-muted">
-          {copyright}
-        </div>
+        {copyright && (
+          <div className="border-t border-vigno-line/60 mt-8 pt-5 text-center text-xs text-vigno-muted">{copyright}</div>
+        )}
       </div>
     </footer>
   )

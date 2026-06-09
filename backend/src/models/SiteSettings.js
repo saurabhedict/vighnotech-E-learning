@@ -4,9 +4,79 @@ const link = new mongoose.Schema({ label: String, url: String }, { _id: false })
 const social = new mongoose.Schema({ platform: String, url: String }, { _id: false })
 
 /**
- * Singleton document holding admin-editable site chrome (branding + footer), so
- * links, emails, phone numbers and social URLs can be changed from the admin
- * panel with no code changes. Use SiteSettings.getSingleton().
+ * A footer column. `type` decides which fields are used + how it renders:
+ *   links   → title + links[]
+ *   contact → title + phones[] + emails[]
+ *   social  → title + items[] (platform + url)
+ * Admins can add / remove / rename / reorder these freely from the panel.
+ */
+const section = new mongoose.Schema(
+  {
+    type: { type: String, enum: ['links', 'contact', 'social'], default: 'links' },
+    title: { type: String, default: '' },
+    links: { type: [link], default: undefined },
+    phones: { type: [String], default: undefined },
+    emails: { type: [String], default: undefined },
+    items: { type: [social], default: undefined },
+  },
+  { _id: false }
+)
+
+// Built-in default footer columns (used for a fresh install).
+function defaultSections() {
+  return [
+    {
+      type: 'links',
+      title: 'Quick Links',
+      links: [
+        { label: 'Home', url: '/app' },
+        { label: 'Library', url: '/app/library' },
+        { label: 'Favorites', url: '/app/favorites' },
+      ],
+    },
+    {
+      type: 'links',
+      title: 'Services',
+      links: [
+        { label: 'Counselling', url: '#' },
+        { label: 'Premium Tests', url: '#' },
+        { label: 'Mentorship', url: '#' },
+      ],
+    },
+    {
+      type: 'contact',
+      title: 'Contact',
+      phones: ['+91 77200 25900', '+91 77200 81400'],
+      emails: ['contact@aerolearn.in', 'info@aerolearn.in'],
+    },
+    {
+      type: 'social',
+      title: 'Follow Us',
+      items: [
+        { platform: 'facebook', url: '#' },
+        { platform: 'twitter', url: '#' },
+        { platform: 'linkedin', url: '#' },
+        { platform: 'instagram', url: '#' },
+      ],
+    },
+  ]
+}
+
+// Convert the older flat footer shape (quickLinks/services/phones/emails/socials)
+// into modular sections — one-time migration for docs created before sections.
+function sectionsFromLegacy(f) {
+  const s = []
+  if (f.quickLinks?.length) s.push({ type: 'links', title: 'Quick Links', links: f.quickLinks.map((l) => ({ label: l.label, url: l.url })) })
+  if (f.services?.length) s.push({ type: 'links', title: 'Services', links: f.services.map((l) => ({ label: l.label, url: l.url })) })
+  if (f.phones?.length || f.emails?.length) s.push({ type: 'contact', title: 'Contact', phones: [...(f.phones || [])], emails: [...(f.emails || [])] })
+  if (f.socials?.length) s.push({ type: 'social', title: 'Follow Us', items: f.socials.map((x) => ({ platform: x.platform, url: x.url })) })
+  return s.length ? s : defaultSections()
+}
+
+/**
+ * Singleton holding admin-editable site chrome (branding + footer). The footer
+ * is a list of modular sections so the whole layout is configurable with no code
+ * changes. Use SiteSettings.getSingleton().
  */
 const schema = new mongoose.Schema(
   {
@@ -17,34 +87,14 @@ const schema = new mongoose.Schema(
     },
     footer: {
       blurb: { type: String, default: 'Practice mock tests for competitive exams with real exam simulation.' },
-      quickLinks: {
-        type: [link],
-        default: () => [
-          { label: 'Home', url: '/app' },
-          { label: 'Library', url: '/app/library' },
-          { label: 'Favorites', url: '/app/favorites' },
-        ],
-      },
-      services: {
-        type: [link],
-        default: () => [
-          { label: 'Counselling', url: '#' },
-          { label: 'Premium Tests', url: '#' },
-          { label: 'Mentorship', url: '#' },
-        ],
-      },
-      phones: { type: [String], default: () => ['+91 77200 25900', '+91 77200 81400'] },
-      emails: { type: [String], default: () => ['contact@aerolearn.in', 'info@aerolearn.in'] },
-      socials: {
-        type: [social],
-        default: () => [
-          { platform: 'facebook', url: '#' },
-          { platform: 'twitter', url: '#' },
-          { platform: 'linkedin', url: '#' },
-          { platform: 'instagram', url: '#' },
-        ],
-      },
+      sections: { type: [section], default: () => [] },
       copyright: { type: String, default: '© {year} AeroLearn. All rights reserved.' },
+      // ── legacy (pre-sections) — retained only so old docs can be migrated ──
+      quickLinks: { type: [link], default: undefined },
+      services: { type: [link], default: undefined },
+      phones: { type: [String], default: undefined },
+      emails: { type: [String], default: undefined },
+      socials: { type: [social], default: undefined },
     },
   },
   { timestamps: true }
@@ -53,12 +103,29 @@ const schema = new mongoose.Schema(
 schema.statics.getSingleton = async function getSingleton() {
   let doc = await this.findOne({ singleton: 'site' })
   if (!doc) doc = await this.create({ singleton: 'site' })
+  // Migrate / seed sections if empty, and clear legacy fields afterwards.
+  if (!doc.footer.sections || doc.footer.sections.length === 0) {
+    doc.footer.sections = sectionsFromLegacy(doc.footer)
+    doc.footer.quickLinks = undefined
+    doc.footer.services = undefined
+    doc.footer.phones = undefined
+    doc.footer.emails = undefined
+    doc.footer.socials = undefined
+    await doc.save()
+  }
   return doc
 }
 
-// Public-safe shape consumed by the footer/site.
+// Public-safe shape consumed by the footer/site (clean, no legacy fields).
 schema.methods.toPublic = function toPublic() {
-  return { brand: this.brand, footer: this.footer }
+  return {
+    brand: { name: this.brand.name, tagline: this.brand.tagline },
+    footer: {
+      blurb: this.footer.blurb,
+      sections: this.footer.sections,
+      copyright: this.footer.copyright,
+    },
+  }
 }
 
 export const SiteSettings = mongoose.model('SiteSettings', schema)

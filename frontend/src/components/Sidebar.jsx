@@ -1,16 +1,48 @@
 import { NavLink, useParams } from 'react-router-dom'
-import { useDispatch } from 'react-redux'
-import { setSelectedClass } from '../store/uiSlice'
+import { useDispatch, useSelector } from 'react-redux'
+import { setSelectedClass, toggleSidebar } from '../store/uiSlice'
 import { useClasses } from '../hooks/useContent'
+import { useSiteSettings } from '../hooks/useSiteSettings'
 
 export default function Sidebar() {
   const { className } = useParams()
   const dispatch = useDispatch()
+  const collapsed = useSelector((s) => s.ui.sidebarCollapsed)
   const { data: classes, isLoading } = useClasses()
+  const { data: settings } = useSiteSettings()
+  const brandName = settings?.brand?.name || 'AeroLearn'
+
+  // Collapsed → a slim rail with just an expand button, so the home modules
+  // sidebar can be minimized to give content more room.
+  if (collapsed) {
+    return (
+      <aside className="w-12 flex-none bg-black/30 p-2 flex flex-col items-center">
+        <button
+          onClick={() => dispatch(toggleSidebar())}
+          title="Expand modules"
+          aria-label="Expand sidebar"
+          className="w-8 h-8 grid place-items-center rounded-lg bg-white/10 hover:bg-white/20 border border-vigno-line"
+        >
+          »
+        </button>
+        <div className="mt-3 text-vigno-muted text-lg" title="Courses">📚</div>
+      </aside>
+    )
+  }
 
   return (
     <aside className="w-60 flex-none bg-black/30 p-4 overflow-auto">
-      <div className="font-extrabold px-2 pb-3">✈ AeroLearn</div>
+      <div className="flex items-center justify-between pb-3">
+        <div className="font-extrabold px-2">✈ {brandName}</div>
+        <button
+          onClick={() => dispatch(toggleSidebar())}
+          title="Minimize modules"
+          aria-label="Collapse sidebar"
+          className="w-7 h-7 grid place-items-center rounded-lg bg-white/10 hover:bg-white/20 border border-vigno-line text-sm"
+        >
+          «
+        </button>
+      </div>
 
       <div className="flex gap-1 bg-black/25 rounded-xl p-1 mb-4 text-xs">
         <span className="flex-1 text-center bg-vigno-accent text-[#1a0d0f] font-bold rounded-lg py-1.5">Ground</span>
