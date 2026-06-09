@@ -15,14 +15,25 @@ export const getSettings = asyncHandler(async (_req, res) => {
 const linkZ = z.object({ label: z.string().trim().max(60).default(''), url: z.string().trim().max(300).default('') })
 const socialZ = z.object({ platform: z.string().trim().max(30), url: z.string().trim().max(300).default('') })
 
+const customRowZ = z.object({
+  icon: z.string().trim().max(32).default(''),
+  text: z.string().trim().max(160).default(''),
+  url: z.string().trim().max(300).default(''),
+})
+
 // A modular footer column. Only the fields relevant to its type are used.
 const sectionZ = z.object({
-  type: z.enum(['links', 'contact', 'social']),
+  type: z.enum(['links', 'contact', 'social', 'text', 'custom']),
   title: z.string().trim().max(60).default(''),
+  icon: z.string().trim().max(32).default(''),
   links: z.array(linkZ).max(30).optional(),
   phones: z.array(z.string().trim().max(40)).max(15).optional(),
   emails: z.array(z.string().trim().max(120)).max(15).optional(),
+  address: z.string().trim().max(300).optional(),
+  hours: z.string().trim().max(200).optional(),
   items: z.array(socialZ).max(15).optional(),
+  body: z.string().trim().max(1000).optional(),
+  rows: z.array(customRowZ).max(30).optional(),
 })
 
 export const updateSettingsSchema = z.object({

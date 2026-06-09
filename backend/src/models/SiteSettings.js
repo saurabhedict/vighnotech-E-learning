@@ -2,22 +2,31 @@ import mongoose from 'mongoose'
 
 const link = new mongoose.Schema({ label: String, url: String }, { _id: false })
 const social = new mongoose.Schema({ platform: String, url: String }, { _id: false })
+const customRow = new mongoose.Schema({ icon: String, text: String, url: String }, { _id: false })
 
 /**
  * A footer column. `type` decides which fields are used + how it renders:
- *   links   → title + links[]
- *   contact → title + phones[] + emails[]
- *   social  → title + items[] (platform + url)
+ *   links   → title + links[] (label + url)         — nav / legal / resources
+ *   contact → title + phones[] + emails[] + address + hours
+ *   social  → title + items[] (platform + url)       — social icons
+ *   text    → title + body                           — about / mission blurb
+ *   custom  → title + rows[] (icon + text + url?)    — anything: hours, badges…
+ * Every column also has an optional `icon` (emoji) shown next to its title.
  * Admins can add / remove / rename / reorder these freely from the panel.
  */
 const section = new mongoose.Schema(
   {
-    type: { type: String, enum: ['links', 'contact', 'social'], default: 'links' },
+    type: { type: String, enum: ['links', 'contact', 'social', 'text', 'custom'], default: 'links' },
     title: { type: String, default: '' },
+    icon: { type: String, default: '' },
     links: { type: [link], default: undefined },
     phones: { type: [String], default: undefined },
     emails: { type: [String], default: undefined },
+    address: { type: String, default: undefined },
+    hours: { type: String, default: undefined },
     items: { type: [social], default: undefined },
+    body: { type: String, default: undefined },
+    rows: { type: [customRow], default: undefined },
   },
   { _id: false }
 )

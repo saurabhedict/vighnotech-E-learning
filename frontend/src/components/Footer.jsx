@@ -31,13 +31,19 @@ function FooterLink({ to, children }) {
 // Render one modular footer column based on its type.
 function Section({ section: s }) {
   return (
-    <div className="min-w-[150px]">
-      {s.title && <h4 className="text-vigno-txt font-bold text-sm mb-3">{s.title}</h4>}
+    <div className="min-w-[150px] max-w-xs">
+      {(s.title || s.icon) && (
+        <h4 className="text-vigno-txt font-bold text-sm mb-3">
+          {s.icon && <span className="mr-1.5">{s.icon}</span>}{s.title}
+        </h4>
+      )}
+
       {s.type === 'links' && (
         <ul className="space-y-2">
           {(s.links || []).map((l, i) => <li key={i}><FooterLink to={l.url}>{l.label}</FooterLink></li>)}
         </ul>
       )}
+
       {s.type === 'contact' && (
         <ul className="space-y-2">
           {(s.phones || []).map((p, i) => (
@@ -46,12 +52,33 @@ function Section({ section: s }) {
           {(s.emails || []).map((e, i) => (
             <li key={`e${i}`}><a href={`mailto:${e}`} className={linkCls + ' break-all'}>✉ {e}</a></li>
           ))}
+          {s.address && <li className="text-vigno-muted text-sm flex gap-1.5"><span>📍</span><span>{s.address}</span></li>}
+          {s.hours && <li className="text-vigno-muted text-sm flex gap-1.5"><span>🕒</span><span>{s.hours}</span></li>}
         </ul>
       )}
+
       {s.type === 'social' && (
         <div className="flex flex-wrap gap-2">
           {(s.items || []).map((it, i) => <SocialIcon key={i} platform={it.platform} url={it.url} />)}
         </div>
+      )}
+
+      {s.type === 'text' && s.body && (
+        <p className="text-vigno-muted text-sm leading-relaxed whitespace-pre-line">{s.body}</p>
+      )}
+
+      {s.type === 'custom' && (
+        <ul className="space-y-2">
+          {(s.rows || []).map((r, i) => (
+            <li key={i} className="text-sm">
+              {r.url ? (
+                <FooterLink to={r.url}>{r.icon && <span className="mr-1.5">{r.icon}</span>}{r.text}</FooterLink>
+              ) : (
+                <span className="text-vigno-muted">{r.icon && <span className="mr-1.5">{r.icon}</span>}{r.text}</span>
+              )}
+            </li>
+          ))}
+        </ul>
       )}
     </div>
   )
