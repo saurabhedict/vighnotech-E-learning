@@ -79,7 +79,7 @@ export default function CmsManager() {
   })
   const upload = guard(async (c, file) => { if (file) await adminApi.uploadContentFile(c._id, file) })
 
-  const input = 'px-3 py-2 rounded-lg bg-[#1c0e11] border border-vigno-line text-sm outline-none focus:border-vigno-accent'
+  const input = 'px-3 py-2 rounded-lg bg-vigno-bg2 border border-vigno-line text-sm outline-none focus:border-vigno-accent'
 
   return (
     <div>

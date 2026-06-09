@@ -12,7 +12,7 @@ export default function ForgotPassword() {
   const [msg, setMsg] = useState(null)
   const [loading, setLoading] = useState(false)
 
-  const input = 'w-full mb-3.5 px-3 py-2.5 rounded-lg bg-[#1c0e11] border border-vigno-line text-sm outline-none focus:border-vigno-accent'
+  const input = 'w-full mb-3.5 px-3 py-2.5 rounded-lg bg-vigno-bg2 border border-vigno-line text-sm outline-none focus:border-vigno-accent'
 
   const request = async (e) => {
     e.preventDefault()

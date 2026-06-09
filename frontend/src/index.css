@@ -2,15 +2,45 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Theme palette (RGB channels; consumed by tailwind.config.js) ──────────── */
+:root {
+  /* Dark (default) — midnight navy */
+  --v-bg1: 10 15 30;
+  --v-bg2: 13 21 48;
+  --v-bg3: 26 42 94;
+  --v-panel: 15 24 41;
+  --v-card: 12 20 34;
+  --v-line: 30 48 96;
+  --v-txt: 232 240 255;
+  --v-muted: 122 156 196;
+  --v-accent: 240 192 64; /* instrument gold (primary CTA) */
+  --v-accent2: 77 166 255; /* sky blue (links/highlights) */
+  --plyr-color-main: #f0c040;
+}
+
+/* Light theme — swap the same variables (applied on the app wrapper) */
+.theme-light {
+  --v-bg1: 234 242 252;
+  --v-bg2: 248 251 255;
+  --v-bg3: 224 236 250;
+  --v-panel: 255 255 255;
+  --v-card: 247 250 255;
+  --v-line: 197 218 241;
+  --v-txt: 13 26 58;
+  --v-muted: 74 106 154;
+  --v-accent: 240 192 64;
+  --v-accent2: 10 102 194; /* darker blue for contrast on light */
+}
+
 html, body, #root { height: 100%; }
 body {
   margin: 0;
-  color: #e8f0ff;
+  color: rgb(var(--v-txt));
   background: linear-gradient(160deg, #050b1a 0%, #0a1535 40%, #0d1f4a 80%, #0a2a5a 100%);
   background-attachment: fixed;
 }
 
-/* Subtle star-field texture */
+/* Subtle star-field texture (dark only; hidden under the light wrapper) */
 body::before {
   content: '';
   position: fixed;
@@ -24,106 +54,18 @@ body::before {
   z-index: 0;
 }
 
-/* Light theme */
+/* The light wrapper paints its own background over the body + sets text colour */
 .theme-light {
-  background: linear-gradient(160deg, #e8f4ff 0%, #d0e8ff 50%, #c0d8f5 100%);
-  color: #0d1a3a;
+  background: linear-gradient(160deg, #eaf3ff 0%, #d6e8ff 55%, #c7dcf8 100%);
+  color: rgb(var(--v-txt));
 }
 
-.theme-light .text-vigno-muted { color: #4a6a9a; }
-
-/* Light theme overrides for cards and panels */
-.theme-light .bg-vigno-card { 
-  background-color: #f0f6ff !important;
-}
-
-.theme-light .bg-vigno-card,
-.theme-light [class*="bg-vigno-"] {
-  border-color: #b0d4ff !important;
-}
-
-.theme-light .border-vigno-line {
-  border-color: #b0d4ff !important;
-}
-
-.theme-light .text-vigno-txt,
-.theme-light .font-semibold,
-.theme-light .font-bold,
-.theme-light .font-extrabold {
-  color: #0d1a3a !important;
-}
-
-.theme-light .text-vigno-accent2 {
-  color: #0066cc !important;
-}
-
-.theme-light a .text-vigno-txt {
-  color: #0d1a3a !important;
-}
-
-.theme-light .text-xs,
-.theme-light .text-sm,
-.theme-light .text-base {
-  color: #1a2d4d !important;
-}
-
-/* Light theme button overrides */
-.theme-light .bg-white\/10 {
-  background-color: rgba(200, 220, 255, 0.3) !important;
-  color: #0d1a3a !important;
-}
-
-.theme-light .bg-white\/10:hover {
-  background-color: rgba(160, 190, 255, 0.4) !important;
-}
-
+/* Translucent utilities aren't theme-variable-driven, so adapt them by theme.
+   In dark they're light-on-dark; in light they should be dark-on-light. */
+.theme-light .bg-white\/10 { background-color: rgba(13, 26, 58, 0.06); }
+.theme-light .bg-white\/10:hover,
+.theme-light .hover\:bg-white\/20:hover { background-color: rgba(13, 26, 58, 0.12); }
+.theme-light .bg-white\/5 { background-color: rgba(13, 26, 58, 0.04); }
 .theme-light .bg-black\/30,
-.theme-light .bg-black\/25 {
-  background-color: rgba(200, 220, 255, 0.25) !important;
-}
-
-.theme-light .bg-vigno-accent {
-  background-color: #f0c040 !important;
-  color: #1a0d0f !important;
-}
-
-.theme-light .text-vigno-accent2 {
-  color: #0066cc !important;
-}
-
-.theme-light .border-vigno-accent {
-  border-color: #0066cc !important;
-}
-
-/* Light theme for price badges and status badges */
-.theme-light .bg-green-500\/20 {
-  background-color: rgba(34, 197, 94, 0.15) !important;
-  color: #16a34a !important;
-}
-
-.theme-light .text-green-300 {
-  color: #16a34a !important;
-}
-
-.theme-light .bg-\[\#ff9d6b\]\/20 {
-  background-color: rgba(255, 157, 107, 0.15) !important;
-  color: #d97706 !important;
-}
-
-.theme-light .text-\[\#ff9d6b\] {
-  color: #d97706 !important;
-}
-
-.theme-light input,
-.theme-light textarea {
-  background-color: #f8f9fa !important;
-  color: #0d1a3a !important;
-  border-color: #b0d4ff !important;
-}
-
-.theme-light input::placeholder {
-  color: #7a9cc4 !important;
-}
-
-/* Plyr accent */
-:root { --plyr-color-main: #f0c040; }
+.theme-light .bg-black\/25,
+.theme-light .bg-black\/20 { background-color: rgba(255, 255, 255, 0.6); }

@@ -53,7 +53,7 @@ export default function BuyButton({ content, onUnlocked }) {
     }
   }
 
-  const inputCls = 'px-3 py-2 rounded-lg bg-[#1c0e11] border border-vigno-line text-sm outline-none focus:border-vigno-accent'
+  const inputCls = 'px-3 py-2 rounded-lg bg-vigno-bg2 border border-vigno-line text-sm outline-none focus:border-vigno-accent'
   return (
     <div className="flex flex-col items-center gap-3 w-full max-w-sm">
       <div className="text-lg font-bold">

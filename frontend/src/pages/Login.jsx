@@ -49,7 +49,7 @@ export default function Login() {
 
   const inputCls = [
     'w-full px-4 py-3 rounded-xl text-sm outline-none transition-all duration-200',
-    'bg-[#060d1f] border border-[#1e3060]',
+    'bg-vigno-bg1 border border-vigno-line',
     'text-vigno-txt placeholder-vigno-muted/50',
     'focus:border-vigno-accent2 focus:ring-2 focus:ring-vigno-accent2/20',
   ].join(' ')
@@ -73,7 +73,7 @@ export default function Login() {
         </div>
 
         {/* Card */}
-        <div className="rounded-2xl border border-[#1e3060] shadow-2xl overflow-hidden"
+        <div className="rounded-2xl border border-vigno-line shadow-2xl overflow-hidden"
           style={{ background: 'linear-gradient(160deg, #0d1829 0%, #0a1422 100%)', backdropFilter: 'blur(12px)' }}>
 
           {/* Card header stripe */}
@@ -131,7 +131,7 @@ export default function Login() {
                     <Link to="/signup" className="text-vigno-accent2 font-semibold hover:underline">Create an account</Link>
                   </p>
 
-                  <p className="text-[10px] text-vigno-muted/40 text-center border-t border-[#1e3060] pt-3">
+                  <p className="text-[10px] text-vigno-muted/40 text-center border-t border-vigno-line pt-3">
                     Demo: cadet@aerolearn.in / password
                   </p>
                 </form>

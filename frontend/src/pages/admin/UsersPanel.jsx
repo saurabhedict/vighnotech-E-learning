@@ -89,7 +89,7 @@ export default function UsersPanel() {
     finally { setBusy(false) }
   }
 
-  const input = 'px-3 py-2 rounded-lg bg-[#1c0e11] border border-vigno-line text-sm outline-none focus:border-vigno-accent'
+  const input = 'px-3 py-2 rounded-lg bg-vigno-bg2 border border-vigno-line text-sm outline-none focus:border-vigno-accent'
   return (
     <div>
       <div className="flex items-center gap-3 mb-4">

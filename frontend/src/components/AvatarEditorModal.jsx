@@ -114,9 +114,9 @@ export default function AvatarEditorModal({ file, onCancel, onApply }) {
               <span className="text-vigno-muted">{Math.round(zoom * 100)}%</span>
             </div>
             <div className="flex items-center gap-2">
-              <button className={iconBtn} onClick={() => setZoom((z) => clamp(z - 0.1, 1, 3))}>−</button>
-              <input type="range" min="1" max="3" step="0.01" value={zoom} onChange={(e) => setZoom(Number(e.target.value))} className={sliderCls} />
-              <button className={iconBtn} onClick={() => setZoom((z) => clamp(z + 0.1, 1, 3))}>+</button>
+              <button className={iconBtn} onClick={() => setZoom((z) => clamp(z - 0.1, 0.5, 3))}>−</button>
+              <input type="range" min="0.5" max="3" step="0.01" value={zoom} onChange={(e) => setZoom(Number(e.target.value))} className={sliderCls} />
+              <button className={iconBtn} onClick={() => setZoom((z) => clamp(z + 0.1, 0.5, 3))}>+</button>
             </div>
           </div>
 

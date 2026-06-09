@@ -38,7 +38,7 @@ export default function Signup() {
 
   const inputCls = [
     'w-full px-4 py-3 rounded-xl text-sm outline-none transition-all duration-200',
-    'bg-[#060d1f] border border-[#1e3060]',
+    'bg-vigno-bg1 border border-vigno-line',
     'text-vigno-txt placeholder-vigno-muted/50',
     'focus:border-vigno-accent2 focus:ring-2 focus:ring-vigno-accent2/20',
   ].join(' ')
@@ -75,7 +75,7 @@ export default function Signup() {
         </div>
 
         {/* Card */}
-        <div className="rounded-2xl border border-[#1e3060] shadow-2xl overflow-hidden"
+        <div className="rounded-2xl border border-vigno-line shadow-2xl overflow-hidden"
           style={{ background: 'linear-gradient(160deg, #0d1829 0%, #0a1422 100%)' }}>
 
           <div className="h-1 w-full" style={{ background: 'linear-gradient(90deg, #4da6ff, #f0c040, #4da6ff)' }} />
@@ -127,7 +127,7 @@ export default function Signup() {
                     </div>
                     {/* Password rules */}
                     {form.password.length > 0 && (
-                      <div className="mt-2 grid grid-cols-2 gap-1 bg-[#060d1f] rounded-lg px-3 py-2 border border-[#1a2a4a]">
+                      <div className="mt-2 grid grid-cols-2 gap-1 bg-vigno-bg1 rounded-lg px-3 py-2 border border-vigno-line">
                         <PasswordRule ok={rules.len} label="At least 8 characters" />
                         <PasswordRule ok={rules.upper} label="At least 1 uppercase" />
                         <PasswordRule ok={rules.num} label="At least 1 number" />
@@ -140,7 +140,7 @@ export default function Signup() {
                   <div>
                     <label className="text-xs text-vigno-muted block mb-1.5 font-medium">Phone Number (Indian)</label>
                     <div className="flex gap-2">
-                      <div className="flex items-center gap-1 bg-[#060d1f] border border-[#1e3060] rounded-xl px-3 text-sm text-vigno-muted whitespace-nowrap">
+                      <div className="flex items-center gap-1 bg-vigno-bg1 border border-vigno-line rounded-xl px-3 text-sm text-vigno-muted whitespace-nowrap">
                         🇮🇳 +91
                       </div>
                       <input value={form.phone} onChange={set('phone')} autoComplete="tel"
@@ -158,7 +158,7 @@ export default function Signup() {
                             'py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-all duration-200 border',
                             otpMethod === m
                               ? 'border-vigno-accent2 text-vigno-accent2 bg-vigno-accent2/10'
-                              : 'border-[#1e3060] text-vigno-muted bg-transparent hover:border-vigno-accent2/40',
+                              : 'border-vigno-line text-vigno-muted bg-transparent hover:border-vigno-accent2/40',
                           ].join(' ')}>
                           {m === 'email' ? '✉ Email' : '📱 SMS'}
                         </button>
