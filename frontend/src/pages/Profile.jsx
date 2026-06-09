@@ -6,6 +6,7 @@ import { authApi, apiErrorMessage } from '../api/authApi'
 import { devicesApi } from '../api/devicesApi'
 import { getDeviceFingerprint, deviceLabel } from '../lib/device'
 import VerifyContact from '../components/VerifyContact'
+import AvatarUploader from '../components/AvatarUploader'
 
 function Card({ title, children }) {
   return (
@@ -234,11 +235,17 @@ export default function Profile() {
       <h1 className="text-2xl mb-5">👤 Profile</h1>
 
       <Card title="Account">
-        <div className="grid grid-cols-[140px_1fr] gap-y-2 text-sm">
-          <span className="text-vigno-muted">Name</span><span>{user?.name || '—'}</span>
-          <span className="text-vigno-muted">Email</span>
-          <span>{user?.email} {user?.emailVerified ? <span className="text-green-300 text-xs">(verified)</span> : <span className="text-vigno-accent2 text-xs">(unverified)</span>}</span>
-          <span className="text-vigno-muted">Role</span><span className="capitalize">{user?.role}</span>
+        <div className="flex items-start gap-5">
+          <div className="pt-1">
+            <AvatarUploader size={76} />
+            <p className="text-[11px] text-vigno-muted mt-2 text-center">Click 📷 to change photo</p>
+          </div>
+          <div className="grid grid-cols-[110px_1fr] gap-y-2 text-sm flex-1">
+            <span className="text-vigno-muted">Name</span><span>{user?.name || '—'}</span>
+            <span className="text-vigno-muted">Email</span>
+            <span>{user?.email} {user?.emailVerified ? <span className="text-green-300 text-xs">(verified)</span> : <span className="text-vigno-accent2 text-xs">(unverified)</span>}</span>
+            <span className="text-vigno-muted">Role</span><span className="capitalize">{user?.role}</span>
+          </div>
         </div>
       </Card>
 

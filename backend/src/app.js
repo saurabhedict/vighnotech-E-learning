@@ -24,6 +24,7 @@ import filesRoutes from './routes/files.routes.js'
 import devicesRoutes from './routes/devices.routes.js'
 import discoverRoutes from './routes/discover.routes.js'
 import commerceRoutes from './routes/commerce.routes.js'
+import profileRoutes from './routes/profile.routes.js'
 
 export function createApp() {
   const app = express()
@@ -74,6 +75,7 @@ export function createApp() {
   app.use('/api/content', contentRoutes)
   app.use('/api/files', filesRoutes)
   app.use('/api/devices', devicesRoutes)
+  app.use('/api/profile', profileRoutes)
   app.use('/api/admin', adminRoutes)
 
   // ── Errors ─────────────────────────────────────────────────────────────────

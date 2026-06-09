@@ -43,6 +43,14 @@ export const authApi = {
     return (await api.post('/auth/verify-email', { code })).data
   },
 
+  // Profile photo (image is a cropped JPEG data URL)
+  async uploadAvatar(image) {
+    return (await api.post('/profile/avatar', { image })).data
+  },
+  async removeAvatar() {
+    return (await api.delete('/profile/avatar')).data
+  },
+
   // Password reset (no auth)
   async forgotPassword(email) {
     return (await api.post('/auth/forgot-password', { email })).data

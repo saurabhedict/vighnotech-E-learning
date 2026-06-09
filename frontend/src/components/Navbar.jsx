@@ -4,6 +4,7 @@ import { useSelector, useDispatch } from 'react-redux'
 import { logout } from '../store/authSlice'
 import { toggleTheme } from '../store/uiSlice'
 import { authApi } from '../api/authApi'
+import Avatar from './Avatar'
 
 const linkCls = ({ isActive }) =>
   'rounded-lg px-3 py-1.5 text-sm ' + (isActive ? 'bg-vigno-accent text-[#1a0d0f] font-bold' : 'bg-white/10 hover:bg-white/20')
@@ -43,13 +44,16 @@ export default function Navbar() {
       <NavLink to="/app/favorites" className={linkCls}>★ Saved</NavLink>
       <NavLink to="/app/wallet" className={linkCls}>👛 Wallet</NavLink>
       <NavLink to="/app/library" className={linkCls}>📚 Library</NavLink>
-      <NavLink to="/app/profile" className={linkCls}>👤 Profile</NavLink>
       {user?.role === 'admin' && <NavLink to="/app/admin" className={linkCls}>🛠 Admin</NavLink>}
 
       <button onClick={() => dispatch(toggleTheme())} className="bg-white/10 hover:bg-white/20 rounded-lg px-3 py-1.5 text-sm">
         {theme === 'dark' ? '☀ Light' : '🌙 Dark'}
       </button>
       <button onClick={doLogout} className="bg-white/10 hover:bg-white/20 rounded-lg px-3 py-1.5 text-sm">Logout</button>
+
+      <NavLink to="/app/profile" title={user?.name || user?.email || 'Profile'} className="ml-1">
+        <Avatar user={user} size={34} className="hover:ring-2 hover:ring-vigno-accent2 transition" />
+      </NavLink>
     </header>
   )
 }

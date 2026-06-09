@@ -9,6 +9,9 @@ const userSchema = new mongoose.Schema(
     name: { type: String, trim: true, default: '' },
     role: { type: String, enum: USER_ROLES, default: ROLES.USER, index: true },
 
+    // Profile photo, stored as a small cropped data URL (image/jpeg).
+    avatar: { type: String, default: '' },
+
     // Phone (E.164, e.g. +9198…) for SMS / WhatsApp OTP.
     phone: { type: String, trim: true, default: '' },
     phoneVerified: { type: Boolean, default: false },
@@ -55,6 +58,7 @@ userSchema.methods.toSafeJSON = function toSafeJSON() {
     id: this._id.toString(),
     email: this.email,
     name: this.name,
+    avatar: this.avatar,
     role: this.role,
     twoFAEnabled: this.twoFAEnabled,
     twoFAMethod: this.twoFAMethod,

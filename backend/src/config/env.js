@@ -55,6 +55,17 @@ export const env = {
 
   storageDir: process.env.STORAGE_DIR || './storage',
 
+  // Cloudinary for profile photos. Not configured → avatars are stored inline
+  // as data URLs (dev fallback) so the feature still works with zero setup.
+  cloudinary: {
+    cloudName: process.env.CLOUDINARY_CLOUD_NAME || '',
+    apiKey: process.env.CLOUDINARY_API_KEY || '',
+    apiSecret: process.env.CLOUDINARY_API_SECRET || '',
+    get configured() {
+      return !!(this.cloudName && this.apiKey && this.apiSecret)
+    },
+  },
+
   // Cache: in-memory stand-in by default; set REDIS_URL to back it with Redis.
   redisUrl: process.env.REDIS_URL || '',
 
