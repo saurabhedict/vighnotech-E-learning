@@ -7,8 +7,8 @@ import { authApi, apiErrorMessage } from '../api/authApi'
 export default function Login() {
   const navigate = useNavigate()
   const dispatch = useDispatch()
-  const [email, setEmail] = useState('cadet@aerolearn.in')
-  const [password, setPassword] = useState('password')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [showPass, setShowPass] = useState(false)
@@ -95,7 +95,7 @@ export default function Login() {
                     <input
                       name="email" value={email}
                       onChange={e => setEmail(e.target.value)}
-                      autoComplete="email" placeholder="cadet@aerolearn.in"
+                      autoComplete="email" placeholder="you@example.com"
                       className={inputCls}
                     />
                   </div>
@@ -129,10 +129,6 @@ export default function Login() {
                   <p className="text-xs text-vigno-muted text-center pt-1">
                     New here?{' '}
                     <Link to="/signup" className="text-vigno-accent2 font-semibold hover:underline">Create an account</Link>
-                  </p>
-
-                  <p className="text-[10px] text-vigno-muted/40 text-center border-t border-vigno-line pt-3">
-                    Demo: cadet@aerolearn.in / password
                   </p>
                 </form>
               </>

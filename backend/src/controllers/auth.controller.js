@@ -56,7 +56,7 @@ export const loginSchema = z.object({
 // Issue both cookies AND return the access token in the body so the existing
 // Bearer-based frontend keeps working without changes.
 function issueSession(res, user) {
-  const accessToken = signAccessToken({ id: user._id.toString(), role: user.role, email: user.email })
+  const accessToken = signAccessToken({ id: user._id.toString(), role: user.role, email: user.email, tokenVersion: user.tokenVersion })
   const refreshToken = signRefreshToken({ id: user._id.toString(), tokenVersion: user.tokenVersion })
   res.cookie(ACCESS_COOKIE, accessToken, cookieOpts(ms(env.jwt.accessTtl)))
   res.cookie(REFRESH_COOKIE, refreshToken, cookieOpts(ms(env.jwt.refreshTtl)))
@@ -99,6 +99,7 @@ export const login = asyncHandler(async (req, res) => {
   }
 
   user.lastLoginAt = new Date()
+  user.tokenVersion = (user.tokenVersion || 0) + 1 // single active session: invalidate any other login
   await recordLoginDevice(req, user)
   await user.save()
 
@@ -150,6 +151,7 @@ export const verify2fa = asyncHandler(async (req, res) => {
   user.failedTwoFA = 0
   user.twoFALockUntil = null
   user.lastLoginAt = new Date()
+  user.tokenVersion = (user.tokenVersion || 0) + 1 // single active session: invalidate any other login
   await recordLoginDevice(req, user)
   await user.save()
 
