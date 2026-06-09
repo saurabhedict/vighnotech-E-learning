@@ -66,7 +66,7 @@ function ChangePassword() {
       <input type="password" value={cur} onChange={(e) => setCur(e.target.value)} className={input} />
       <label className="text-xs text-vigno-muted block mb-1.5">New password (min 8)</label>
       <input type="password" value={next} onChange={(e) => setNext(e.target.value)} className={input} />
-      <button disabled={loading} className={btn}>{loading ? 'Saving…' : 'Change Password'}</button>
+      <button disabled={loading} className={btn + ' w-full'}>{loading ? 'Saving…' : 'Change Password'}</button>
     </form>
   )
 }
@@ -153,9 +153,9 @@ function TwoFactor() {
     return (
       <div>
         <Msg msg={msg} />
-        <p className="text-sm text-green-300 mb-3">✓ Two-factor is ON ({user.twoFAMethod === 'totp' ? 'authenticator app' : 'email codes'}).</p>
-        <div className="flex gap-2 items-start flex-wrap">
-          <input type="password" value={pwd} onChange={(e) => setPwd(e.target.value)} placeholder="Confirm password" className={input + ' max-w-[220px]'} />
+        <p className="text-sm text-green-300 mb-3 text-center">✓ Two-factor is ON ({user.twoFAMethod === 'totp' ? 'authenticator app' : 'email codes'}).</p>
+        <input type="password" value={pwd} onChange={(e) => setPwd(e.target.value)} placeholder="Confirm password" className={input + ' w-full mb-2'} />
+        <div className="flex gap-2 justify-center flex-wrap">
           <button disabled={loading || !pwd} onClick={disable} className={btnGhost}>{loading ? '…' : 'Disable 2FA'}</button>
           <button disabled={loading || !pwd} onClick={regenerate} className={btnGhost}>{loading ? '…' : 'Regenerate backup codes'}</button>
         </div>
@@ -170,7 +170,7 @@ function TwoFactor() {
       <p className="text-sm text-vigno-muted mb-3">Add a second step at sign-in. Recommended: an authenticator app (Google Authenticator / Authy).</p>
 
       {!setup ? (
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 justify-center">
           <button onClick={startTotp} disabled={loading} className={btn}>{loading ? '…' : 'Set up authenticator app'}</button>
           <button onClick={enableEmail} disabled={loading || !user?.emailVerified} className={btnGhost}
             title={user?.emailVerified ? '' : 'Verify your email first'}>Use email codes</button>
@@ -301,7 +301,7 @@ export default function Profile() {
       <Card title="Account">
         <div className="flex items-start gap-5">
           <div className="pt-1 text-center">
-            <AvatarUploader size={84} verified={verified} />
+            <AvatarUploader size={84} />
             <p className="text-[11px] text-vigno-muted mt-2">Click 📷 to change</p>
           </div>
           <div className="grid grid-cols-[90px_1fr] gap-y-2 text-sm flex-1">

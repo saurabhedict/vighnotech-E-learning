@@ -66,8 +66,8 @@ export default function VerifyContact({ defaultPhone = '', onVerified }) {
         </div>
       )}
 
-      <p className="text-sm text-vigno-muted mb-2">How would you like to receive your verification code?</p>
-      <div className="flex flex-wrap gap-2 mb-3">
+      <p className="text-sm text-vigno-muted mb-2 text-center">How would you like to receive your verification code?</p>
+      <div className="flex flex-wrap gap-2 mb-3 justify-center">
         {CHANNELS.map((c) => (
           <button key={c.key} type="button" onClick={() => { setChannel(c.key); setSent(false); setMsg(null) }}
             className={'px-3 py-1.5 rounded-lg text-sm border ' +
@@ -85,11 +85,11 @@ export default function VerifyContact({ defaultPhone = '', onVerified }) {
       )}
 
       {!sent ? (
-        <button type="button" onClick={send} disabled={loading} className={btn}>
+        <button type="button" onClick={send} disabled={loading} className={btn + ' w-full'}>
           {loading ? 'Sending…' : 'Send code'}
         </button>
       ) : (
-        <form onSubmit={verify} className="flex gap-2 items-start">
+        <form onSubmit={verify} className="flex gap-2 items-start justify-center">
           <input value={code} onChange={(e) => setCode(e.target.value)} placeholder="123456"
             className={input + ' max-w-[160px] tracking-widest'} />
           <button disabled={loading} className={btn}>{loading ? 'Verifying…' : 'Verify'}</button>
