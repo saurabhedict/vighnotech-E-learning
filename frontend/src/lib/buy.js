@@ -29,6 +29,9 @@ function loadRazorpayScript() {
 export async function purchaseContent(contentId, user, couponCode) {
   const order = await paymentsApi.createOrder(contentId, couponCode)
 
+  // ₹0 (e.g. 100%-off coupon) — already unlocked server-side, no gateway needed.
+  if (order.free) return order
+
   if (order.mock) {
     return paymentsApi.verify({
       orderId: order.orderId,

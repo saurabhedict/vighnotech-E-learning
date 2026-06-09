@@ -17,7 +17,7 @@ const purchaseSchema = new mongoose.Schema(
     discount: { type: Number, default: 0 },
     currency: { type: String, default: 'INR' },
 
-    provider: { type: String, enum: ['razorpay', 'mock', 'wallet'], default: 'razorpay' },
+    provider: { type: String, enum: ['razorpay', 'mock', 'wallet', 'free'], default: 'razorpay' },
     razorpayOrderId: { type: String, index: true },
     razorpayPaymentId: { type: String, index: true },
     razorpaySignature: { type: String },

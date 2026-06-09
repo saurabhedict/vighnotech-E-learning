@@ -270,7 +270,7 @@ function Devices() {
   return (
     <div>
       <p className="text-xs text-vigno-muted mb-3">
-        Downloadable software is bound to a registered device (console-style "home device"). A copied
+        Downloadable software is bound to a registered device. A copied
         encrypted file won't unlock elsewhere.
       </p>
       {err && <p className="text-sm text-red-300 mb-2">{err}</p>}

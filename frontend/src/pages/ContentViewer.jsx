@@ -58,8 +58,8 @@ export default function ContentViewer() {
       <div className="max-w-4xl bg-vigno-card border border-vigno-line rounded-2xl p-4">
         {/* Locked paid content → buy to unlock */}
         {item.locked && (
-          <div className="h-72 flex flex-col items-center justify-center gap-4 text-center">
-            <div className="text-5xl">🔒</div>
+          <div className="py-10 flex flex-col items-center gap-4 text-center">
+            <div className="text-5xl leading-none">🔒</div>
             <div className="text-vigno-muted max-w-md">
               This is premium content. Purchase a license to unlock secure access — you
               buy a <span className="text-vigno-txt font-semibold">license tied to your account</span>, not the file.

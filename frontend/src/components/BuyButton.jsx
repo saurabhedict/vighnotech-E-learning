@@ -88,7 +88,7 @@ export default function BuyButton({ content, onUnlocked }) {
 
       {error && <p className="text-sm text-red-300">{error}</p>}
       <p className="text-xs text-vigno-muted text-center">
-        Secure license issued on payment — verified on every access (Xbox/PlayStation model).
+        Secure license issued on payment — a license tied to your account, verified on every access.
       </p>
     </div>
   )

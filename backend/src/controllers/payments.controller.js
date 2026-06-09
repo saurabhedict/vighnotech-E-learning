@@ -61,6 +61,26 @@ export const createOrderHandler = asyncHandler(async (req, res) => {
   if (await hasActiveLicense(req.user.id, content._id)) throw conflict('You already own this content')
 
   const pricing = await resolvePricing(content, req.body.couponCode)
+
+  // Free unlock (e.g. a 100%-off coupon → ₹0). Razorpay rejects ₹0 orders, so
+  // skip the gateway and issue the license immediately.
+  if (pricing.finalAmount <= 0) {
+    const purchase = await Purchase.create({
+      userId: req.user.id,
+      contentId: content._id,
+      listPrice: pricing.listPrice,
+      discount: pricing.discount,
+      couponCode: pricing.coupon?.code,
+      amount: 0,
+      provider: 'free',
+      status: 'paid',
+      paidAt: new Date(),
+    })
+    const { license } = await finalizePurchase(purchase, content)
+    audit(req, 'payment.free', { targetType: 'Content', targetId: content._id, meta: { licenseId: license._id } })
+    return res.status(201).json({ free: true, licenseId: license._id, finalAmount: 0, discount: pricing.discount })
+  }
+
   const order = await createOrder({ amountInr: pricing.finalAmount, receipt: `rcpt_${content._id}_${req.user.id}` })
 
   await Purchase.create({
