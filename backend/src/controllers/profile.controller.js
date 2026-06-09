@@ -21,15 +21,25 @@ export const avatarSchema = z.object({
 export const uploadAvatar = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user.id)
   if (!user) throw unauthorized()
-  // Upload to Cloudinary when configured; else store the data URL inline (dev).
+  // Upload to Cloudinary when configured; if that fails (e.g. account upload
+  // restriction / 403), fall back to storing the image inline so the photo still
+  // saves. If Cloudinary isn't configured at all, store inline directly.
+  let storedVia = 'inline'
   if (cloudinaryEnabled()) {
-    user.avatar = await cloudUploadAvatar(req.body.image, user._id)
+    try {
+      user.avatar = await cloudUploadAvatar(req.body.image, user._id)
+      storedVia = 'cloudinary'
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.warn('[avatar] Cloudinary upload failed — storing inline instead:', e?.message)
+      user.avatar = req.body.image
+    }
   } else {
     user.avatar = req.body.image
   }
   await user.save()
-  audit(req, 'profile.avatar.upload', { targetType: 'User', targetId: user._id, meta: { cloud: cloudinaryEnabled() } })
-  res.json({ ok: true, user: user.toSafeJSON() })
+  audit(req, 'profile.avatar.upload', { targetType: 'User', targetId: user._id, meta: { storedVia } })
+  res.json({ ok: true, user: user.toSafeJSON(), storedVia })
 })
 
 export const removeAvatar = asyncHandler(async (req, res) => {

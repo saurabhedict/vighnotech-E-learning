@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 
-const OUT = 256 // exported avatar resolution (square)
+const OUT = 512 // exported avatar resolution (square) — crisp on retina displays
 const VIEW = 288 // on-screen canvas size (CSS px)
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v))
 
@@ -69,7 +69,7 @@ export default function AvatarEditorModal({ file, onCancel, onApply }) {
   }
   const onUp = () => { dragRef.current = null }
 
-  const apply = () => onApply(canvasRef.current.toDataURL('image/jpeg', 0.9))
+  const apply = () => onApply(canvasRef.current.toDataURL('image/jpeg', 0.92))
 
   const sliderCls = 'flex-1 accent-vigno-accent cursor-pointer'
   const iconBtn = 'text-vigno-muted hover:text-vigno-accent2 w-6 text-center text-lg'

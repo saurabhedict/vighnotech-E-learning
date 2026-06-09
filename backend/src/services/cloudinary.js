@@ -31,7 +31,8 @@ export async function uploadAvatar(dataUrl, userId) {
       overwrite: true,
       invalidate: true,
       resource_type: 'image',
-      transformation: [{ width: 256, height: 256, crop: 'fill', gravity: 'face' }],
+      // 512px square, auto-gravity (no add-on needed), auto quality for crisp avatars.
+      transformation: [{ width: 512, height: 512, crop: 'fill', gravity: 'auto', quality: 'auto:good' }],
     })
     return res.secure_url
   } catch (e) {
