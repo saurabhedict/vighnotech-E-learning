@@ -15,6 +15,9 @@ export default function CmsManager() {
   const childKind = childKindOf(current)
   const isContentLevel = childKind === 'content'
   const [err, setErr] = useState('')
+  // Inline rename state (instead of a browser prompt popup).
+  const [editingId, setEditingId] = useState(null)
+  const [editName, setEditName] = useState('')
 
   const key = ['admin', 'children', current?.id || 'root']
   const children = useQuery({
@@ -47,9 +50,13 @@ export default function CmsManager() {
     setName(''); setCPaid(false); setCPrice(0)
   })
 
-  const renameNode = guard(async (node) => {
-    const n = window.prompt('New name', node.name)
-    if (n && n.trim()) await adminApi.updateNode(node._id, { name: n.trim() })
+  const startRename = (node) => { setErr(''); setEditingId(node._id); setEditName(node.name) }
+  const cancelRename = () => { setEditingId(null); setEditName('') }
+  const saveRename = guard(async () => {
+    const n = editName.trim()
+    if (!n) return cancelRename()
+    await adminApi.updateNode(editingId, { name: n })
+    cancelRename()
   })
   const delNode = guard(async (node) => {
     if (window.confirm(`Delete "${node.name}" and everything inside it?`)) await adminApi.deleteNode(node._id)
@@ -118,14 +125,31 @@ export default function CmsManager() {
       <ul className="flex flex-col gap-1.5">
         {!isContentLevel && children.data?.map((node, idx) => (
           <li key={node._id} className="flex items-center gap-2 bg-black/20 rounded-lg px-3 py-2 text-sm">
-            <button className="flex-1 text-left hover:text-vigno-accent2"
-              onClick={() => setPath([...path, { id: node._id, name: node.name, kind: node.kind }])}>
-              📁 {node.name} <span className="text-xs text-vigno-muted">›</span>
-            </button>
-            <button title="up" onClick={() => move(idx, -1)} className="text-vigno-muted hover:text-vigno-txt px-1">▲</button>
-            <button title="down" onClick={() => move(idx, 1)} className="text-vigno-muted hover:text-vigno-txt px-1">▼</button>
-            <button onClick={() => renameNode(node)} className="text-xs bg-white/10 hover:bg-white/20 rounded px-2 py-1">Rename</button>
-            <button onClick={() => delNode(node)} className="text-xs bg-red-500/70 hover:bg-red-500 text-white rounded px-2 py-1">Delete</button>
+            {editingId === node._id ? (
+              <>
+                <span>📁</span>
+                <input
+                  autoFocus
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') saveRename(); if (e.key === 'Escape') cancelRename() }}
+                  className={input + ' flex-1 py-1'}
+                />
+                <button onClick={saveRename} className="text-xs bg-vigno-accent text-[#1a0d0f] font-bold rounded px-2.5 py-1">Save</button>
+                <button onClick={cancelRename} className="text-xs bg-white/10 hover:bg-white/20 rounded px-2.5 py-1">Cancel</button>
+              </>
+            ) : (
+              <>
+                <button className="flex-1 text-left hover:text-vigno-accent2"
+                  onClick={() => setPath([...path, { id: node._id, name: node.name, kind: node.kind }])}>
+                  📁 {node.name} <span className="text-xs text-vigno-muted">›</span>
+                </button>
+                <button title="up" onClick={() => move(idx, -1)} className="text-vigno-muted hover:text-vigno-txt px-1">▲</button>
+                <button title="down" onClick={() => move(idx, 1)} className="text-vigno-muted hover:text-vigno-txt px-1">▼</button>
+                <button onClick={() => startRename(node)} className="text-xs bg-white/10 hover:bg-white/20 rounded px-2 py-1">Rename</button>
+                <button onClick={() => delNode(node)} className="text-xs bg-red-500/70 hover:bg-red-500 text-white rounded px-2 py-1">Delete</button>
+              </>
+            )}
           </li>
         ))}
 
