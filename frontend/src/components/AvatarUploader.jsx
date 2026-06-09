@@ -50,20 +50,22 @@ export default function AvatarUploader({ size = 76 }) {
       <Avatar user={user} size={size} />
 
       <button onClick={() => setMenu((m) => !m)} title="Change photo" disabled={busy}
-        className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-vigno-accent text-[#1a0d0f] grid place-items-center text-sm shadow-lg hover:brightness-110 disabled:opacity-60">
+        className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-vigno-accent text-white grid place-items-center text-sm shadow-lg ring-2 ring-vigno-panel hover:brightness-110 disabled:opacity-60">
         📷
       </button>
 
       {menu && (
         <>
           <div className="fixed inset-0 z-10" onClick={() => setMenu(false)} />
-          <div className="absolute z-20 left-0 top-full mt-2 w-44 bg-vigno-panel border border-vigno-line rounded-xl shadow-2xl py-1 text-sm">
+          <div className="absolute z-20 left-0 top-full mt-2 w-48 bg-vigno-panel border border-vigno-line rounded-xl shadow-2xl py-1.5 text-sm overflow-hidden">
             <button onClick={() => fileRef.current?.click()}
-              className="w-full text-left px-3 py-2 hover:bg-white/10 flex items-center gap-2">📷 Upload Photo</button>
-            {user?.avatar && (
-              <button onClick={remove}
-                className="w-full text-left px-3 py-2 hover:bg-white/10 text-red-300 flex items-center gap-2">✕ Remove Photo</button>
-            )}
+              className="w-full text-left px-3 py-2.5 hover:bg-vigno-accent/15 hover:text-vigno-accent2 flex items-center gap-2.5 transition-colors">
+              📷 Upload Photo
+            </button>
+            <button onClick={remove} disabled={!user?.avatar}
+              className="w-full text-left px-3 py-2.5 hover:bg-red-500/15 text-red-300 flex items-center gap-2.5 transition-colors disabled:opacity-40 disabled:hover:bg-transparent">
+              ✕ Remove Photo
+            </button>
           </div>
         </>
       )}
