@@ -11,6 +11,7 @@ export default function Sidebar() {
   const { data: classes, isLoading } = useClasses()
   const { data: settings } = useSiteSettings()
   const brandName = settings?.brand?.name || 'AeroLearn'
+  const logoEmoji = settings?.brand?.logoEmoji ?? '✈'
 
   // Collapsed → a slim rail with just an expand button, so the home modules
   // sidebar can be minimized to give content more room.
@@ -33,7 +34,7 @@ export default function Sidebar() {
   return (
     <aside className="w-60 flex-none bg-black/30 p-4 overflow-auto">
       <div className="flex items-center justify-between pb-3">
-        <div className="font-extrabold px-2">✈ {brandName}</div>
+        <div className="font-extrabold px-2">{logoEmoji} {brandName}</div>
         <button
           onClick={() => dispatch(toggleSidebar())}
           title="Minimize modules"

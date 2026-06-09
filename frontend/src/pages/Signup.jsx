@@ -22,6 +22,8 @@ export default function Signup() {
   const dispatch = useDispatch()
   const { data: settings } = useSiteSettings()
   const brandName = settings?.brand?.name || 'AeroLearn'
+  const logoEmoji = settings?.brand?.logoEmoji ?? '✈'
+  const signupSubtitle = settings?.auth?.signupSubtitle || `Join the ${brandName} community`
   const [step, setStep] = useState(1)
   const [form, setForm] = useState({ name: '', email: '', phone: '', password: '' })
   const [showPass, setShowPass] = useState(false)
@@ -69,7 +71,7 @@ export default function Signup() {
         {/* Logo */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-2 mb-2">
-            <span className="text-3xl">✈</span>
+            <span className="text-3xl">{logoEmoji}</span>
             <span className="text-2xl font-black tracking-tight text-vigno-txt">{brandName}</span>
           </div>
           <p className="text-vigno-muted text-xs tracking-widest uppercase">Start your exam preparation journey</p>
@@ -85,7 +87,7 @@ export default function Signup() {
             {step === 1 ? (
               <>
                 <h2 className="text-lg font-bold text-vigno-txt mb-1">Create Account</h2>
-                <p className="text-vigno-muted text-xs mb-6">Join the {brandName} community</p>
+                <p className="text-vigno-muted text-xs mb-6">{signupSubtitle}</p>
 
                 {error && (
                   <div className="mb-4 text-xs bg-red-500/10 border border-red-500/30 text-red-300 rounded-lg px-3 py-2">{error}</div>

@@ -4,6 +4,7 @@ import { useSelector, useDispatch } from 'react-redux'
 import Navbar from './Navbar'
 import Sidebar from './Sidebar'
 import Footer from './Footer'
+import AnnouncementBar from './AnnouncementBar'
 import { authApi } from '../api/authApi'
 import { setUser, logout } from '../store/authSlice'
 
@@ -42,6 +43,7 @@ export default function AppLayout() {
 
   return (
     <div className={(theme === 'light' ? 'theme-light ' : '') + 'min-h-screen flex flex-col'}>
+      <AnnouncementBar />
       <Navbar />
       <div className="flex flex-1">
         <Sidebar />

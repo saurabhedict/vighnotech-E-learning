@@ -5,6 +5,7 @@ import { discoverApi } from '../api/discoverApi'
 import FolderCard from '../components/FolderCard'
 import ContentCard from '../components/ContentCard'
 import Breadcrumb from '../components/Breadcrumb'
+import { useSiteSettings } from '../hooks/useSiteSettings'
 
 function DiscoverRow({ title, queryKey, queryFn }) {
   const { data } = useQuery({ queryKey, queryFn })
@@ -22,11 +23,19 @@ function DiscoverRow({ title, queryKey, queryFn }) {
 export default function Home() {
   const { className } = useParams()
   const { data: subjects, isLoading, isError } = useClassTree(className)
+  const { data: settings } = useSiteSettings()
+  const hero = settings?.home
   const displayName = className?.replace(/_/g, ' ')
 
   return (
     <div>
       <Breadcrumb trail={displayName} />
+      {hero?.heroEnabled && (hero.heroTitle || hero.heroSubtitle) && (
+        <div className="mb-6 rounded-2xl border border-vigno-line bg-gradient-to-r from-vigno-accent/15 to-transparent p-6">
+          {hero.heroTitle && <h2 className="text-2xl font-extrabold mb-1.5">{hero.heroTitle}</h2>}
+          {hero.heroSubtitle && <p className="text-vigno-muted max-w-2xl">{hero.heroSubtitle}</p>}
+        </div>
+      )}
       <h1 className="text-2xl mb-5">{displayName}</h1>
 
       <DiscoverRow title="▶ Continue watching" queryKey={['progress', 'mine']} queryFn={() => discoverApi.myProgress(10)} />

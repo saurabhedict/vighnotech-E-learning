@@ -11,6 +11,9 @@ export default function Login() {
   const { data: settings } = useSiteSettings()
   const brandName = settings?.brand?.name || 'AeroLearn'
   const tagline = settings?.brand?.tagline || 'Aviation Training Platform'
+  const logoEmoji = settings?.brand?.logoEmoji ?? '✈'
+  const greeting = settings?.auth?.loginGreeting || 'Welcome back'
+  const loginSubtitle = settings?.auth?.loginSubtitle || 'Sign in to continue'
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -79,7 +82,7 @@ export default function Login() {
         {/* Logo */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-2 mb-2">
-            <span className="text-3xl">✈</span>
+            <span className="text-3xl">{logoEmoji}</span>
             <span className="text-2xl font-black tracking-tight text-vigno-txt">{brandName}</span>
           </div>
           <p className="text-vigno-muted text-xs tracking-widest uppercase">{tagline}</p>
@@ -95,8 +98,8 @@ export default function Login() {
           <div className="p-8">
             {!challenge ? (
               <>
-                <h2 className="text-lg font-bold text-vigno-txt mb-1">Welcome back, Cadet</h2>
-                <p className="text-vigno-muted text-xs mb-6">Sign in to continue your training</p>
+                <h2 className="text-lg font-bold text-vigno-txt mb-1">{greeting}</h2>
+                <p className="text-vigno-muted text-xs mb-6">{loginSubtitle}</p>
 
                 {notice && (
                   <div className="mb-4 text-xs bg-vigno-accent2/10 border border-vigno-accent2/30 text-vigno-accent2 rounded-lg px-3 py-2">{notice}</div>

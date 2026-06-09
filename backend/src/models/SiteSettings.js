@@ -93,6 +93,34 @@ const schema = new mongoose.Schema(
     brand: {
       name: { type: String, default: 'AeroLearn' },
       tagline: { type: String, default: 'Aviation Training Platform' },
+      logoEmoji: { type: String, default: '✈' },
+    },
+    // Top navigation bar
+    header: {
+      showSearch: { type: Boolean, default: true },
+      announcement: {
+        enabled: { type: Boolean, default: false },
+        text: { type: String, default: '' },
+        link: { type: String, default: '' },
+      },
+      extraLinks: { type: [link], default: () => [] },
+    },
+    // Home / dashboard hero
+    home: {
+      heroEnabled: { type: Boolean, default: false },
+      heroTitle: { type: String, default: '' },
+      heroSubtitle: { type: String, default: '' },
+    },
+    // Login / signup / forgot-password copy
+    auth: {
+      loginGreeting: { type: String, default: 'Welcome back' },
+      loginSubtitle: { type: String, default: 'Sign in to continue' },
+      signupSubtitle: { type: String, default: 'Create your account' },
+    },
+    // Brand colours (hex) applied as CSS variables at runtime
+    theme: {
+      accent: { type: String, default: '#f0c040' },
+      accent2: { type: String, default: '#4da6ff' },
     },
     footer: {
       blurb: { type: String, default: 'Practice mock tests for competitive exams with real exam simulation.' },
@@ -125,10 +153,33 @@ schema.statics.getSingleton = async function getSingleton() {
   return doc
 }
 
-// Public-safe shape consumed by the footer/site (clean, no legacy fields).
+// Public-safe shape consumed by the whole site (clean, no legacy fields).
 schema.methods.toPublic = function toPublic() {
   return {
-    brand: { name: this.brand.name, tagline: this.brand.tagline },
+    brand: { name: this.brand.name, tagline: this.brand.tagline, logoEmoji: this.brand.logoEmoji },
+    header: {
+      showSearch: this.header?.showSearch !== false,
+      announcement: {
+        enabled: !!this.header?.announcement?.enabled,
+        text: this.header?.announcement?.text || '',
+        link: this.header?.announcement?.link || '',
+      },
+      extraLinks: this.header?.extraLinks || [],
+    },
+    home: {
+      heroEnabled: !!this.home?.heroEnabled,
+      heroTitle: this.home?.heroTitle || '',
+      heroSubtitle: this.home?.heroSubtitle || '',
+    },
+    auth: {
+      loginGreeting: this.auth?.loginGreeting || 'Welcome back',
+      loginSubtitle: this.auth?.loginSubtitle || 'Sign in to continue',
+      signupSubtitle: this.auth?.signupSubtitle || 'Create your account',
+    },
+    theme: {
+      accent: this.theme?.accent || '#f0c040',
+      accent2: this.theme?.accent2 || '#4da6ff',
+    },
     footer: {
       blurb: this.footer.blurb,
       sections: this.footer.sections,

@@ -98,7 +98,7 @@ export default function Footer() {
           {/* Brand identity (always present) */}
           <div className="min-w-[220px] max-w-sm flex-1">
             <div className="font-extrabold text-lg mb-2">
-              <span className="text-vigno-accent2">✈</span> {brand.name || 'AeroLearn'}
+              <span className="text-vigno-accent2">{brand.logoEmoji ?? '✈'}</span> {brand.name || 'AeroLearn'}
             </div>
             {f.blurb && <p className="text-vigno-muted text-sm leading-relaxed">{f.blurb}</p>}
           </div>

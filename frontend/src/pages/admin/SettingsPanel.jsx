@@ -8,7 +8,6 @@ import EmojiPicker from '../../components/EmojiPicker'
 const input = 'px-3 py-2 rounded-lg bg-vigno-bg2 border border-vigno-line text-sm outline-none focus:border-vigno-accent w-full'
 const SOCIALS = ['facebook', 'twitter', 'linkedin', 'instagram', 'youtube']
 const TYPE_LABEL = { links: '🔗 Links', contact: '📇 Contact', social: '📣 Social', text: '📝 Text', custom: '✨ Custom' }
-// Column types the admin can add, with a hint of what each is for.
 const SECTION_TYPES = [
   { type: 'links', label: '+ Links', hint: 'Nav / legal / resources' },
   { type: 'contact', label: '+ Contact', hint: 'Phone, email, address, hours' },
@@ -17,16 +16,43 @@ const SECTION_TYPES = [
   { type: 'custom', label: '+ Custom', hint: 'Anything: emoji + text + link' },
 ]
 
+// The modular hub: each card opens an editor for that part of the site.
+const HUB = [
+  { key: 'branding', icon: '🎨', title: 'Branding', desc: 'Name, tagline & logo icon' },
+  { key: 'header', icon: '🧭', title: 'Header / Navbar', desc: 'Search, announcement bar, extra links' },
+  { key: 'home', icon: '🏠', title: 'Home Page', desc: 'Hero heading & subtitle' },
+  { key: 'footer', icon: '📑', title: 'Footer', desc: 'Columns, links, contact, social' },
+  { key: 'auth', icon: '🔑', title: 'Login & Signup', desc: 'Greeting & subtitles' },
+  { key: 'theme', icon: '🌈', title: 'Theme Colours', desc: 'Accent colours' },
+]
+
 function RemoveBtn({ onClick, title = 'Remove' }) {
-  return (
-    <button onClick={onClick} title={title} className="shrink-0 w-9 h-9 grid place-items-center rounded-lg bg-red-500/15 hover:bg-red-500/30 text-red-300">✕</button>
-  )
+  return <button onClick={onClick} title={title} className="shrink-0 w-9 h-9 grid place-items-center rounded-lg bg-red-500/15 hover:bg-red-500/30 text-red-300">✕</button>
 }
 function AddRowBtn({ onClick, children }) {
   return <button onClick={onClick} className="text-xs bg-white/10 hover:bg-white/20 border border-vigno-line rounded-lg px-2.5 py-1.5">+ {children}</button>
 }
+function Field({ label, hint, children }) {
+  return (
+    <div>
+      <label className="text-xs text-vigno-muted block mb-1">{label}</label>
+      {children}
+      {hint && <p className="text-[11px] text-vigno-muted/70 mt-1">{hint}</p>}
+    </div>
+  )
+}
+function Toggle({ checked, onChange, label }) {
+  return (
+    <button type="button" onClick={() => onChange(!checked)} className="flex items-center gap-2 text-sm">
+      <span className={'w-9 h-5 rounded-full relative transition ' + (checked ? 'bg-vigno-accent' : 'bg-white/15')}>
+        <span className={'absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all ' + (checked ? 'left-[18px]' : 'left-0.5')} />
+      </span>
+      <span>{label}</span>
+    </button>
+  )
+}
 
-// ── Per-type row editors ─────────────────────────────────────────────────────
+// ── Footer per-type row editors ──────────────────────────────────────────────
 function LinkRows({ items, onChange }) {
   const upd = (i, k, v) => onChange(items.map((it, idx) => (idx === i ? { ...it, [k]: v } : it)))
   const rm = (i) => onChange(items.filter((_, idx) => idx !== i))
@@ -76,7 +102,6 @@ function SocialRows({ items, onChange }) {
     </>
   )
 }
-// Generic rows: emoji + text + optional link — the "anything" builder.
 function CustomRows({ items, onChange }) {
   const upd = (i, k, v) => onChange(items.map((it, idx) => (idx === i ? { ...it, [k]: v } : it)))
   const rm = (i) => onChange(items.filter((_, idx) => idx !== i))
@@ -87,7 +112,7 @@ function CustomRows({ items, onChange }) {
           <EmojiPicker value={it.icon || ''} onChange={(v) => upd(i, 'icon', v)} />
           <div className="flex-1 space-y-1.5">
             <input className={input} placeholder="Text (e.g. Mon–Fri: 9am–6pm)" value={it.text || ''} onChange={(e) => upd(i, 'text', e.target.value)} />
-            <input className={input} placeholder="Optional link — /route or https://… (leave blank for plain text)" value={it.url || ''} onChange={(e) => upd(i, 'url', e.target.value)} />
+            <input className={input} placeholder="Optional link — /route or https://…" value={it.url || ''} onChange={(e) => upd(i, 'url', e.target.value)} />
           </div>
           <RemoveBtn onClick={() => rm(i)} />
         </div>
@@ -96,8 +121,6 @@ function CustomRows({ items, onChange }) {
     </>
   )
 }
-
-// ── One footer column (section) card ─────────────────────────────────────────
 function SectionCard({ section, index, count, onChange, onMove, onRemove }) {
   const set = (k, v) => onChange({ ...section, [k]: v })
   return (
@@ -136,12 +159,23 @@ function SectionCard({ section, index, count, onChange, onMove, onRemove }) {
   )
 }
 
-// Normalize loaded data → editable form.
+// Normalize loaded data → editable form (all editable areas).
 function toForm(d) {
-  const b = d?.brand || {}
-  const f = d?.footer || {}
+  const b = d?.brand || {}, h = d?.header || {}, hm = d?.home || {}, au = d?.auth || {}, th = d?.theme || {}, f = d?.footer || {}
   return {
-    brand: { name: b.name || '', tagline: b.tagline || '' },
+    brand: { name: b.name || '', tagline: b.tagline || '', logoEmoji: b.logoEmoji || '✈' },
+    header: {
+      showSearch: h.showSearch !== false,
+      announcement: { enabled: !!h.announcement?.enabled, text: h.announcement?.text || '', link: h.announcement?.link || '' },
+      extraLinks: (h.extraLinks || []).map((l) => ({ label: l.label || '', url: l.url || '' })),
+    },
+    home: { heroEnabled: !!hm.heroEnabled, heroTitle: hm.heroTitle || '', heroSubtitle: hm.heroSubtitle || '' },
+    auth: {
+      loginGreeting: au.loginGreeting || 'Welcome back',
+      loginSubtitle: au.loginSubtitle || 'Sign in to continue',
+      signupSubtitle: au.signupSubtitle || 'Create your account',
+    },
+    theme: { accent: th.accent || '#f0c040', accent2: th.accent2 || '#4da6ff' },
     footer: {
       blurb: f.blurb || '',
       copyright: f.copyright || '',
@@ -165,16 +199,9 @@ function toForm(d) {
 const TITLE_BY_TYPE = { contact: 'Contact', social: 'Follow Us', text: 'About', custom: 'New Column' }
 const ICON_BY_TYPE = { links: '🔗', contact: '📇', social: '📣', text: '📝', custom: '✨' }
 const blankSection = (type) => ({
-  type,
-  title: TITLE_BY_TYPE[type] || 'Quick Links',
-  icon: ICON_BY_TYPE[type] || '',
-  links: type === 'links' ? [{ label: '', url: '' }] : [],
-  phones: [],
-  emails: [],
-  address: '',
-  hours: '',
-  items: type === 'social' ? [{ platform: 'facebook', url: '' }] : [],
-  body: '',
+  type, title: TITLE_BY_TYPE[type] || 'Quick Links', icon: ICON_BY_TYPE[type] || '',
+  links: type === 'links' ? [{ label: '', url: '' }] : [], phones: [], emails: [], address: '', hours: '',
+  items: type === 'social' ? [{ platform: 'facebook', url: '' }] : [], body: '',
   rows: type === 'custom' ? [{ icon: '', text: '', url: '' }] : [],
 })
 
@@ -182,21 +209,24 @@ export default function SettingsPanel() {
   const qc = useQueryClient()
   const { data, isLoading, isError } = useSiteSettings()
   const [form, setForm] = useState(null)
+  const [section, setSection] = useState(null)
   const [msg, setMsg] = useState(null)
   const [saving, setSaving] = useState(false)
 
-  useEffect(() => {
-    if (data && !form) setForm(toForm(data))
-  }, [data, form])
+  useEffect(() => { if (data && !form) setForm(toForm(data)) }, [data, form])
 
   if (isLoading) return <p className="text-vigno-muted">Loading settings…</p>
   if (isError) return <p className="text-red-300">Failed to load settings.</p>
   if (!form) return null
 
   const setBrand = (k, v) => setForm((s) => ({ ...s, brand: { ...s.brand, [k]: v } }))
+  const setHeader = (k, v) => setForm((s) => ({ ...s, header: { ...s.header, [k]: v } }))
+  const setAnnounce = (k, v) => setForm((s) => ({ ...s, header: { ...s.header, announcement: { ...s.header.announcement, [k]: v } } }))
+  const setHome = (k, v) => setForm((s) => ({ ...s, home: { ...s.home, [k]: v } }))
+  const setAuth = (k, v) => setForm((s) => ({ ...s, auth: { ...s.auth, [k]: v } }))
+  const setTheme = (k, v) => setForm((s) => ({ ...s, theme: { ...s.theme, [k]: v } }))
   const setFooter = (k, v) => setForm((s) => ({ ...s, footer: { ...s.footer, [k]: v } }))
   const sections = form.footer.sections
-
   const updateSection = (i, next) => setFooter('sections', sections.map((s, idx) => (idx === i ? next : s)))
   const removeSection = (i) => setFooter('sections', sections.filter((_, idx) => idx !== i))
   const addSection = (type) => setFooter('sections', [...sections, blankSection(type)])
@@ -209,8 +239,7 @@ export default function SettingsPanel() {
   }
 
   const save = async () => {
-    setSaving(true)
-    setMsg(null)
+    setSaving(true); setMsg(null)
     try {
       const saved = await settingsApi.update(form)
       qc.setQueryData(SITE_SETTINGS_KEY, saved)
@@ -218,64 +247,118 @@ export default function SettingsPanel() {
       setMsg({ ok: true, text: 'Saved — changes are live across the site.' })
     } catch (e) {
       setMsg({ ok: false, text: apiErrorMessage(e, 'Save failed') })
-    } finally {
-      setSaving(false)
-    }
+    } finally { setSaving(false) }
   }
   const reset = () => setForm(toForm(data))
 
-  return (
-    <div className="space-y-5">
-      <p className="text-xs text-vigno-muted">
-        The footer is fully modular — add columns of any type, give each an emoji icon + name, add rows, and reorder freely.
-        Use <code>/route</code> for internal pages (e.g. <code>/app/library</code>) and full <code>https://…</code> URLs for external links.
-        Tip: for an icon not in the palette, paste any emoji (Windows: <code>Win</code> + <code>.</code> / Mac: <code>Cmd</code>+<code>Ctrl</code>+<code>Space</code>).
-      </p>
+  const ColorField = ({ label, k }) => (
+    <Field label={label}>
+      <div className="flex gap-2 items-center">
+        <input type="color" value={form.theme[k]} onChange={(e) => setTheme(k, e.target.value)} className="w-10 h-10 rounded-lg bg-transparent border border-vigno-line cursor-pointer" />
+        <input className={input + ' font-mono max-w-[140px]'} value={form.theme[k]} onChange={(e) => setTheme(k, e.target.value)} placeholder="#rrggbb" />
+      </div>
+    </Field>
+  )
 
-      {/* Brand */}
-      <div className="bg-vigno-bg2/40 border border-vigno-line rounded-xl p-4 space-y-2">
-        <h3 className="text-sm font-bold">Branding</h3>
-        <div className="grid sm:grid-cols-2 gap-2">
-          <div>
-            <label className="text-xs text-vigno-muted">Brand name (navbar + footer)</label>
-            <input className={input} value={form.brand.name} onChange={(e) => setBrand('name', e.target.value)} placeholder="AeroLearn" />
-          </div>
-          <div>
-            <label className="text-xs text-vigno-muted">Tagline</label>
-            <input className={input} value={form.brand.tagline} onChange={(e) => setBrand('tagline', e.target.value)} placeholder="Aviation Training Platform" />
-          </div>
+  // ── Editors per section ────────────────────────────────────────────────────
+  const editors = {
+    branding: (
+      <div className="space-y-3">
+        <div className="flex gap-3 items-end">
+          <Field label="Logo icon"><EmojiPicker value={form.brand.logoEmoji} onChange={(v) => setBrand('logoEmoji', v)} /></Field>
+          <div className="flex-1"><Field label="Brand name (navbar, footer, auth pages)"><input className={input} value={form.brand.name} onChange={(e) => setBrand('name', e.target.value)} placeholder="AeroLearn" /></Field></div>
+        </div>
+        <Field label="Tagline (shown on the login page)"><input className={input} value={form.brand.tagline} onChange={(e) => setBrand('tagline', e.target.value)} placeholder="Aviation Training Platform" /></Field>
+      </div>
+    ),
+    header: (
+      <div className="space-y-4">
+        <Toggle checked={form.header.showSearch} onChange={(v) => setHeader('showSearch', v)} label="Show the search box in the navbar" />
+        <div className="bg-vigno-bg2/40 border border-vigno-line rounded-xl p-4 space-y-2">
+          <Toggle checked={form.header.announcement.enabled} onChange={(v) => setAnnounce('enabled', v)} label="Show announcement bar (top strip)" />
+          <Field label="Announcement text"><input className={input} value={form.header.announcement.text} onChange={(e) => setAnnounce('text', e.target.value)} placeholder="🎉 New mock tests added for 2026!" /></Field>
+          <Field label="Announcement link (optional)" hint="Where clicking the bar goes — /route or https://…"><input className={input} value={form.header.announcement.link} onChange={(e) => setAnnounce('link', e.target.value)} placeholder="/app/library" /></Field>
         </div>
         <div>
-          <label className="text-xs text-vigno-muted">Footer blurb</label>
-          <textarea className={input + ' h-20 resize-none'} value={form.footer.blurb} onChange={(e) => setFooter('blurb', e.target.value)} placeholder="Practice mock tests for competitive exams…" />
+          <div className="text-xs text-vigno-muted mb-2">Extra navbar links</div>
+          <div className="space-y-2"><LinkRows items={form.header.extraLinks} onChange={(v) => setHeader('extraLinks', v)} /></div>
         </div>
       </div>
-
-      {/* Sections */}
-      <div className="flex items-center justify-between flex-wrap gap-2">
-        <h3 className="text-sm font-bold">Footer columns</h3>
-        <div className="flex gap-2 flex-wrap">
-          {SECTION_TYPES.map((t) => (
-            <button key={t.type} onClick={() => addSection(t.type)} title={t.hint}
-              className="text-xs bg-vigno-accent/90 text-[#1a0d0f] font-bold rounded-lg px-2.5 py-1.5">{t.label}</button>
+    ),
+    home: (
+      <div className="space-y-3">
+        <Toggle checked={form.home.heroEnabled} onChange={(v) => setHome('heroEnabled', v)} label="Show a hero banner at the top of the home page" />
+        <Field label="Hero heading"><input className={input} value={form.home.heroTitle} onChange={(e) => setHome('heroTitle', e.target.value)} placeholder="Welcome to Vidyarthi Mitra" /></Field>
+        <Field label="Hero subtitle"><textarea className={input + ' h-20 resize-none'} value={form.home.heroSubtitle} onChange={(e) => setHome('heroSubtitle', e.target.value)} placeholder="Practice mock tests with real exam simulation." /></Field>
+      </div>
+    ),
+    auth: (
+      <div className="space-y-3">
+        <Field label="Login greeting"><input className={input} value={form.auth.loginGreeting} onChange={(e) => setAuth('loginGreeting', e.target.value)} placeholder="Welcome back" /></Field>
+        <Field label="Login subtitle"><input className={input} value={form.auth.loginSubtitle} onChange={(e) => setAuth('loginSubtitle', e.target.value)} placeholder="Sign in to continue" /></Field>
+        <Field label="Signup subtitle"><input className={input} value={form.auth.signupSubtitle} onChange={(e) => setAuth('signupSubtitle', e.target.value)} placeholder="Create your account" /></Field>
+      </div>
+    ),
+    theme: (
+      <div className="space-y-3">
+        <p className="text-xs text-vigno-muted">Brand colours applied across the whole site (buttons, links, highlights).</p>
+        <div className="flex gap-6 flex-wrap">
+          <ColorField label="Primary (buttons)" k="accent" />
+          <ColorField label="Secondary (links/highlights)" k="accent2" />
+        </div>
+      </div>
+    ),
+    footer: (
+      <div className="space-y-4">
+        <Field label="Footer blurb (under the logo)"><textarea className={input + ' h-20 resize-none'} value={form.footer.blurb} onChange={(e) => setFooter('blurb', e.target.value)} placeholder="Practice mock tests for competitive exams…" /></Field>
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <span className="text-sm font-bold">Footer columns</span>
+          <div className="flex gap-2 flex-wrap">
+            {SECTION_TYPES.map((t) => (
+              <button key={t.type} onClick={() => addSection(t.type)} title={t.hint} className="text-xs bg-vigno-accent/90 text-[#1a0d0f] font-bold rounded-lg px-2.5 py-1.5">{t.label}</button>
+            ))}
+          </div>
+        </div>
+        <div className="grid lg:grid-cols-2 gap-4">
+          {sections.map((s, i) => (
+            <SectionCard key={i} section={s} index={i} count={sections.length} onChange={(next) => updateSection(i, next)} onMove={moveSection} onRemove={removeSection} />
           ))}
         </div>
+        {sections.length === 0 && <p className="text-xs text-vigno-muted">No columns. Add one above.</p>}
+        <Field label="Copyright line — use {year} for the current year"><input className={input} value={form.footer.copyright} onChange={(e) => setFooter('copyright', e.target.value)} placeholder="© {year} AeroLearn. All rights reserved." /></Field>
       </div>
+    ),
+  }
 
-      <div className="grid lg:grid-cols-2 gap-4">
-        {sections.map((s, i) => (
-          <SectionCard key={i} section={s} index={i} count={sections.length} onChange={(next) => updateSection(i, next)} onMove={moveSection} onRemove={removeSection} />
-        ))}
-      </div>
-      {sections.length === 0 && <p className="text-xs text-vigno-muted">No columns. Add one above.</p>}
+  const current = HUB.find((h) => h.key === section)
 
-      {/* Copyright */}
-      <div className="bg-vigno-bg2/40 border border-vigno-line rounded-xl p-4">
-        <label className="text-xs text-vigno-muted">Copyright line — use {'{year}'} for the current year</label>
-        <input className={input + ' mt-1'} value={form.footer.copyright} onChange={(e) => setFooter('copyright', e.target.value)} placeholder="© {year} AeroLearn. All rights reserved." />
-      </div>
+  return (
+    <div className="space-y-5">
+      {!section ? (
+        <>
+          <p className="text-xs text-vigno-muted">Choose a part of the website to customise. Everything updates live — no code changes.</p>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {HUB.map((h) => (
+              <button key={h.key} onClick={() => { setSection(h.key); setMsg(null) }}
+                className="text-left bg-vigno-bg2/40 hover:bg-vigno-bg3/40 border border-vigno-line rounded-xl p-4 transition">
+                <div className="text-2xl mb-1.5">{h.icon}</div>
+                <div className="font-bold text-sm">{h.title}</div>
+                <div className="text-xs text-vigno-muted mt-0.5">{h.desc}</div>
+              </button>
+            ))}
+          </div>
+        </>
+      ) : (
+        <>
+          <div className="flex items-center gap-3">
+            <button onClick={() => setSection(null)} className="text-sm bg-white/10 hover:bg-white/20 border border-vigno-line rounded-lg px-3 py-1.5">← All settings</button>
+            <h3 className="font-bold">{current?.icon} {current?.title}</h3>
+          </div>
+          {editors[section]}
+        </>
+      )}
 
-      {/* Save bar */}
+      {/* Save bar (always available) */}
       <div className="flex items-center gap-3 sticky bottom-0 bg-vigno-card/95 backdrop-blur py-3 -mx-5 px-5 border-t border-vigno-line">
         <button onClick={save} disabled={saving} className="bg-vigno-accent text-[#1a0d0f] font-bold px-5 py-2 rounded-lg text-sm disabled:opacity-50">
           {saving ? 'Saving…' : '💾 Save changes'}
