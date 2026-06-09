@@ -50,6 +50,10 @@ export const authApi = {
   async removeAvatar() {
     return (await api.delete('/profile/avatar')).data
   },
+  // Set/replace the phone number (changing it clears prior verification)
+  async setPhone(phone) {
+    return (await api.patch('/profile/phone', { phone })).data
+  },
   async deleteAccount(password) {
     return (await api.delete('/profile/account', { data: { password } })).data
   },

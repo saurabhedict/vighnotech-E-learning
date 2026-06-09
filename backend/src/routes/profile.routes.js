@@ -7,6 +7,7 @@ const router = Router()
 
 router.post('/avatar', requireAuth, validate({ body: profile.avatarSchema }), profile.uploadAvatar)
 router.delete('/avatar', requireAuth, profile.removeAvatar)
+router.patch('/phone', requireAuth, validate({ body: profile.setPhoneSchema }), profile.setPhone)
 router.delete('/account', requireAuth, validate({ body: profile.deleteAccountSchema }), profile.deleteAccount)
 
 export default router

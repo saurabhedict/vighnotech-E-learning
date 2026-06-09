@@ -8,6 +8,7 @@ import { License } from '../models/License.js'
 import { Purchase } from '../models/Purchase.js'
 import { cookieOpts, ACCESS_COOKIE, REFRESH_COOKIE } from '../utils/tokens.js'
 import { cloudinaryEnabled, uploadAvatar as cloudUploadAvatar, destroyAvatar } from '../services/cloudinary.js'
+import { normalizePhone } from '../services/sms.js'
 
 // The client crops/zooms/rotates the photo to a small square and sends it as a
 // JPEG/PNG data URL. We cap the size so the user document stays small.
@@ -49,6 +50,25 @@ export const removeAvatar = asyncHandler(async (req, res) => {
   user.avatar = ''
   await user.save()
   audit(req, 'profile.avatar.remove', { targetType: 'User', targetId: user._id })
+  res.json({ ok: true, user: user.toSafeJSON() })
+})
+
+// PATCH /api/profile/phone — set/replace the phone number. Changing the number
+// clears any prior verification (the new number must be re-verified via OTP).
+export const setPhoneSchema = z.object({
+  phone: z.string().trim().min(6, 'Enter a valid phone number').max(20),
+})
+
+export const setPhone = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.user.id)
+  if (!user) throw unauthorized()
+  const phone = normalizePhone(req.body.phone)
+  if (phone.replace(/\D/g, '').length < 6) throw badRequest('Enter a valid phone number (with country code, e.g. +91…)')
+  const changed = user.phone !== phone
+  user.phone = phone
+  if (changed) user.phoneVerified = false
+  await user.save()
+  audit(req, 'profile.phone.set', { targetType: 'User', targetId: user._id })
   res.json({ ok: true, user: user.toSafeJSON() })
 })
 

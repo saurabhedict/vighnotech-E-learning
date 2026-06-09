@@ -71,6 +71,31 @@ function ChangePassword() {
   )
 }
 
+function AddPhone() {
+  const dispatch = useDispatch()
+  const user = useSelector((s) => s.auth.user)
+  const [phone, setPhone] = useState(user?.phone || '')
+  const [msg, setMsg] = useState(null)
+  const [loading, setLoading] = useState(false)
+  const submit = async (e) => {
+    e.preventDefault(); setMsg(null); setLoading(true)
+    try {
+      const r = await authApi.setPhone(phone.trim())
+      dispatch(setUser(r.user))
+      setMsg({ ok: true, text: 'Number saved. Close this and tap “Verify” to confirm it.' })
+    } catch (err) { setMsg({ ok: false, text: apiErrorMessage(err, 'Could not save number') }) }
+    finally { setLoading(false) }
+  }
+  return (
+    <form onSubmit={submit}>
+      <Msg msg={msg} />
+      <label className="text-xs text-vigno-muted block mb-1.5">Phone number (with country code)</label>
+      <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+91 98765 43210" className={input} />
+      <button disabled={loading || !phone.trim()} className={btn + ' w-full'}>{loading ? 'Saving…' : 'Save Number'}</button>
+    </form>
+  )
+}
+
 function EmailVerification() {
   const user = useSelector((s) => s.auth.user)
   if (user?.emailVerified || user?.phoneVerified) {
@@ -316,12 +341,20 @@ export default function Profile() {
             <span className="text-vigno-muted">Phone</span>
             <span className="flex items-center gap-2 flex-wrap">
               {user?.phone || <span className="text-vigno-muted">Not added</span>}
-              {user?.phoneVerified
-                ? <span className="text-[11px] font-semibold text-[#1da1f2] inline-flex items-center gap-1">✓ verified</span>
-                : <button onClick={() => setModal('verifyPhone')}
+              {user?.phoneVerified ? (
+                <span className="text-[11px] font-semibold text-[#1da1f2] inline-flex items-center gap-1">✓ verified</span>
+              ) : (
+                <>
+                  <button onClick={() => setModal('addPhone')}
+                    className="text-[11px] font-semibold bg-white/10 hover:bg-white/20 border border-vigno-line rounded-md px-2 py-0.5">
+                    {user?.phone ? '✏ Edit' : '➕ Add Number'}
+                  </button>
+                  <button onClick={() => setModal('verifyPhone')}
                     className="text-[11px] font-semibold bg-vigno-accent text-[#1a0d0f] rounded-md px-2 py-0.5 hover:brightness-110">
-                    📱 Verify Number
-                  </button>}
+                    📱 Verify
+                  </button>
+                </>
+              )}
             </span>
             <span className="text-vigno-muted">Role</span><span className="capitalize">{user?.role}</span>
           </div>
@@ -352,6 +385,7 @@ export default function Profile() {
       {modal === '2fa' && <Modal title="Two-Factor Authentication" width={460} onClose={close}><TwoFactor /></Modal>}
       {modal === 'devices' && <Modal title="My Devices" width={460} onClose={close}><Devices /></Modal>}
       {modal === 'verify' && <Modal title="Verify Account" onClose={close}><VerifyContact defaultPhone={user?.phone || ''} onVerified={close} /></Modal>}
+      {modal === 'addPhone' && <Modal title={user?.phone ? 'Edit Phone Number' : 'Add Phone Number'} onClose={close}><AddPhone /></Modal>}
       {modal === 'verifyPhone' && <Modal title="Verify Phone Number" onClose={close}><VerifyContact phoneOnly defaultPhone={user?.phone || ''} onVerified={close} /></Modal>}
       {modal === 'delete' && <Modal title="Delete Account" onClose={close}><DeleteAccount /></Modal>}
     </div>

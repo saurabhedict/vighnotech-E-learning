@@ -25,13 +25,20 @@ function UserCard({ u, isSelf, onRole, onDelete, busy }) {
           )}
           {isSelf && <span className="text-[10px] text-vigno-muted">(you)</span>}
         </div>
-        <div className="text-sm text-vigno-muted truncate">✉ {u.email}</div>
+        <div className="text-sm text-vigno-muted truncate">
+          ✉ {u.email}{' '}
+          {u.emailVerified
+            ? <span className="text-green-300 text-xs font-semibold">✓</span>
+            : <span className="text-amber-300/80 text-xs">○ unverified</span>}
+        </div>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-vigno-muted mt-0.5">
-          {u.phone && <span>📞 {u.phone}</span>}
-          <span className={verified ? 'text-green-300' : 'text-vigno-muted/70'}>
-            {verified ? '✓ Verified' : '○ Unverified'}
-            {verified && (u.phoneVerified && !u.emailVerified ? ' (phone)' : '')}
-          </span>
+          {u.phone
+            ? <span>📞 {u.phone}{' '}
+                {u.phoneVerified
+                  ? <span className="text-green-300 font-semibold">✓ verified</span>
+                  : <span className="text-amber-300/80">○ unverified</span>}
+              </span>
+            : <span className="text-vigno-muted/60">📞 no number</span>}
           {u.twoFAEnabled && <span>🔐 2FA</span>}
           <span>📅 {fmtDate(u.createdAt)}</span>
         </div>
