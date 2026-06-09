@@ -23,6 +23,31 @@ const input = 'w-full mb-3 px-3 py-2.5 rounded-lg bg-vigno-bg2 border border-vig
 const btn = 'bg-vigno-accent text-[#1a0d0f] font-bold px-4 py-2 rounded-lg hover:brightness-110 disabled:opacity-60'
 const btnGhost = 'bg-white/10 hover:bg-white/20 border border-vigno-line rounded-lg px-3 py-2 text-sm disabled:opacity-60'
 
+// Country dial codes for the phone field (India default).
+const COUNTRY_CODES = [
+  { code: '+91', label: '🇮🇳 +91' },
+  { code: '+1', label: '🇺🇸 +1' },
+  { code: '+44', label: '🇬🇧 +44' },
+  { code: '+971', label: '🇦🇪 +971' },
+  { code: '+61', label: '🇦🇺 +61' },
+  { code: '+65', label: '🇸🇬 +65' },
+  { code: '+966', label: '🇸🇦 +966' },
+  { code: '+880', label: '🇧🇩 +880' },
+  { code: '+977', label: '🇳🇵 +977' },
+  { code: '+94', label: '🇱🇰 +94' },
+]
+
+// Split a stored E.164 number into { cc, national(last 10 digits) }.
+function splitPhone(full) {
+  const digits = String(full || '').replace(/\D/g, '')
+  if (digits.length >= 10) {
+    const national = digits.slice(-10)
+    const cc = '+' + digits.slice(0, -10)
+    return { cc: COUNTRY_CODES.some((c) => c.code === cc) ? cc : '+91', national }
+  }
+  return { cc: '+91', national: digits }
+}
+
 function Msg({ msg }) {
   if (!msg) return null
   return (
@@ -74,24 +99,48 @@ function ChangePassword() {
 function AddPhone() {
   const dispatch = useDispatch()
   const user = useSelector((s) => s.auth.user)
-  const [phone, setPhone] = useState(user?.phone || '')
+  const initial = splitPhone(user?.phone)
+  const [cc, setCc] = useState(initial.cc)
+  const [national, setNational] = useState(initial.national)
   const [msg, setMsg] = useState(null)
   const [loading, setLoading] = useState(false)
+
+  const valid = national.length === 10
   const submit = async (e) => {
-    e.preventDefault(); setMsg(null); setLoading(true)
+    e.preventDefault(); setMsg(null)
+    if (!valid) return setMsg({ ok: false, text: 'Enter exactly 10 digits.' })
+    setLoading(true)
     try {
-      const r = await authApi.setPhone(phone.trim())
+      const r = await authApi.setPhone(`${cc}${national}`)
       dispatch(setUser(r.user))
       setMsg({ ok: true, text: 'Number saved. Close this and tap “Verify” to confirm it.' })
     } catch (err) { setMsg({ ok: false, text: apiErrorMessage(err, 'Could not save number') }) }
     finally { setLoading(false) }
   }
+
+  const selectCls = 'px-2.5 py-2.5 rounded-lg bg-vigno-bg2 border border-vigno-line text-sm outline-none focus:border-vigno-accent'
+  const numCls = 'flex-1 px-3 py-2.5 rounded-lg bg-vigno-bg2 border border-vigno-line text-sm outline-none focus:border-vigno-accent tracking-wider'
   return (
     <form onSubmit={submit}>
       <Msg msg={msg} />
-      <label className="text-xs text-vigno-muted block mb-1.5">Phone number (with country code)</label>
-      <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+91 98765 43210" className={input} />
-      <button disabled={loading || !phone.trim()} className={btn + ' w-full'}>{loading ? 'Saving…' : 'Save Number'}</button>
+      <label className="text-xs text-vigno-muted block mb-1.5">Phone number</label>
+      <div className="flex gap-2 mb-1">
+        <select value={cc} onChange={(e) => setCc(e.target.value)} className={selectCls}>
+          {COUNTRY_CODES.map((c) => <option key={c.code} value={c.code}>{c.label}</option>)}
+        </select>
+        <input
+          value={national}
+          onChange={(e) => setNational(e.target.value.replace(/\D/g, '').slice(0, 10))}
+          inputMode="numeric"
+          maxLength={10}
+          placeholder="10-digit number"
+          className={numCls}
+        />
+      </div>
+      <p className={'text-xs mb-3 ' + (valid ? 'text-green-300' : 'text-vigno-muted')}>
+        {valid ? '✓ Looks good' : `Enter exactly 10 digits (${national.length}/10)`}
+      </p>
+      <button disabled={loading || !valid} className={btn + ' w-full'}>{loading ? 'Saving…' : 'Save Number'}</button>
     </form>
   )
 }
