@@ -39,6 +39,12 @@ export default function AppLayout() {
       <div className="flex flex-1">
         <Sidebar />
         <main className="flex-1 p-7 overflow-auto">
+          <button
+            onClick={() => navigate(-1)}
+            className="mb-4 inline-flex items-center gap-1.5 text-sm bg-white/10 hover:bg-white/20 border border-vigno-line rounded-lg px-3 py-1.5"
+          >
+            ← Back
+          </button>
           <Outlet />
         </main>
       </div>

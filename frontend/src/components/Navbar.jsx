@@ -29,9 +29,9 @@ export default function Navbar() {
 
   return (
     <header className="flex items-center gap-3 px-5 py-3 bg-black/30 backdrop-blur">
-      <div className="font-extrabold text-lg">
+      <NavLink to="/app" className="font-extrabold text-lg shrink-0" title="Home">
         <span className="text-vigno-accent2">✈</span>Aero<span className="text-vigno-accent">Learn</span>
-      </div>
+      </NavLink>
       {user?.role === 'admin' && (
         <span className="text-[10px] bg-vigno-accent/25 text-vigno-accent2 rounded-full px-2 py-0.5 font-bold">ADMIN</span>
       )}
@@ -41,6 +41,7 @@ export default function Navbar() {
           className="w-full px-3 py-1.5 rounded-lg bg-black/30 border border-vigno-line text-sm outline-none focus:border-vigno-accent" />
       </form>
 
+      <NavLink to="/app" end className={linkCls}>🏠 Home</NavLink>
       <NavLink to="/app/favorites" className={linkCls}>★ Saved</NavLink>
       <NavLink to="/app/wallet" className={linkCls}>👛 Wallet</NavLink>
       <NavLink to="/app/library" className={linkCls}>📚 Library</NavLink>
@@ -52,7 +53,7 @@ export default function Navbar() {
       <button onClick={doLogout} className="bg-white/10 hover:bg-white/20 rounded-lg px-3 py-1.5 text-sm">Logout</button>
 
       <NavLink to="/app/profile" title={user?.name || user?.email || 'Profile'} className="ml-1">
-        <Avatar user={user} size={34} className="hover:ring-2 hover:ring-vigno-accent2 transition" />
+        <Avatar user={user} size={34} verified={user?.verified} className="hover:ring-2 hover:ring-vigno-accent2 transition" />
       </NavLink>
     </header>
   )

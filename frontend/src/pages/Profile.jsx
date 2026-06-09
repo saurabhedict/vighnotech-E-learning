@@ -1,12 +1,14 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useSelector, useDispatch } from 'react-redux'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { setUser } from '../store/authSlice'
+import { setUser, logout } from '../store/authSlice'
 import { authApi, apiErrorMessage } from '../api/authApi'
 import { devicesApi } from '../api/devicesApi'
 import { getDeviceFingerprint, deviceLabel } from '../lib/device'
 import VerifyContact from '../components/VerifyContact'
 import AvatarUploader from '../components/AvatarUploader'
+import Modal from '../components/Modal'
 
 function Card({ title, children }) {
   return (
@@ -227,32 +229,120 @@ function Devices() {
   )
 }
 
+function DeleteAccount() {
+  const dispatch = useDispatch()
+  const navigate = useNavigate()
+  const [pwd, setPwd] = useState('')
+  const [confirm, setConfirm] = useState('')
+  const [msg, setMsg] = useState(null)
+  const [loading, setLoading] = useState(false)
+
+  const del = async (e) => {
+    e.preventDefault()
+    setMsg(null)
+    if (confirm.trim().toUpperCase() !== 'DELETE') return setMsg({ ok: false, text: 'Type DELETE to confirm.' })
+    setLoading(true)
+    try {
+      await authApi.deleteAccount(pwd)
+      dispatch(logout())
+      navigate('/')
+    } catch (err) {
+      setMsg({ ok: false, text: apiErrorMessage(err, 'Could not delete account') })
+    } finally { setLoading(false) }
+  }
+
+  return (
+    <form onSubmit={del}>
+      <Msg msg={msg} />
+      <p className="text-sm text-vigno-muted mb-3">
+        This permanently deletes your account and all your data (licenses, purchases, devices). This cannot be undone.
+      </p>
+      <label className="text-xs text-vigno-muted block mb-1.5">Confirm your password</label>
+      <input type="password" value={pwd} onChange={(e) => setPwd(e.target.value)} className={input} autoComplete="current-password" />
+      <label className="text-xs text-vigno-muted block mb-1.5">Type <b className="text-red-300">DELETE</b> to confirm</label>
+      <input value={confirm} onChange={(e) => setConfirm(e.target.value)} className={input} placeholder="DELETE" />
+      <button disabled={loading || !pwd}
+        className="w-full bg-red-500/90 hover:bg-red-500 text-white font-bold rounded-lg py-2.5 text-sm disabled:opacity-50">
+        {loading ? 'Deleting…' : 'Permanently delete my account'}
+      </button>
+    </form>
+  )
+}
+
+function ActionTile({ icon, label, sub, onClick, danger }) {
+  return (
+    <button onClick={onClick}
+      className={'flex items-center gap-3 text-left rounded-xl px-4 py-3 border transition w-full ' +
+        (danger
+          ? 'border-red-500/40 bg-red-500/5 hover:bg-red-500/10'
+          : 'border-vigno-line bg-vigno-bg2 hover:bg-vigno-bg3/50')}>
+      <span className="text-xl w-7 text-center">{icon}</span>
+      <span className="flex-1 min-w-0">
+        <span className={'block font-semibold text-sm ' + (danger ? 'text-red-300' : '')}>{label}</span>
+        <span className="block text-xs text-vigno-muted truncate">{sub}</span>
+      </span>
+      <span className="text-vigno-muted">›</span>
+    </button>
+  )
+}
+
 export default function Profile() {
   const user = useSelector((s) => s.auth.user)
+  const [modal, setModal] = useState(null)
+  const close = () => setModal(null)
+  const verified = user?.emailVerified || user?.phoneVerified
+
   return (
-    <div>
+    <div className="max-w-3xl">
       <div className="text-sm text-vigno-muted mb-1">AeroLearn › Profile</div>
       <h1 className="text-2xl mb-5">👤 Profile</h1>
 
+      {/* Account */}
       <Card title="Account">
         <div className="flex items-start gap-5">
-          <div className="pt-1">
-            <AvatarUploader size={76} />
-            <p className="text-[11px] text-vigno-muted mt-2 text-center">Click 📷 to change photo</p>
+          <div className="pt-1 text-center">
+            <AvatarUploader size={84} verified={verified} />
+            <p className="text-[11px] text-vigno-muted mt-2">Click 📷 to change</p>
           </div>
-          <div className="grid grid-cols-[110px_1fr] gap-y-2 text-sm flex-1">
+          <div className="grid grid-cols-[90px_1fr] gap-y-2 text-sm flex-1">
             <span className="text-vigno-muted">Name</span><span>{user?.name || '—'}</span>
             <span className="text-vigno-muted">Email</span>
-            <span>{user?.email} {user?.emailVerified ? <span className="text-green-300 text-xs">(verified)</span> : <span className="text-vigno-accent2 text-xs">(unverified)</span>}</span>
+            <span className="flex items-center gap-2 flex-wrap">
+              {user?.email}
+              {verified
+                ? <span className="text-[11px] font-semibold text-[#1da1f2] inline-flex items-center gap-1">✓ verified</span>
+                : <button onClick={() => setModal('verify')} className="text-[11px] text-vigno-accent2 underline">verify now</button>}
+            </span>
             <span className="text-vigno-muted">Role</span><span className="capitalize">{user?.role}</span>
           </div>
         </div>
       </Card>
 
-      <Card title="Account Verification"><EmailVerification /></Card>
-      <Card title="Two-Factor Authentication"><TwoFactor /></Card>
-      <Card title="Change Password"><ChangePassword /></Card>
-      <Card title="My Devices"><Devices /></Card>
+      {/* Security */}
+      <Card title="Security">
+        <div className="grid sm:grid-cols-2 gap-3">
+          <ActionTile icon="🔑" label="Change Password" sub="Update your password" onClick={() => setModal('password')} />
+          <ActionTile icon="🔐" label="Two-Factor Authentication"
+            sub={user?.twoFAEnabled ? `On · ${user.twoFAMethod === 'totp' ? 'authenticator app' : 'email codes'}` : 'Off — add a second step'}
+            onClick={() => setModal('2fa')} />
+          <ActionTile icon="💻" label="My Devices" sub="Devices bound for downloads" onClick={() => setModal('devices')} />
+          {!verified && <ActionTile icon="✅" label="Verify Account" sub="Email / SMS / WhatsApp" onClick={() => setModal('verify')} />}
+        </div>
+      </Card>
+
+      {/* Danger zone */}
+      <section className="max-w-2xl border border-red-500/40 bg-red-500/5 rounded-2xl p-5 mb-6">
+        <h2 className="text-base font-bold mb-1 text-red-300">⚠ Danger Zone</h2>
+        <p className="text-xs text-vigno-muted mb-3">Permanently delete your account and all associated data.</p>
+        <button onClick={() => setModal('delete')}
+          className="bg-red-500/80 hover:bg-red-500 text-white font-bold px-4 py-2 rounded-lg text-sm">Delete Account</button>
+      </section>
+
+      {modal === 'password' && <Modal title="Change Password" onClose={close}><ChangePassword /></Modal>}
+      {modal === '2fa' && <Modal title="Two-Factor Authentication" width={460} onClose={close}><TwoFactor /></Modal>}
+      {modal === 'devices' && <Modal title="My Devices" width={460} onClose={close}><Devices /></Modal>}
+      {modal === 'verify' && <Modal title="Verify Account" onClose={close}><VerifyContact defaultPhone={user?.phone || ''} onVerified={close} /></Modal>}
+      {modal === 'delete' && <Modal title="Delete Account" onClose={close}><DeleteAccount /></Modal>}
     </div>
   )
 }

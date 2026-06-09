@@ -1,8 +1,12 @@
 import { z } from 'zod'
+import { ROLES } from '@vigno/shared'
 import { asyncHandler } from '../utils/asyncHandler.js'
 import { audit } from '../utils/audit.js'
-import { unauthorized } from '../utils/ApiError.js'
+import { unauthorized, badRequest, forbidden } from '../utils/ApiError.js'
 import { User } from '../models/User.js'
+import { License } from '../models/License.js'
+import { Purchase } from '../models/Purchase.js'
+import { cookieOpts, ACCESS_COOKIE, REFRESH_COOKIE } from '../utils/tokens.js'
 import { cloudinaryEnabled, uploadAvatar as cloudUploadAvatar, destroyAvatar } from '../services/cloudinary.js'
 
 // The client crops/zooms/rotates the photo to a small square and sends it as a
@@ -36,4 +40,30 @@ export const removeAvatar = asyncHandler(async (req, res) => {
   await user.save()
   audit(req, 'profile.avatar.remove', { targetType: 'User', targetId: user._id })
   res.json({ ok: true, user: user.toSafeJSON() })
+})
+
+// DELETE /api/profile/account — self-delete, password-confirmed (danger zone).
+export const deleteAccountSchema = z.object({ password: z.string().min(1) })
+
+export const deleteAccount = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.user.id).select('+passwordHash')
+  if (!user) throw unauthorized()
+  if (!(await user.comparePassword(req.body.password))) throw badRequest('Password is incorrect')
+  if (user.role === ROLES.ADMIN) {
+    const admins = await User.countDocuments({ role: ROLES.ADMIN })
+    if (admins <= 1) throw forbidden('You are the last admin — make someone else an admin before deleting your account')
+  }
+  if (cloudinaryEnabled()) await destroyAvatar(user._id).catch(() => {})
+  await Promise.all([
+    License.deleteMany({ userId: user._id }),
+    Purchase.deleteMany({ userId: user._id }),
+    import('../models/Device.js').then((m) => m.Device.deleteMany({ userId: user._id })).catch(() => {}),
+    import('../models/Favorite.js').then((m) => m.Favorite.deleteMany({ userId: user._id })).catch(() => {}),
+    import('../models/Progress.js').then((m) => m.Progress.deleteMany({ userId: user._id })).catch(() => {}),
+  ])
+  await user.deleteOne()
+  res.clearCookie(ACCESS_COOKIE, cookieOpts(0))
+  res.clearCookie(REFRESH_COOKIE, cookieOpts(0))
+  audit(req, 'profile.account.delete', { targetType: 'User', targetId: user._id, meta: { email: user.email } })
+  res.json({ ok: true })
 })

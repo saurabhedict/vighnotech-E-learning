@@ -50,6 +50,9 @@ export const authApi = {
   async removeAvatar() {
     return (await api.delete('/profile/avatar')).data
   },
+  async deleteAccount(password) {
+    return (await api.delete('/profile/account', { data: { password } })).data
+  },
 
   // Password reset (no auth)
   async forgotPassword(email) {

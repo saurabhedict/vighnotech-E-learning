@@ -9,7 +9,7 @@ import AvatarEditorModal from './AvatarEditorModal'
  * Avatar with a camera button → "Upload Photo / Remove Photo" menu and the
  * "Adjust Your Photo" editor. Uploads the cropped image and updates Redux.
  */
-export default function AvatarUploader({ size = 76 }) {
+export default function AvatarUploader({ size = 76, verified = false }) {
   const dispatch = useDispatch()
   const user = useSelector((s) => s.auth.user)
   const fileRef = useRef(null)
@@ -48,6 +48,12 @@ export default function AvatarUploader({ size = 76 }) {
   return (
     <div className="relative inline-block">
       <Avatar user={user} size={size} />
+
+      {verified && (
+        <span title="Verified" className="absolute -top-0.5 -right-0.5 w-6 h-6 rounded-full bg-[#1da1f2] text-white grid place-items-center ring-2 ring-vigno-panel shadow">
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
+        </span>
+      )}
 
       <button onClick={() => setMenu((m) => !m)} title="Change photo" disabled={busy}
         className="absolute bottom-0 right-0 w-7 h-7 rounded-full bg-vigno-accent2 text-white grid place-items-center text-xs shadow-md ring-2 ring-vigno-card hover:bg-[#3a92ec] transition-colors disabled:opacity-60">
