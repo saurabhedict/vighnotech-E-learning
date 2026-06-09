@@ -210,6 +210,7 @@ export default function SettingsPanel() {
   const { data, isLoading, isError } = useSiteSettings()
   const [form, setForm] = useState(null)
   const [section, setSection] = useState(null)
+  const [dirty, setDirty] = useState(() => new Set())
   const [msg, setMsg] = useState(null)
   const [saving, setSaving] = useState(false)
 
@@ -219,13 +220,16 @@ export default function SettingsPanel() {
   if (isError) return <p className="text-red-300">Failed to load settings.</p>
   if (!form) return null
 
-  const setBrand = (k, v) => setForm((s) => ({ ...s, brand: { ...s.brand, [k]: v } }))
-  const setHeader = (k, v) => setForm((s) => ({ ...s, header: { ...s.header, [k]: v } }))
-  const setAnnounce = (k, v) => setForm((s) => ({ ...s, header: { ...s.header, announcement: { ...s.header.announcement, [k]: v } } }))
-  const setHome = (k, v) => setForm((s) => ({ ...s, home: { ...s.home, [k]: v } }))
-  const setAuth = (k, v) => setForm((s) => ({ ...s, auth: { ...s.auth, [k]: v } }))
-  const setTheme = (k, v) => setForm((s) => ({ ...s, theme: { ...s.theme, [k]: v } }))
-  const setFooter = (k, v) => setForm((s) => ({ ...s, footer: { ...s.footer, [k]: v } }))
+  // Track which top-level sections changed so a save only sends those (never
+  // overwrites a section the admin didn't touch).
+  const markDirty = (k) => setDirty((d) => (d.has(k) ? d : new Set(d).add(k)))
+  const setBrand = (k, v) => { markDirty('brand'); setForm((s) => ({ ...s, brand: { ...s.brand, [k]: v } })) }
+  const setHeader = (k, v) => { markDirty('header'); setForm((s) => ({ ...s, header: { ...s.header, [k]: v } })) }
+  const setAnnounce = (k, v) => { markDirty('header'); setForm((s) => ({ ...s, header: { ...s.header, announcement: { ...s.header.announcement, [k]: v } } })) }
+  const setHome = (k, v) => { markDirty('home'); setForm((s) => ({ ...s, home: { ...s.home, [k]: v } })) }
+  const setAuth = (k, v) => { markDirty('auth'); setForm((s) => ({ ...s, auth: { ...s.auth, [k]: v } })) }
+  const setTheme = (k, v) => { markDirty('theme'); setForm((s) => ({ ...s, theme: { ...s.theme, [k]: v } })) }
+  const setFooter = (k, v) => { markDirty('footer'); setForm((s) => ({ ...s, footer: { ...s.footer, [k]: v } })) }
   const sections = form.footer.sections
   const updateSection = (i, next) => setFooter('sections', sections.map((s, idx) => (idx === i ? next : s)))
   const removeSection = (i) => setFooter('sections', sections.filter((_, idx) => idx !== i))
@@ -239,19 +243,34 @@ export default function SettingsPanel() {
   }
 
   const save = async () => {
+    if (dirty.size === 0) { setMsg({ ok: true, text: 'No changes to save.' }); return }
     setSaving(true); setMsg(null)
     try {
-      const saved = await settingsApi.update(form)
+      // Send only edited sections so untouched sections are never overwritten.
+      const payload = {}
+      dirty.forEach((k) => { payload[k] = form[k] })
+      const saved = await settingsApi.update(payload)
       qc.setQueryData(SITE_SETTINGS_KEY, saved)
       setForm(toForm(saved))
+      setDirty(new Set())
       setMsg({ ok: true, text: 'Saved — changes are live across the site.' })
     } catch (e) {
       setMsg({ ok: false, text: apiErrorMessage(e, 'Save failed') })
     } finally { setSaving(false) }
   }
-  const reset = () => setForm(toForm(data))
+  // Reset pulls the latest from the server (avoids restoring stale cached data).
+  const reset = async () => {
+    try {
+      const fresh = await settingsApi.get()
+      qc.setQueryData(SITE_SETTINGS_KEY, fresh)
+      setForm(toForm(fresh))
+      setDirty(new Set())
+      setMsg(null)
+    } catch (e) { setMsg({ ok: false, text: apiErrorMessage(e, 'Could not reload') }) }
+  }
 
-  const ColorField = ({ label, k }) => (
+  // Plain JSX helper (NOT a component) so the inputs keep focus while typing.
+  const colorField = (label, k) => (
     <Field label={label}>
       <div className="flex gap-2 items-center">
         <input type="color" value={form.theme[k]} onChange={(e) => setTheme(k, e.target.value)} className="w-10 h-10 rounded-lg bg-transparent border border-vigno-line cursor-pointer" />
@@ -303,8 +322,8 @@ export default function SettingsPanel() {
       <div className="space-y-3">
         <p className="text-xs text-vigno-muted">Brand colours applied across the whole site (buttons, links, highlights).</p>
         <div className="flex gap-6 flex-wrap">
-          <ColorField label="Primary (buttons)" k="accent" />
-          <ColorField label="Secondary (links/highlights)" k="accent2" />
+          {colorField('Primary (buttons)', 'accent')}
+          {colorField('Secondary (links/highlights)', 'accent2')}
         </div>
       </div>
     ),
@@ -360,10 +379,11 @@ export default function SettingsPanel() {
 
       {/* Save bar (always available) */}
       <div className="flex items-center gap-3 sticky bottom-0 bg-vigno-card/95 backdrop-blur py-3 -mx-5 px-5 border-t border-vigno-line">
-        <button onClick={save} disabled={saving} className="bg-vigno-accent text-[#1a0d0f] font-bold px-5 py-2 rounded-lg text-sm disabled:opacity-50">
+        <button onClick={save} disabled={saving || dirty.size === 0} className="bg-vigno-accent text-[#1a0d0f] font-bold px-5 py-2 rounded-lg text-sm disabled:opacity-50">
           {saving ? 'Saving…' : '💾 Save changes'}
         </button>
         <button onClick={reset} disabled={saving} className="bg-white/10 hover:bg-white/20 border border-vigno-line px-4 py-2 rounded-lg text-sm disabled:opacity-50">Reset</button>
+        {dirty.size > 0 && <span className="text-xs text-vigno-accent2">● Unsaved changes in: {[...dirty].join(', ')}</span>}
         {msg && <span className={'text-sm ' + (msg.ok ? 'text-green-300' : 'text-red-300')}>{msg.text}</span>}
       </div>
     </div>

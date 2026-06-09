@@ -12,13 +12,18 @@ export const getSettings = asyncHandler(async (_req, res) => {
   res.json(data)
 })
 
-const linkZ = z.object({ label: z.string().trim().max(60).default(''), url: z.string().trim().max(300).default('') })
-const socialZ = z.object({ platform: z.string().trim().max(30), url: z.string().trim().max(300).default('') })
+// Reject dangerous URL schemes (javascript:, data:, vbscript:, protocol-relative).
+// Allow internal /paths, #, http(s), mailto:, tel:.
+const isSafeUrl = (u) => !u || /^(#|https?:\/\/|mailto:|tel:)/i.test(u) || (u.startsWith('/') && !u.startsWith('//'))
+const urlField = z.string().trim().max(300).refine(isSafeUrl, 'Use a /path, https://…, mailto: or tel: link').default('')
+
+const linkZ = z.object({ label: z.string().trim().max(60).default(''), url: urlField })
+const socialZ = z.object({ platform: z.string().trim().max(30), url: urlField })
 
 const customRowZ = z.object({
   icon: z.string().trim().max(32).default(''),
   text: z.string().trim().max(160).default(''),
-  url: z.string().trim().max(300).default(''),
+  url: urlField,
 })
 
 // A modular footer column. Only the fields relevant to its type are used.
@@ -53,7 +58,7 @@ export const updateSettingsSchema = z.object({
         .object({
           enabled: z.boolean().optional(),
           text: z.string().trim().max(200).optional(),
-          link: z.string().trim().max(300).optional(),
+          link: z.string().trim().max(300).refine(isSafeUrl, 'Use a /path or https://… link').optional(),
         })
         .optional(),
       extraLinks: z.array(linkZ).max(10).optional(),
@@ -87,7 +92,8 @@ export const updateSettingsSchema = z.object({
 export const updateSettings = asyncHandler(async (req, res) => {
   const doc = await SiteSettings.getSingleton()
   const b = req.body
-  if (b.brand) doc.brand = { ...doc.brand.toObject(), ...b.brand }
+  const obj = (x) => (x?.toObject ? x.toObject() : x || {})
+  if (b.brand) doc.brand = { ...obj(doc.brand), ...b.brand }
   if (b.header) {
     const cur = doc.header?.toObject ? doc.header.toObject() : doc.header || {}
     doc.header = {

@@ -93,7 +93,7 @@ export default function Login() {
           style={{ background: 'linear-gradient(160deg, #0d1829 0%, #0a1422 100%)', backdropFilter: 'blur(12px)' }}>
 
           {/* Card header stripe */}
-          <div className="h-1 w-full" style={{ background: 'linear-gradient(90deg, #4da6ff, #f0c040, #4da6ff)' }} />
+          <div className="h-1 w-full" style={{ background: 'linear-gradient(90deg, rgb(var(--v-accent2)), rgb(var(--v-accent)), rgb(var(--v-accent2)))' }} />
 
           <div className="p-8">
             {!challenge ? (
@@ -141,7 +141,7 @@ export default function Login() {
 
                   <button type="submit" disabled={loading}
                     className="w-full py-3 rounded-xl font-extrabold text-sm tracking-wide transition-all duration-200 disabled:opacity-60"
-                    style={{ background: 'linear-gradient(135deg, #f0c040, #f0a020)', color: '#0a0f1e', boxShadow: '0 4px 20px rgba(240,192,64,0.3)' }}>
+                    style={{ background: 'rgb(var(--v-accent))', color: '#0a0f1e' }}>
                     {loading ? 'Signing in…' : 'Sign In'}
                   </button>
 
@@ -164,7 +164,7 @@ export default function Login() {
                   placeholder="123456" className={inputCls + ' tracking-widest text-center text-lg'} />
                 <button type="submit" disabled={loading}
                   className="w-full py-3 rounded-xl font-extrabold text-sm transition-all disabled:opacity-60"
-                  style={{ background: 'linear-gradient(135deg, #f0c040, #f0a020)', color: '#0a0f1e' }}>
+                  style={{ background: 'rgb(var(--v-accent))', color: '#0a0f1e' }}>
                   {loading ? 'Verifying…' : 'Verify'}
                 </button>
                 <button type="button" onClick={() => { setChallenge(null); setCode(''); setError('') }}

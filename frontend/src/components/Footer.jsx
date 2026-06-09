@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { useSiteSettings } from '../hooks/useSiteSettings'
+import { safeHref } from '../lib/safeUrl'
 
 // Inline SVG social icons (no extra deps). Keyed by platform slug.
 const ICONS = {
@@ -15,7 +16,7 @@ const linkCls = 'text-vigno-muted hover:text-vigno-accent2 transition text-sm'
 function SocialIcon({ platform, url }) {
   const path = ICONS[platform?.toLowerCase()] || ICONS.facebook
   return (
-    <a href={url || '#'} target="_blank" rel="noreferrer" title={platform} aria-label={platform}
+    <a href={safeHref(url)} target="_blank" rel="noreferrer" title={platform} aria-label={platform}
       className="grid place-items-center w-9 h-9 rounded-full bg-white/10 hover:bg-vigno-accent hover:text-[#1a0d0f] text-vigno-txt transition">
       <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><path d={path} /></svg>
     </a>
@@ -25,7 +26,7 @@ function SocialIcon({ platform, url }) {
 // Internal route (/app/...) → <Link>; everything else (http/mailto/tel/#) → <a>.
 function FooterLink({ to, children }) {
   if (to && to.startsWith('/') && !to.startsWith('//')) return <Link to={to} className={linkCls}>{children}</Link>
-  return <a href={to || '#'} className={linkCls}>{children}</a>
+  return <a href={safeHref(to)} className={linkCls}>{children}</a>
 }
 
 // Render one modular footer column based on its type.

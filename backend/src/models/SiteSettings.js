@@ -156,7 +156,11 @@ schema.statics.getSingleton = async function getSingleton() {
 // Public-safe shape consumed by the whole site (clean, no legacy fields).
 schema.methods.toPublic = function toPublic() {
   return {
-    brand: { name: this.brand.name, tagline: this.brand.tagline, logoEmoji: this.brand.logoEmoji },
+    brand: {
+      name: this.brand?.name || 'AeroLearn',
+      tagline: this.brand?.tagline || 'Aviation Training Platform',
+      logoEmoji: this.brand?.logoEmoji || '✈',
+    },
     header: {
       showSearch: this.header?.showSearch !== false,
       announcement: {
@@ -181,9 +185,9 @@ schema.methods.toPublic = function toPublic() {
       accent2: this.theme?.accent2 || '#4da6ff',
     },
     footer: {
-      blurb: this.footer.blurb,
-      sections: this.footer.sections,
-      copyright: this.footer.copyright,
+      blurb: this.footer?.blurb || '',
+      sections: this.footer?.sections || [],
+      copyright: this.footer?.copyright || '© {year} All rights reserved.',
     },
   }
 }

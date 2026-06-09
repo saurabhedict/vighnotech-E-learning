@@ -5,6 +5,7 @@ import { logout } from '../store/authSlice'
 import { toggleTheme } from '../store/uiSlice'
 import { authApi } from '../api/authApi'
 import { useSiteSettings } from '../hooks/useSiteSettings'
+import { safeHref } from '../lib/safeUrl'
 import Avatar from './Avatar'
 
 const linkCls = ({ isActive }) =>
@@ -60,7 +61,7 @@ export default function Navbar() {
         l.url?.startsWith('/') ? (
           <NavLink key={i} to={l.url} className={linkCls}>{l.label}</NavLink>
         ) : (
-          <a key={i} href={l.url || '#'} target="_blank" rel="noreferrer"
+          <a key={i} href={safeHref(l.url)} target="_blank" rel="noreferrer"
             className="rounded-lg px-3 py-1.5 text-sm bg-white/10 hover:bg-white/20">{l.label}</a>
         )
       )}
