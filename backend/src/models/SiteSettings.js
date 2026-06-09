@@ -117,11 +117,6 @@ const schema = new mongoose.Schema(
       loginSubtitle: { type: String, default: 'Sign in to continue' },
       signupSubtitle: { type: String, default: 'Create your account' },
     },
-    // Brand colours (hex) applied as CSS variables at runtime
-    theme: {
-      accent: { type: String, default: '#f0c040' },
-      accent2: { type: String, default: '#4da6ff' },
-    },
     footer: {
       blurb: { type: String, default: 'Practice mock tests for competitive exams with real exam simulation.' },
       sections: { type: [section], default: () => [] },
@@ -179,10 +174,6 @@ schema.methods.toPublic = function toPublic() {
       loginGreeting: this.auth?.loginGreeting || 'Welcome back',
       loginSubtitle: this.auth?.loginSubtitle || 'Sign in to continue',
       signupSubtitle: this.auth?.signupSubtitle || 'Create your account',
-    },
-    theme: {
-      accent: this.theme?.accent || '#f0c040',
-      accent2: this.theme?.accent2 || '#4da6ff',
     },
     footer: {
       blurb: this.footer?.blurb || '',

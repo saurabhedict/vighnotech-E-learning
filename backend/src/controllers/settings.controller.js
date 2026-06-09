@@ -41,8 +41,6 @@ const sectionZ = z.object({
   rows: z.array(customRowZ).max(30).optional(),
 })
 
-const hexZ = z.string().trim().regex(/^#[0-9a-fA-F]{6}$/, 'Use a #RRGGBB colour').optional()
-
 export const updateSettingsSchema = z.object({
   brand: z
     .object({
@@ -78,7 +76,6 @@ export const updateSettingsSchema = z.object({
       signupSubtitle: z.string().trim().max(160).optional(),
     })
     .optional(),
-  theme: z.object({ accent: hexZ, accent2: hexZ }).optional(),
   footer: z
     .object({
       blurb: z.string().trim().max(400).optional(),
@@ -104,7 +101,6 @@ export const updateSettings = asyncHandler(async (req, res) => {
   }
   if (b.home) doc.home = { ...(doc.home?.toObject ? doc.home.toObject() : doc.home || {}), ...b.home }
   if (b.auth) doc.auth = { ...(doc.auth?.toObject ? doc.auth.toObject() : doc.auth || {}), ...b.auth }
-  if (b.theme) doc.theme = { ...(doc.theme?.toObject ? doc.theme.toObject() : doc.theme || {}), ...b.theme }
   if (b.footer) {
     const fb = b.footer
     if (fb.blurb !== undefined) doc.footer.blurb = fb.blurb

@@ -23,7 +23,6 @@ const HUB = [
   { key: 'home', icon: '🏠', title: 'Home Page', desc: 'Hero heading & subtitle' },
   { key: 'footer', icon: '📑', title: 'Footer', desc: 'Columns, links, contact, social' },
   { key: 'auth', icon: '🔑', title: 'Login & Signup', desc: 'Greeting & subtitles' },
-  { key: 'theme', icon: '🌈', title: 'Theme Colours', desc: 'Accent colours' },
 ]
 
 function RemoveBtn({ onClick, title = 'Remove' }) {
@@ -161,7 +160,7 @@ function SectionCard({ section, index, count, onChange, onMove, onRemove }) {
 
 // Normalize loaded data → editable form (all editable areas).
 function toForm(d) {
-  const b = d?.brand || {}, h = d?.header || {}, hm = d?.home || {}, au = d?.auth || {}, th = d?.theme || {}, f = d?.footer || {}
+  const b = d?.brand || {}, h = d?.header || {}, hm = d?.home || {}, au = d?.auth || {}, f = d?.footer || {}
   return {
     brand: { name: b.name || '', tagline: b.tagline || '', logoEmoji: b.logoEmoji || '✈' },
     header: {
@@ -175,7 +174,6 @@ function toForm(d) {
       loginSubtitle: au.loginSubtitle || 'Sign in to continue',
       signupSubtitle: au.signupSubtitle || 'Create your account',
     },
-    theme: { accent: th.accent || '#f0c040', accent2: th.accent2 || '#4da6ff' },
     footer: {
       blurb: f.blurb || '',
       copyright: f.copyright || '',
@@ -228,7 +226,6 @@ export default function SettingsPanel() {
   const setAnnounce = (k, v) => { markDirty('header'); setForm((s) => ({ ...s, header: { ...s.header, announcement: { ...s.header.announcement, [k]: v } } })) }
   const setHome = (k, v) => { markDirty('home'); setForm((s) => ({ ...s, home: { ...s.home, [k]: v } })) }
   const setAuth = (k, v) => { markDirty('auth'); setForm((s) => ({ ...s, auth: { ...s.auth, [k]: v } })) }
-  const setTheme = (k, v) => { markDirty('theme'); setForm((s) => ({ ...s, theme: { ...s.theme, [k]: v } })) }
   const setFooter = (k, v) => { markDirty('footer'); setForm((s) => ({ ...s, footer: { ...s.footer, [k]: v } })) }
   const sections = form.footer.sections
   const updateSection = (i, next) => setFooter('sections', sections.map((s, idx) => (idx === i ? next : s)))
@@ -269,16 +266,6 @@ export default function SettingsPanel() {
     } catch (e) { setMsg({ ok: false, text: apiErrorMessage(e, 'Could not reload') }) }
   }
 
-  // Plain JSX helper (NOT a component) so the inputs keep focus while typing.
-  const colorField = (label, k) => (
-    <Field label={label}>
-      <div className="flex gap-2 items-center">
-        <input type="color" value={form.theme[k]} onChange={(e) => setTheme(k, e.target.value)} className="w-10 h-10 rounded-lg bg-transparent border border-vigno-line cursor-pointer" />
-        <input className={input + ' font-mono max-w-[140px]'} value={form.theme[k]} onChange={(e) => setTheme(k, e.target.value)} placeholder="#rrggbb" />
-      </div>
-    </Field>
-  )
-
   // ── Editors per section ────────────────────────────────────────────────────
   const editors = {
     branding: (
@@ -316,15 +303,6 @@ export default function SettingsPanel() {
         <Field label="Login greeting"><input className={input} value={form.auth.loginGreeting} onChange={(e) => setAuth('loginGreeting', e.target.value)} placeholder="Welcome back" /></Field>
         <Field label="Login subtitle"><input className={input} value={form.auth.loginSubtitle} onChange={(e) => setAuth('loginSubtitle', e.target.value)} placeholder="Sign in to continue" /></Field>
         <Field label="Signup subtitle"><input className={input} value={form.auth.signupSubtitle} onChange={(e) => setAuth('signupSubtitle', e.target.value)} placeholder="Create your account" /></Field>
-      </div>
-    ),
-    theme: (
-      <div className="space-y-3">
-        <p className="text-xs text-vigno-muted">Brand colours applied across the whole site (buttons, links, highlights).</p>
-        <div className="flex gap-6 flex-wrap">
-          {colorField('Primary (buttons)', 'accent')}
-          {colorField('Secondary (links/highlights)', 'accent2')}
-        </div>
       </div>
     ),
     footer: (
