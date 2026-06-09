@@ -39,13 +39,32 @@ export function createApp() {
   // ── Performance & hardening (Doc 2 §9) ─────────────────────────────────────
   app.use(compression()) // gzip/brotli responses
   app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }))
+  // In dev, accept any localhost / 127.0.0.1 / private-LAN origin on any port —
+  // Vite's `host: true` prints a Network URL (e.g. http://192.168.x.x:5173) and
+  // opening that would otherwise be CORS-blocked. Prod stays on the strict list.
+  const isLocalDevOrigin = (origin) => {
+    try {
+      const { hostname } = new URL(origin)
+      return (
+        hostname === 'localhost' ||
+        hostname === '127.0.0.1' ||
+        hostname === '::1' ||
+        /^10\./.test(hostname) ||
+        /^192\.168\./.test(hostname) ||
+        /^172\.(1[6-9]|2\d|3[01])\./.test(hostname)
+      )
+    } catch {
+      return false
+    }
+  }
   app.use(
     cors({
       origin(origin, cb) {
         // allow same-origin / curl (no origin) and configured web origins.
         // Disallowed origins get cb(null, false) → the browser blocks via missing
         // CORS headers (a normal response), not a server 500.
-        cb(null, !origin || env.clientOrigins.includes(origin))
+        const allowed = !origin || env.clientOrigins.includes(origin) || (!env.isProd && isLocalDevOrigin(origin))
+        cb(null, allowed)
       },
       credentials: true,
     })
