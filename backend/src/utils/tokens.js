@@ -15,7 +15,7 @@ export function signAccessToken(user) {
 
 export function signRefreshToken(user) {
   return jwt.sign(
-    { sub: user.id, ver: user.tokenVersion, typ: 'refresh' },
+    { sub: user.id, ver: user.tokenVersion ?? 0, typ: 'refresh' },
     env.jwt.refreshSecret,
     { expiresIn: env.jwt.refreshTtl }
   )

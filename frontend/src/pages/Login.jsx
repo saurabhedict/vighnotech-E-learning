@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useDispatch } from 'react-redux'
 import { setCredentials } from '../store/authSlice'
@@ -10,6 +10,17 @@ export default function Login() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
+  const [notice, setNotice] = useState('')
+
+  // Explain an unexpected sign-out (session expired or signed in elsewhere).
+  useEffect(() => {
+    try {
+      if (sessionStorage.getItem('vigno_session_ended')) {
+        setNotice('Your session ended — you may have signed in on another device. Please sign in again.')
+        sessionStorage.removeItem('vigno_session_ended')
+      }
+    } catch { /* ignore */ }
+  }, [])
   const [loading, setLoading] = useState(false)
   const [showPass, setShowPass] = useState(false)
 
@@ -85,6 +96,9 @@ export default function Login() {
                 <h2 className="text-lg font-bold text-vigno-txt mb-1">Welcome back, Cadet</h2>
                 <p className="text-vigno-muted text-xs mb-6">Sign in to continue your training</p>
 
+                {notice && (
+                  <div className="mb-4 text-xs bg-vigno-accent2/10 border border-vigno-accent2/30 text-vigno-accent2 rounded-lg px-3 py-2">{notice}</div>
+                )}
                 {error && (
                   <div className="mb-4 text-xs bg-red-500/10 border border-red-500/30 text-red-300 rounded-lg px-3 py-2">{error}</div>
                 )}

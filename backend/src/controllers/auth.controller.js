@@ -99,13 +99,15 @@ export const login = asyncHandler(async (req, res) => {
   }
 
   user.lastLoginAt = new Date()
-  user.tokenVersion = (user.tokenVersion || 0) + 1 // single active session: invalidate any other login
   await recordLoginDevice(req, user)
   await user.save()
+  // Atomically bump tokenVersion (single active session): two concurrent logins
+  // can't both survive, and we get the authoritative new value for the tokens.
+  const fresh = await User.findByIdAndUpdate(user._id, { $inc: { tokenVersion: 1 } }, { new: true })
 
-  const token = issueSession(res, user)
-  audit(req, 'auth.login', { targetType: 'User', targetId: user._id })
-  res.json({ user: user.toSafeJSON(), token })
+  const token = issueSession(res, fresh)
+  audit(req, 'auth.login', { targetType: 'User', targetId: fresh._id })
+  res.json({ user: fresh.toSafeJSON(), token })
 })
 
 // Second step of a 2FA login: exchange the challenge + code for a session.
@@ -151,13 +153,13 @@ export const verify2fa = asyncHandler(async (req, res) => {
   user.failedTwoFA = 0
   user.twoFALockUntil = null
   user.lastLoginAt = new Date()
-  user.tokenVersion = (user.tokenVersion || 0) + 1 // single active session: invalidate any other login
   await recordLoginDevice(req, user)
   await user.save()
+  const fresh = await User.findByIdAndUpdate(user._id, { $inc: { tokenVersion: 1 } }, { new: true })
 
-  const token = issueSession(res, user)
-  audit(req, 'auth.login.2fa_ok', { targetType: 'User', targetId: user._id })
-  res.json({ user: user.toSafeJSON(), token })
+  const token = issueSession(res, fresh)
+  audit(req, 'auth.login.2fa_ok', { targetType: 'User', targetId: fresh._id })
+  res.json({ user: fresh.toSafeJSON(), token })
 })
 
 export const me = asyncHandler(async (req, res) => {
@@ -193,10 +195,8 @@ export const logout = asyncHandler(async (req, res) => {
 
 // Invalidate ALL sessions (e.g. after a password change / stolen account).
 export const logoutAll = asyncHandler(async (req, res) => {
-  const user = await User.findById(req.user.id)
+  const user = await User.findByIdAndUpdate(req.user.id, { $inc: { tokenVersion: 1 } }, { new: true })
   if (!user) throw unauthorized()
-  user.tokenVersion += 1
-  await user.save()
   res.clearCookie(ACCESS_COOKIE, cookieOpts(0))
   res.clearCookie(REFRESH_COOKIE, cookieOpts(0))
   audit(req, 'auth.logout_all', { targetType: 'User', targetId: user._id })
@@ -214,10 +214,13 @@ export const changePassword = asyncHandler(async (req, res) => {
   if (!user || !(await user.comparePassword(currentPassword)))
     throw badRequest('Current password is incorrect')
   await user.setPassword(newPassword)
-  user.tokenVersion += 1 // log out other sessions
   await user.save()
-  audit(req, 'auth.password_change', { targetType: 'User', targetId: user._id })
-  res.json({ ok: true })
+  // Sign out OTHER sessions (atomic bump) but keep THIS device in by re-issuing
+  // a fresh session carrying the new version.
+  const fresh = await User.findByIdAndUpdate(user._id, { $inc: { tokenVersion: 1 } }, { new: true })
+  const token = issueSession(res, fresh)
+  audit(req, 'auth.password_change', { targetType: 'User', targetId: fresh._id })
+  res.json({ ok: true, token })
 })
 
 // ── Account verification (multi-channel OTP: email / sms / whatsapp) ──────────
@@ -294,8 +297,8 @@ export const resetPassword = asyncHandler(async (req, res) => {
   const result = await verifyOtp({ userId: user._id, purpose: 'password_reset', code })
   if (!result.ok) throw badRequest(`Reset failed: ${result.reason}`)
   await user.setPassword(newPassword)
-  user.tokenVersion += 1 // invalidate all existing sessions
   await user.save()
+  await User.findByIdAndUpdate(user._id, { $inc: { tokenVersion: 1 } }) // invalidate all existing sessions
   audit(req, 'auth.password_reset', { targetType: 'User', targetId: user._id })
   res.json({ ok: true })
 })

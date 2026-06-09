@@ -29,7 +29,7 @@ async function resolveUser(req) {
   } catch {
     return null
   }
-  if (p.typ && p.typ !== 'access') return null
+  if (p.typ !== 'access') return null
   const user = await User.findById(p.sub).select('tokenVersion role email').lean()
   if (!user) return null
   if ((user.tokenVersion || 0) !== (p.ver || 0)) return null // signed in elsewhere / revoked

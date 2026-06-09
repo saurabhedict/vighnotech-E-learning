@@ -47,6 +47,8 @@ api.interceptors.response.use(
         original.headers.Authorization = `Bearer ${data.token}`
         return api(original)
       } catch {
+        // Refresh failed — token revoked / signed in elsewhere (single session).
+        try { sessionStorage.setItem('vigno_session_ended', '1') } catch { /* ignore */ }
         store.dispatch(logout())
       }
     }

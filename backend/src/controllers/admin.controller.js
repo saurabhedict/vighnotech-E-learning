@@ -238,9 +238,9 @@ export const setUserRole = asyncHandler(async (req, res) => {
     if (target._id.toString() === req.user.id) throw forbidden('Admins cannot demote themselves')
   }
   target.role = role
-  // Bump tokenVersion so the demoted/promoted user's refresh tokens are invalidated.
-  if (roleChanged) target.tokenVersion += 1
   await target.save()
+  // Bump tokenVersion (atomic) so the demoted/promoted user's sessions are invalidated.
+  if (roleChanged) await User.findByIdAndUpdate(target._id, { $inc: { tokenVersion: 1 } })
   audit(req, 'admin.user.role', { targetType: 'User', targetId: target._id, meta: { role } })
   res.json({ ok: true, user: { id: target._id, email: target.email, role: target.role } })
 })
