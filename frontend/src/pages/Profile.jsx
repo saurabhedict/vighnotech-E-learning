@@ -9,6 +9,7 @@ import { getDeviceFingerprint, deviceLabel } from '../lib/device'
 import VerifyContact from '../components/VerifyContact'
 import AvatarUploader from '../components/AvatarUploader'
 import Modal from '../components/Modal'
+import { COUNTRIES, flagEmoji, DIAL_CODES } from '../lib/countryCodes'
 
 function Card({ title, children }) {
   return (
@@ -23,27 +24,13 @@ const input = 'w-full mb-3 px-3 py-2.5 rounded-lg bg-vigno-bg2 border border-vig
 const btn = 'bg-vigno-accent text-[#1a0d0f] font-bold px-4 py-2 rounded-lg hover:brightness-110 disabled:opacity-60'
 const btnGhost = 'bg-white/10 hover:bg-white/20 border border-vigno-line rounded-lg px-3 py-2 text-sm disabled:opacity-60'
 
-// Country dial codes for the phone field (India default).
-const COUNTRY_CODES = [
-  { code: '+91', label: '🇮🇳 +91' },
-  { code: '+1', label: '🇺🇸 +1' },
-  { code: '+44', label: '🇬🇧 +44' },
-  { code: '+971', label: '🇦🇪 +971' },
-  { code: '+61', label: '🇦🇺 +61' },
-  { code: '+65', label: '🇸🇬 +65' },
-  { code: '+966', label: '🇸🇦 +966' },
-  { code: '+880', label: '🇧🇩 +880' },
-  { code: '+977', label: '🇳🇵 +977' },
-  { code: '+94', label: '🇱🇰 +94' },
-]
-
 // Split a stored E.164 number into { cc, national(last 10 digits) }.
 function splitPhone(full) {
   const digits = String(full || '').replace(/\D/g, '')
   if (digits.length >= 10) {
     const national = digits.slice(-10)
     const cc = '+' + digits.slice(0, -10)
-    return { cc: COUNTRY_CODES.some((c) => c.code === cc) ? cc : '+91', national }
+    return { cc: DIAL_CODES.has(cc) ? cc : '+91', national }
   }
   return { cc: '+91', national: digits }
 }
@@ -118,15 +105,17 @@ function AddPhone() {
     finally { setLoading(false) }
   }
 
-  const selectCls = 'px-2.5 py-2.5 rounded-lg bg-vigno-bg2 border border-vigno-line text-sm outline-none focus:border-vigno-accent'
+  const selectCls = 'w-36 shrink-0 px-2.5 py-2.5 rounded-lg bg-vigno-bg2 border border-vigno-line text-sm outline-none focus:border-vigno-accent'
   const numCls = 'flex-1 px-3 py-2.5 rounded-lg bg-vigno-bg2 border border-vigno-line text-sm outline-none focus:border-vigno-accent tracking-wider'
   return (
     <form onSubmit={submit}>
       <Msg msg={msg} />
       <label className="text-xs text-vigno-muted block mb-1.5">Phone number</label>
       <div className="flex gap-2 mb-1">
-        <select value={cc} onChange={(e) => setCc(e.target.value)} className={selectCls}>
-          {COUNTRY_CODES.map((c) => <option key={c.code} value={c.code}>{c.label}</option>)}
+        <select value={cc} onChange={(e) => setCc(e.target.value)} className={selectCls} title="Country code">
+          {COUNTRIES.map((c) => (
+            <option key={c.iso} value={c.dial}>{flagEmoji(c.iso)} {c.name} ({c.dial})</option>
+          ))}
         </select>
         <input
           value={national}
