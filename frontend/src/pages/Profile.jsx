@@ -313,6 +313,16 @@ export default function Profile() {
                 ? <span className="text-[11px] font-semibold text-[#1da1f2] inline-flex items-center gap-1">✓ verified</span>
                 : <button onClick={() => setModal('verify')} className="text-[11px] text-vigno-accent2 underline">verify now</button>}
             </span>
+            <span className="text-vigno-muted">Phone</span>
+            <span className="flex items-center gap-2 flex-wrap">
+              {user?.phone || <span className="text-vigno-muted">Not added</span>}
+              {user?.phoneVerified
+                ? <span className="text-[11px] font-semibold text-[#1da1f2] inline-flex items-center gap-1">✓ verified</span>
+                : <button onClick={() => setModal('verifyPhone')}
+                    className="text-[11px] font-semibold bg-vigno-accent text-[#1a0d0f] rounded-md px-2 py-0.5 hover:brightness-110">
+                    📱 Verify Number
+                  </button>}
+            </span>
             <span className="text-vigno-muted">Role</span><span className="capitalize">{user?.role}</span>
           </div>
         </div>
@@ -342,6 +352,7 @@ export default function Profile() {
       {modal === '2fa' && <Modal title="Two-Factor Authentication" width={460} onClose={close}><TwoFactor /></Modal>}
       {modal === 'devices' && <Modal title="My Devices" width={460} onClose={close}><Devices /></Modal>}
       {modal === 'verify' && <Modal title="Verify Account" onClose={close}><VerifyContact defaultPhone={user?.phone || ''} onVerified={close} /></Modal>}
+      {modal === 'verifyPhone' && <Modal title="Verify Phone Number" onClose={close}><VerifyContact phoneOnly defaultPhone={user?.phone || ''} onVerified={close} /></Modal>}
       {modal === 'delete' && <Modal title="Delete Account" onClose={close}><DeleteAccount /></Modal>}
     </div>
   )

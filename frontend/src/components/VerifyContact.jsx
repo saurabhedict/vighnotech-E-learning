@@ -14,12 +14,14 @@ const btn = 'bg-vigno-accent text-[#1a0d0f] font-bold px-4 py-2 rounded-lg hover
 
 /**
  * Multi-channel account verification: pick Email / SMS / WhatsApp, get an OTP,
- * verify it. Used both in the signup flow and on the Profile page.
- * Props: defaultPhone, onVerified().
+ * verify it. Used in the signup flow and on the Profile page.
+ * Props: defaultPhone, onVerified(), phoneOnly (SMS/WhatsApp only — for phone
+ * number verification).
  */
-export default function VerifyContact({ defaultPhone = '', onVerified }) {
+export default function VerifyContact({ defaultPhone = '', onVerified, phoneOnly = false }) {
   const dispatch = useDispatch()
-  const [channel, setChannel] = useState('email')
+  const channels = phoneOnly ? CHANNELS.filter((c) => c.key !== 'email') : CHANNELS
+  const [channel, setChannel] = useState(phoneOnly ? 'sms' : 'email')
   const [phone, setPhone] = useState(defaultPhone)
   const [sent, setSent] = useState(false)
   const [sentTo, setSentTo] = useState('')
@@ -66,9 +68,11 @@ export default function VerifyContact({ defaultPhone = '', onVerified }) {
         </div>
       )}
 
-      <p className="text-sm text-vigno-muted mb-2 text-center">How would you like to receive your verification code?</p>
+      <p className="text-sm text-vigno-muted mb-2 text-center">
+        {phoneOnly ? 'Verify your phone number — get a one-time code via:' : 'How would you like to receive your verification code?'}
+      </p>
       <div className="flex flex-wrap gap-2 mb-3 justify-center">
-        {CHANNELS.map((c) => (
+        {channels.map((c) => (
           <button key={c.key} type="button" onClick={() => { setChannel(c.key); setSent(false); setMsg(null) }}
             className={'px-3 py-1.5 rounded-lg text-sm border ' +
               (channel === c.key ? 'bg-vigno-accent text-[#1a0d0f] font-bold border-vigno-accent' : 'bg-white/10 border-vigno-line hover:bg-white/20')}>
