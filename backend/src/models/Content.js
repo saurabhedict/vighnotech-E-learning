@@ -34,6 +34,16 @@ const contentSchema = new mongoose.Schema(
     // For external HLS/test streams used in the demo viewer.
     externalUrl: { type: String, default: '' },
 
+    // Adaptive HLS transcode (AWS MediaConvert). When `status === 'ready'`, the
+    // stream lane serves `masterKey` (the multi-bitrate .m3u8) instead of the raw
+    // upload. While 'processing'/'failed', playback falls back to progressive MP4.
+    hls: {
+      status: { type: String, enum: ['processing', 'ready', 'failed', null], default: null },
+      jobId: { type: String, default: '' },
+      masterKey: { type: String, default: '' }, // logical key, e.g. hls/<id>/master.m3u8
+      error: { type: String, default: '' },
+    },
+
     // Optional studio-grade DRM (Widevine/FairPlay via Mux/VdoCipher).
     drm: {
       provider: { type: String, enum: ['mux', 'vdocipher', null], default: null },

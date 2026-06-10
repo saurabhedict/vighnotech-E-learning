@@ -14,13 +14,16 @@ function sign(data) {
   return crypto.createHmac('sha256', env.license.signedUrlSecret).update(data).digest('base64url')
 }
 
-export function createSignedToken({ contentId, storageKey, userId, ttlSec = env.license.signedUrlTtl }) {
+export function createSignedToken({ contentId, storageKey, bundlePrefix, userId, ttlSec = env.license.signedUrlTtl }) {
   const payload = {
     c: String(contentId), // bind to the specific content (not just storageKey)
-    k: storageKey,
     u: String(userId), // who it was minted for (audit; the URL itself is a short-lived capability)
     exp: Math.floor(Date.now() / 1000) + ttlSec,
   }
+  // Either a single-file token (k) OR an HLS-bundle token (b) authorizing any
+  // object under that prefix (master playlist + variant playlists + segments).
+  if (storageKey) payload.k = storageKey
+  if (bundlePrefix) payload.b = bundlePrefix
   const body = Buffer.from(JSON.stringify(payload)).toString('base64url')
   return `${body}.${sign(body)}`
 }
@@ -48,4 +51,16 @@ export function buildStreamUrl(req, { contentId, storageKey, userId, ttlSec }) {
   const token = createSignedToken({ contentId, storageKey, userId, ttlSec })
   const base = `${req.protocol}://${req.get('host')}`
   return `${base}/api/files/${contentId}/stream?token=${encodeURIComponent(token)}`
+}
+
+// The logical S3 prefix that holds a content item's HLS bundle.
+export const hlsBundlePrefix = (contentId) => `hls/${contentId}/`
+
+// Build the entry-point URL for adaptive HLS playback (the master playlist).
+// The token authorizes the whole bundle; the proxy rewrites child URIs to carry
+// their own short-lived tokens. Longer TTL: a video plays over many minutes.
+export function buildHlsUrl(req, { contentId, userId, asset = 'master.m3u8', ttlSec = env.license.hlsTokenTtl }) {
+  const token = createSignedToken({ contentId, bundlePrefix: hlsBundlePrefix(contentId), userId, ttlSec })
+  const base = `${req.protocol}://${req.get('host')}`
+  return `${base}/api/files/${contentId}/hls/${asset}?token=${encodeURIComponent(token)}`
 }

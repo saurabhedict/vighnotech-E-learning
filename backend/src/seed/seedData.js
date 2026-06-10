@@ -76,12 +76,12 @@ const PPL_GROUND = [
   },
 ]
 
-function loadSamplePdfKey() {
+async function loadSamplePdfKey() {
   // Push the frontend's sample PDF into our storage so free PDFs flow through
   // the real signed-URL pipeline (not a static file).
   const src = path.resolve(__dirname, '../../../frontend/public/sample-notes.pdf')
   if (!fs.existsSync(src)) return null
-  const { storageKey } = saveBuffer(fs.readFileSync(src), 'sample-notes.pdf')
+  const { storageKey } = await saveBuffer(fs.readFileSync(src), 'sample-notes.pdf')
   return storageKey
 }
 
@@ -118,7 +118,7 @@ export async function seedDatabase({ log = () => {} } = {}) {
   })
   if (student.created) log('[seed] created student: cadet@aerolearn.in / password')
 
-  const pdfKey = loadSamplePdfKey()
+  const pdfKey = await loadSamplePdfKey()
   if (!pdfKey) log('[seed] sample-notes.pdf not found — free PDFs will have no media')
 
   for (let i = 0; i < COURSES.length; i++) {

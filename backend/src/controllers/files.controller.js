@@ -1,7 +1,6 @@
 import crypto from 'node:crypto'
 import { z } from 'zod'
 import { PDFDocument } from 'pdf-lib'
-import fs from 'node:fs'
 import { asyncHandler } from '../utils/asyncHandler.js'
 import { audit } from '../utils/audit.js'
 import { badRequest, notFound, paymentRequired, forbidden } from '../utils/ApiError.js'
@@ -9,8 +8,8 @@ import { env } from '../config/env.js'
 import { Content } from '../models/Content.js'
 import { Device } from '../models/Device.js'
 import { hasActiveLicense, verifyToken } from '../services/licenseAuthority.js'
-import { buildStreamUrl, verifySignedToken } from '../services/signedUrl.js'
-import { resolveKey, statKey, readStream } from '../services/storage.js'
+import { buildStreamUrl, verifySignedToken, createSignedToken, hlsBundlePrefix } from '../services/signedUrl.js'
+import { statObject, readObjectStream, readObjectBuffer } from '../services/storage.js'
 import { getDrmPlayback } from '../services/drm.js'
 import { deriveContentKey } from '../services/contentCrypto.js'
 
@@ -129,9 +128,8 @@ export const streamFile = asyncHandler(async (req, res, next) => {
   if (result.payload.c !== content._id.toString() || result.payload.k !== content.storageKey)
     throw forbidden('Token does not match content')
 
-  const full = resolveKey(content.storageKey)
-  if (!full) throw notFound('File missing from storage')
-  const stat = statKey(content.storageKey)
+  const stat = await statObject(content.storageKey)
+  if (!stat) throw notFound('File missing from storage')
   const type = mimeFor(content.storageKey)
 
   // Never let secure content be cached by intermediaries.
@@ -142,8 +140,9 @@ export const streamFile = asyncHandler(async (req, res, next) => {
   const isPdf = content.storageKey.toLowerCase().endsWith('.pdf')
   if (isPdf && req.user && req.user.email) {
     try {
-      // Read the entire PDF file
-      const pdfBuffer = fs.readFileSync(full)
+      // Read the entire PDF object (from S3 or local disk)
+      const pdfBuffer = await readObjectBuffer(content.storageKey)
+      if (!pdfBuffer) throw notFound('File missing from storage')
       // Add watermark with user's email
       const watermarkedPdf = await addPdfWatermark(pdfBuffer, req.user.email)
       // Send watermarked PDF
@@ -172,11 +171,94 @@ export const streamFile = asyncHandler(async (req, res, next) => {
     res.set('Content-Range', `bytes ${start}-${end}/${stat.size}`)
     res.set('Accept-Ranges', 'bytes')
     res.set('Content-Length', String(end - start + 1))
-    return pipeWithErrors(readStream(content.storageKey, { start, end }), res, next)
+    return pipeWithErrors(await readObjectStream(content.storageKey, { start, end }), res, next)
   }
 
   if (stat) res.set('Content-Length', String(stat.size))
-  pipeWithErrors(readStream(content.storageKey), res, next)
+  pipeWithErrors(await readObjectStream(content.storageKey), res, next)
+})
+
+// ── Adaptive HLS proxy (private playback of MediaConvert output) ──────────────
+
+/**
+ * Rewrite an .m3u8 so every child URI (variant playlists + segments) points back
+ * through this signed proxy. MediaConvert writes relative filenames; we turn each
+ * into an absolute, token-carrying URL. The bundle token authorizes the whole
+ * folder, so one token is reused for every child of a given playlist.
+ */
+function rewriteHlsPlaylist(text, req, contentId, userId) {
+  const base = `${req.protocol}://${req.get('host')}/api/files/${contentId}/hls/`
+  const token = createSignedToken({
+    contentId,
+    bundlePrefix: hlsBundlePrefix(contentId),
+    userId,
+    ttlSec: env.license.hlsTokenTtl,
+  })
+  const signUri = (uri) =>
+    /^https?:\/\//i.test(uri) ? uri : `${base}${uri}?token=${encodeURIComponent(token)}`
+  return text
+    .split(/\r?\n/)
+    .map((line) => {
+      const t = line.trim()
+      if (!t) return line
+      // Tag lines: rewrite any URI="..." attribute (EXT-X-MEDIA / I-FRAME / KEY).
+      if (t.startsWith('#')) return line.replace(/URI="([^"]+)"/g, (_, u) => `URI="${signUri(u)}"`)
+      // Plain line: a variant-playlist or segment URI.
+      return signUri(t)
+    })
+    .join('\n')
+}
+
+/**
+ * GET /files/:contentId/hls/:asset?token=... — serves one object of an HLS bundle.
+ * Playlists (.m3u8) are rewritten so child URIs stay signed; segments stream with
+ * HTTP range support. The token is bound to the content + bundle prefix, so it can
+ * only ever reach objects inside that one video's hls/<id>/ folder.
+ */
+export const streamHlsAsset = asyncHandler(async (req, res, next) => {
+  const { contentId, asset } = req.params
+  const content = await Content.findById(contentId)
+  if (!content) throw notFound('Content not found')
+
+  const result = verifySignedToken(req.query.token)
+  if (!result.valid) throw forbidden(`Signed URL ${result.reason}`)
+  if (result.payload.c !== contentId || result.payload.b !== hlsBundlePrefix(contentId))
+    throw forbidden('Token does not match this HLS bundle')
+
+  // Assets are flat filenames inside the bundle dir — reject anything else.
+  if (!/^[a-zA-Z0-9._-]+$/.test(asset || '')) throw forbidden('Bad asset name')
+  const key = `${hlsBundlePrefix(contentId)}${asset}`
+
+  res.set('Cache-Control', 'private, no-store')
+
+  if (asset.endsWith('.m3u8')) {
+    const buf = await readObjectBuffer(key)
+    if (!buf) throw notFound('Playlist not found')
+    res.set('Content-Type', 'application/vnd.apple.mpegurl')
+    return res.send(rewriteHlsPlaylist(buf.toString('utf8'), req, contentId, result.payload.u))
+  }
+
+  // Segment bytes (.ts) — range-enabled so the player can seek.
+  const stat = await statObject(key)
+  if (!stat) throw notFound('Segment not found')
+  res.set('Content-Type', mimeFor(asset))
+  const m = req.headers.range ? /bytes=(\d+)-(\d*)/.exec(req.headers.range) : null
+  if (m) {
+    const start = Number(m[1])
+    let end = m[2] ? Number(m[2]) : stat.size - 1
+    end = Math.min(end, stat.size - 1)
+    if (start >= stat.size || start > end) {
+      res.set('Content-Range', `bytes */${stat.size}`)
+      return res.status(416).end()
+    }
+    res.status(206)
+    res.set('Content-Range', `bytes ${start}-${end}/${stat.size}`)
+    res.set('Accept-Ranges', 'bytes')
+    res.set('Content-Length', String(end - start + 1))
+    return pipeWithErrors(await readObjectStream(key, { start, end }), res, next)
+  }
+  res.set('Content-Length', String(stat.size))
+  pipeWithErrors(await readObjectStream(key), res, next)
 })
 
 // ── Download lane (launcher) ─────────────────────────────────────────────────
@@ -197,7 +279,7 @@ export const downloadEncrypted = asyncHandler(async (req, res, next) => {
   res.set('Content-Type', 'application/octet-stream')
   res.set('Content-Disposition', `attachment; filename="${content._id}.enc"`)
   audit(req, 'file.download', { targetType: 'Content', targetId: content._id })
-  pipeWithErrors(readStream(content.storageKey), res, next)
+  pipeWithErrors(await readObjectStream(content.storageKey), res, next)
 })
 
 /**

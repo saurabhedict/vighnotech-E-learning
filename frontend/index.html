@@ -4,9 +4,35 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>AeroLearn — Aviation Training</title>
+    <style>
+      /* Boot splash — painted instantly on first load, before the app's JS/CSS
+         bundle downloads. React replaces #root's children when it mounts, so this
+         disappears on its own once the app is ready. Self-contained (no external
+         CSS) so it animates immediately. Mirrors .vigno-* in src/index.css. */
+      #boot-splash {
+        position: fixed; inset: 0; z-index: 9999;
+        display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+        background: #0a0f1e;
+        font-family: 'Segoe UI', system-ui, Arial, sans-serif;
+      }
+      #boot-splash .spinner {
+        width: 40px; height: 40px; border-radius: 50%;
+        border: 3px solid rgba(240, 192, 64, 0.18);
+        border-top-color: #f0c040;
+        animation: bs-spin 0.7s linear infinite;
+      }
+      #boot-splash .txt { color: #7a9cc4; font-size: 0.85rem; font-weight: 500; letter-spacing: .03em; }
+      @keyframes bs-spin { to { transform: rotate(360deg); } }
+      @media (prefers-reduced-motion: reduce) { #boot-splash .spinner { animation-duration: 2s; } }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div id="boot-splash">
+        <div class="spinner"></div>
+        <div class="txt">Loading…</div>
+      </div>
+    </div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

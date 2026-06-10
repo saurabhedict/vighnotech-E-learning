@@ -3,7 +3,9 @@ import Hls from 'hls.js'
 import Plyr from 'plyr'
 import 'plyr/dist/plyr.css'
 
-// Secure adaptive video: HLS.js feeds an .m3u8 stream into a Plyr player.
+// Secure video player feeding a Plyr UI. Handles two source kinds:
+//   • HLS streams (.m3u8) → adaptive playback via HLS.js (external demo streams)
+//   • progressive files (e.g. uploaded MP4 served via a signed URL) → native <video>
 // "Secure" touches: no download control, right-click disabled, watermark overlay.
 export default function VideoPlayer({ src, watermark, onProgress }) {
   const videoRef = useRef(null)
@@ -11,12 +13,17 @@ export default function VideoPlayer({ src, watermark, onProgress }) {
   useEffect(() => {
     const video = videoRef.current
     let hls
-    if (Hls.isSupported()) {
+    // Signed URLs have no file extension, so an uploaded MP4 won't contain
+    // ".m3u8" — those play natively. Only true HLS manifests go through HLS.js.
+    const isHls = /\.m3u8(\?|$)/i.test(src)
+    if (isHls && Hls.isSupported()) {
       hls = new Hls()
       hls.loadSource(src)
       hls.attachMedia(video)
-    } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+    } else if (isHls && video.canPlayType('application/vnd.apple.mpegurl')) {
       video.src = src // native HLS (Safari/iOS)
+    } else {
+      video.src = src // progressive file (uploaded MP4, etc.)
     }
 
     const player = new Plyr(video, {

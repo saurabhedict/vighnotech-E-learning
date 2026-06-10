@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import AppLayout from './components/AppLayout'
 import RequireAdmin from './components/RequireAdmin'
+import Loader from './components/Loader'
 
 // Route-level code splitting: each page is its own chunk, so the initial bundle
 // stays small and admin/3D/etc. only download when visited.
@@ -19,11 +20,9 @@ const Profile = lazy(() => import('./pages/Profile'))
 const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'))
 const NotFound = lazy(() => import('./pages/NotFound'))
 
-const Loading = () => <div className="p-8 text-vigno-muted">Loading…</div>
-
 export default function App() {
   return (
-    <Suspense fallback={<Loading />}>
+    <Suspense fallback={<Loader fullscreen />}>
       <Routes>
         <Route path="/" element={<Login />} />
         <Route path="/signup" element={<Signup />} />

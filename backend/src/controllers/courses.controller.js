@@ -3,7 +3,7 @@ import { notFound } from '../utils/ApiError.js'
 import { Content } from '../models/Content.js'
 import { listCourseSlugs, getCourseTree, getModule } from '../services/contentTree.js'
 import { hasActiveLicense } from '../services/licenseAuthority.js'
-import { buildStreamUrl } from '../services/signedUrl.js'
+import { buildStreamUrl, buildHlsUrl } from '../services/signedUrl.js'
 import { cache } from '../services/cache.js'
 
 // GET /courses → ["PPL_Ground", ...] (matches frontend fetchClasses). Cached.
@@ -66,6 +66,15 @@ export const getContent = asyncHandler(async (req, res) => {
   }
 
   const userId = req.user?.id || 'anon'
+
+  // Adaptive HLS ready → serve the multi-bitrate master playlist (proxied + signed).
+  // While transcoding/failed, fall through to the progressive MP4 below so the
+  // video still plays immediately.
+  if (content.type === 'video' && content.hls?.status === 'ready' && content.hls.masterKey) {
+    const src = buildHlsUrl(req, { contentId: content._id.toString(), userId })
+    return res.json({ ...base, locked: false, src, hls: true })
+  }
+
   const signed = buildStreamUrl(req, {
     contentId: content._id.toString(),
     storageKey: content.storageKey,
@@ -75,5 +84,6 @@ export const getContent = asyncHandler(async (req, res) => {
     ...base,
     locked: false,
     ...(content.type === 'video' ? { src: signed } : { url: signed }),
+    ...(content.type === 'video' && content.hls?.status === 'processing' ? { transcoding: true } : {}),
   })
 })

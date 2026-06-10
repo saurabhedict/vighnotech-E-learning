@@ -41,6 +41,9 @@ export const env = {
     signedUrlSecret: process.env.SIGNED_URL_SECRET || 'dev-signed-url-secret',
     contentKeySecret: process.env.CONTENT_KEY_SECRET || 'dev-content-key-secret',
     signedUrlTtl: num(process.env.SIGNED_URL_TTL_SECONDS, 60),
+    // HLS playback fetches many segments over the length of a video, so the
+    // per-bundle token lives longer than a one-shot file URL (still expires).
+    hlsTokenTtl: num(process.env.HLS_TOKEN_TTL_SECONDS, 14400), // 4h
   },
 
   razorpay: {
@@ -54,6 +57,40 @@ export const env = {
   },
 
   storageDir: process.env.STORAGE_DIR || './storage',
+
+  // AWS S3 for all uploaded media (pdf/video/3d/game). When `configured` is
+  // false (no bucket/region/keys), the storage service falls back to local disk
+  // (storageDir) so the app runs with zero cloud setup in dev.
+  s3: {
+    region: process.env.AWS_REGION || '',
+    bucket: process.env.AWS_S3_BUCKET || '',
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
+    prefix: process.env.AWS_S3_PREFIX || '',
+    // SSE-S3 ('AES256') needs no key; 'aws:kms' uses AWS_S3_KMS_KEY_ID.
+    sse: process.env.AWS_S3_SSE || 'AES256',
+    kmsKeyId: process.env.AWS_S3_KMS_KEY_ID || '',
+    endpoint: process.env.AWS_S3_ENDPOINT || '', // S3-compatible stores (R2/MinIO)
+    get configured() {
+      return !!(this.bucket && this.region && this.accessKeyId && this.secretAccessKey)
+    },
+  },
+
+  // AWS Elemental MediaConvert — transcodes uploaded videos into adaptive HLS
+  // (multi-bitrate .m3u8 + segments) written back to S3. Reuses the S3 creds.
+  // Not configured (no role ARN) → videos play as progressive MP4 (no transcode).
+  mediaconvert: {
+    // Usually the same region as the bucket; override if your queue differs.
+    region: process.env.AWS_MEDIACONVERT_REGION || process.env.AWS_REGION || '',
+    // Account-specific endpoint. Blank → auto-discovered via DescribeEndpoints.
+    endpoint: process.env.AWS_MEDIACONVERT_ENDPOINT || '',
+    // IAM role MediaConvert assumes to read input + write HLS output to S3.
+    roleArn: process.env.AWS_MEDIACONVERT_ROLE_ARN || '',
+    queueArn: process.env.AWS_MEDIACONVERT_QUEUE_ARN || '', // optional custom queue
+    get configured() {
+      return !!(env.s3.configured && this.roleArn && this.region)
+    },
+  },
 
   // Cloudinary for profile photos. Not configured → avatars are stored inline
   // as data URLs (dev fallback) so the feature still works with zero setup.

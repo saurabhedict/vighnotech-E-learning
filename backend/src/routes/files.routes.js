@@ -6,5 +6,7 @@ import * as files from '../controllers/files.controller.js'
 const router = Router()
 
 router.get('/:contentId/stream', files.streamFile)
+// Adaptive HLS bundle (master/variant playlists + segments), one asset per request.
+router.get('/:contentId/hls/:asset', files.streamHlsAsset)
 
 export default router

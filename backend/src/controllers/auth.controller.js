@@ -41,15 +41,22 @@ async function recordLoginDevice(req, user) {
   }
 }
 
+// Emails are stored lowercased+trimmed (User schema `lowercase:true`), but
+// Mongoose only normalizes on SAVE — never on queries. So normalize every inbound
+// email here, otherwise a lookup like findOne({ email }) silently misses when the
+// user types any capital (e.g. "Me@Gmail.com" ≠ stored "me@gmail.com"). This was
+// why password-reset OTPs "weren't coming": no account matched, so nothing sent.
+const emailField = z.string().trim().toLowerCase().pipe(z.string().email())
+
 export const signupSchema = z.object({
-  email: z.string().email(),
+  email: emailField,
   password: z.string().min(8, 'Password must be at least 8 characters'),
   name: z.string().trim().max(80).optional(),
   phone: z.string().trim().max(20).optional(),
 })
 
 export const loginSchema = z.object({
-  email: z.string().email(),
+  email: emailField,
   password: z.string().min(1),
 })
 
@@ -271,21 +278,25 @@ const maskEmail = (e = '') => e.replace(/^(.).*(@.*)$/, '$1***$2')
 const maskPhone = (p = '') => p.replace(/.(?=.{2})/g, '•')
 
 // ── Password reset (forgot → reset with OTP) ─────────────────────────────────
-export const forgotPasswordSchema = z.object({ email: z.string().email() })
+export const forgotPasswordSchema = z.object({ email: emailField })
 
 export const forgotPassword = asyncHandler(async (req, res) => {
   const { email } = req.body
   const user = await User.findOne({ email })
   // Always respond OK — never reveal whether an account exists.
   if (user) {
-    await issueOtp({ userId: user._id, email: user.email, purpose: 'password_reset', sendTo: user.email })
+    await issueOtp({ userId: user._id, email: user.email, purpose: 'password_reset', to: user.email })
     audit(req, 'auth.forgot_password', { targetType: 'User', targetId: user._id })
+    if (!env.isProd) console.log(`[forgot-password] reset OTP dispatched to ${email}`)
+  } else if (!env.isProd) {
+    // Dev aid: this silent "no match" path is the usual reason an OTP never arrives.
+    console.log(`[forgot-password] no account for "${email}" — nothing sent (is that email registered?)`)
   }
   res.json({ ok: true, message: 'If that email is registered, a reset code has been sent.' })
 })
 
 export const resetPasswordSchema = z.object({
-  email: z.string().email(),
+  email: emailField,
   code: z.string().min(4),
   newPassword: z.string().min(8),
 })

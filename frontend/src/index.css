@@ -60,6 +60,38 @@ body::before {
   color: rgb(var(--v-txt));
 }
 
+/* ── Loader: small clean ring spinner ────────────────────────────────────────
+   Route/page Suspense fallback + any in-app loading state. The same look is
+   inlined in index.html as the boot splash so first paint matches. */
+@keyframes vigno-spin { to { transform: rotate(360deg); } }
+
+.vigno-loader {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 0.9rem;
+}
+/* Full-viewport variant — themed backdrop so there's no blank flash. */
+.vigno-loader--fullscreen {
+  position: fixed; inset: 0; z-index: 50;
+  background: rgb(var(--v-bg1));
+}
+
+.vigno-spinner {
+  width: 40px; height: 40px;
+  border: 3px solid rgb(var(--v-accent) / 0.18);
+  border-top-color: rgb(var(--v-accent));
+  border-radius: 50%;
+  animation: vigno-spin 0.7s linear infinite;
+}
+
+.vigno-loader__text {
+  color: rgb(var(--v-muted)); font-size: 0.85rem; font-weight: 500; letter-spacing: 0.03em;
+}
+
+/* Respect reduced-motion: slow the spin to a gentle turn. */
+@media (prefers-reduced-motion: reduce) {
+  .vigno-spinner { animation-duration: 2s; }
+}
+
 /* Translucent utilities aren't theme-variable-driven, so adapt them by theme.
    In dark they're light-on-dark; in light they should be dark-on-light. */
 .theme-light .bg-white\/10 { background-color: rgba(13, 26, 58, 0.06); }

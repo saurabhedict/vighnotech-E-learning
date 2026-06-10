@@ -3,6 +3,8 @@ import { connectDB, disconnectDB } from './config/db.js'
 import { keystore } from './services/keystore.js'
 import { seedDatabase, isSeeded } from './seed/seedData.js'
 import { createApp } from './app.js'
+import { startTranscodePoller, stopTranscodePoller } from './services/transcodePoller.js'
+import { mediaConvertEnabled } from './services/mediaconvert.js'
 
 async function start() {
   await connectDB()
@@ -24,11 +26,17 @@ async function start() {
     console.log(`  Health:     http://localhost:${env.port}/health`)
     console.log(`  Public key: http://localhost:${env.port}/.well-known/vigno-public-key`)
     console.log(`  Payments:   ${env.razorpay.mock ? 'MOCK gateway (no Razorpay keys set)' : 'Razorpay live keys'}`)
-    console.log(`  DB:         ${env.useMemoryDb || !env.mongoUri ? 'in-memory MongoDB (dev)' : 'configured MONGO_URI'}\n`)
+    console.log(`  DB:         ${env.useMemoryDb || !env.mongoUri ? 'in-memory MongoDB (dev)' : 'configured MONGO_URI'}`)
+    console.log(`  Storage:    ${env.s3.configured ? `AWS S3 (${env.s3.bucket})` : 'local disk (S3 not configured)'}`)
+    console.log(`  Video:      ${mediaConvertEnabled() ? 'adaptive HLS via MediaConvert' : 'progressive MP4 (MediaConvert not configured)'}\n`)
   })
+
+  // Watch MediaConvert jobs and flip transcoded videos to 'ready' (no-op unless configured).
+  startTranscodePoller({ log: (m) => console.log(m) })
 
   const shutdown = async (sig) => {
     console.log(`\n[${sig}] shutting down…`)
+    stopTranscodePoller()
     server.close()
     await disconnectDB()
     process.exit(0)
