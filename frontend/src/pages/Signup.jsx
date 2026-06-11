@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { useDispatch } from 'react-redux'
+import { useDispatch, useSelector } from 'react-redux'
 import { setCredentials } from '../store/authSlice'
 import { authApi, apiErrorMessage } from '../api/authApi'
 import VerifyContact from '../components/VerifyContact'
@@ -9,9 +9,7 @@ import { useSiteSettings } from '../hooks/useSiteSettings'
 function PasswordRule({ ok, label }) {
   return (
     <div className="flex items-center gap-2 text-[11px]">
-      <span className={ok ? 'text-green-400' : 'text-vigno-muted/60'}>
-        {ok ? '●' : '○'}
-      </span>
+      <span className={ok ? 'text-green-400' : 'text-vigno-muted/60'}>{ok ? '●' : '○'}</span>
       <span className={ok ? 'text-green-300' : 'text-vigno-muted/60'}>{label}</span>
     </div>
   )
@@ -20,10 +18,13 @@ function PasswordRule({ ok, label }) {
 export default function Signup() {
   const navigate = useNavigate()
   const dispatch = useDispatch()
+  const theme = useSelector((s) => s.ui.theme)
+  const isDark = theme === 'dark'
   const { data: settings } = useSiteSettings()
   const brandName = settings?.brand?.name || 'AeroLearn'
   const logoEmoji = settings?.brand?.logoEmoji ?? '✈'
   const signupSubtitle = settings?.auth?.signupSubtitle || `Join the ${brandName} community`
+
   const [step, setStep] = useState(1)
   const [form, setForm] = useState({ name: '', email: '', phone: '', password: '' })
   const [showPass, setShowPass] = useState(false)
@@ -63,7 +64,7 @@ export default function Signup() {
   }
 
   return (
-    <div className="relative min-h-screen flex items-center justify-center p-5 z-10">
+    <div className={(isDark ? '' : 'theme-light ') + 'relative min-h-screen flex items-center justify-center p-5 z-10'}>
       <div className="fixed bottom-0 left-0 right-0 h-40 pointer-events-none"
         style={{ background: 'linear-gradient(to top, rgba(77,166,255,0.06) 0%, transparent 100%)' }} />
 
@@ -78,9 +79,13 @@ export default function Signup() {
         </div>
 
         {/* Card */}
-        <div className="rounded-2xl border border-vigno-line shadow-2xl overflow-hidden"
-          style={{ background: 'linear-gradient(160deg, #0d1829 0%, #0a1422 100%)' }}>
-
+        <div
+          className="auth-card rounded-2xl border border-vigno-line shadow-2xl overflow-hidden"
+          style={isDark
+            ? { background: 'linear-gradient(160deg, #0d1829 0%, #0a1422 100%)' }
+            : { background: 'linear-gradient(160deg, #ffffff 0%, #f0f6ff 100%)' }
+          }
+        >
           <div className="h-1 w-full" style={{ background: 'linear-gradient(90deg, #4da6ff, #f0c040, #4da6ff)' }} />
 
           <div className="p-8">
@@ -94,7 +99,6 @@ export default function Signup() {
                 )}
 
                 <form onSubmit={submit} className="space-y-4">
-                  {/* Full Name */}
                   <div>
                     <label className="text-xs text-vigno-muted block mb-1.5 font-medium">Full Name</label>
                     <div className="relative">
@@ -104,7 +108,6 @@ export default function Signup() {
                     </div>
                   </div>
 
-                  {/* Email */}
                   <div>
                     <label className="text-xs text-vigno-muted block mb-1.5 font-medium">Email</label>
                     <div className="relative">
@@ -114,7 +117,6 @@ export default function Signup() {
                     </div>
                   </div>
 
-                  {/* Password */}
                   <div>
                     <label className="text-xs text-vigno-muted block mb-1.5 font-medium">Password</label>
                     <div className="relative">
@@ -128,7 +130,6 @@ export default function Signup() {
                         {showPass ? '🙈' : '👁'}
                       </button>
                     </div>
-                    {/* Password rules */}
                     {form.password.length > 0 && (
                       <div className="mt-2 grid grid-cols-2 gap-1 bg-vigno-bg1 rounded-lg px-3 py-2 border border-vigno-line">
                         <PasswordRule ok={rules.len} label="At least 8 characters" />
@@ -139,7 +140,6 @@ export default function Signup() {
                     )}
                   </div>
 
-                  {/* Phone */}
                   <div>
                     <label className="text-xs text-vigno-muted block mb-1.5 font-medium">Phone Number (Indian)</label>
                     <div className="flex gap-2">
@@ -147,11 +147,10 @@ export default function Signup() {
                         🇮🇳 +91
                       </div>
                       <input value={form.phone} onChange={set('phone')} autoComplete="tel"
-                        placeholder="Phone Number (Indian)" className={inputCls} />
+                        placeholder="Phone Number" className={inputCls} />
                     </div>
                   </div>
 
-                  {/* OTP method selector */}
                   <div>
                     <label className="text-xs text-vigno-muted block mb-2 font-medium">Receive OTP via</label>
                     <div className="grid grid-cols-2 gap-2">

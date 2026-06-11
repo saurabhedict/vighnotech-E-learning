@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { useDispatch } from 'react-redux'
+import { useDispatch, useSelector } from 'react-redux'
 import { setCredentials } from '../store/authSlice'
 import { authApi, apiErrorMessage } from '../api/authApi'
 import { useSiteSettings } from '../hooks/useSiteSettings'
@@ -8,18 +8,25 @@ import { useSiteSettings } from '../hooks/useSiteSettings'
 export default function Login() {
   const navigate = useNavigate()
   const dispatch = useDispatch()
+  const theme = useSelector((s) => s.ui.theme)
+  const isDark = theme === 'dark'
   const { data: settings } = useSiteSettings()
   const brandName = settings?.brand?.name || 'AeroLearn'
   const tagline = settings?.brand?.tagline || 'Aviation Training Platform'
   const logoEmoji = settings?.brand?.logoEmoji ?? '✈'
   const greeting = settings?.auth?.loginGreeting || 'Welcome back'
   const loginSubtitle = settings?.auth?.loginSubtitle || 'Sign in to continue'
+
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [showPass, setShowPass] = useState(false)
+  const [challenge, setChallenge] = useState(null)
+  const [method, setMethod] = useState(null)
+  const [code, setCode] = useState('')
 
-  // Explain an unexpected sign-out (session expired or signed in elsewhere).
   useEffect(() => {
     try {
       if (sessionStorage.getItem('vigno_session_ended')) {
@@ -28,12 +35,6 @@ export default function Login() {
       }
     } catch { /* ignore */ }
   }, [])
-  const [loading, setLoading] = useState(false)
-  const [showPass, setShowPass] = useState(false)
-
-  const [challenge, setChallenge] = useState(null)
-  const [method, setMethod] = useState(null)
-  const [code, setCode] = useState('')
 
   const finish = (user, token) => {
     dispatch(setCredentials({ user, token }))
@@ -73,7 +74,7 @@ export default function Login() {
   ].join(' ')
 
   return (
-    <div className="relative min-h-screen flex items-center justify-center p-5 z-10">
+    <div className={(isDark ? '' : 'theme-light ') + 'relative min-h-screen flex items-center justify-center p-5 z-10'}>
       {/* Horizon glow */}
       <div className="fixed bottom-0 left-0 right-0 h-40 pointer-events-none"
         style={{ background: 'linear-gradient(to top, rgba(77,166,255,0.06) 0%, transparent 100%)' }} />
@@ -89,10 +90,14 @@ export default function Login() {
         </div>
 
         {/* Card */}
-        <div className="rounded-2xl border border-vigno-line shadow-2xl overflow-hidden"
-          style={{ background: 'linear-gradient(160deg, #0d1829 0%, #0a1422 100%)', backdropFilter: 'blur(12px)' }}>
-
-          {/* Card header stripe */}
+        <div
+          className="auth-card rounded-2xl border border-vigno-line shadow-2xl overflow-hidden"
+          style={isDark
+            ? { background: 'linear-gradient(160deg, #0d1829 0%, #0a1422 100%)', backdropFilter: 'blur(12px)' }
+            : { background: 'linear-gradient(160deg, #ffffff 0%, #f0f6ff 100%)' }
+          }
+        >
+          {/* Accent stripe */}
           <div className="h-1 w-full" style={{ background: 'linear-gradient(90deg, #4da6ff, #f0c040, #4da6ff)' }} />
 
           <div className="p-8">
@@ -111,24 +116,16 @@ export default function Login() {
                 <form onSubmit={submit} className="space-y-4">
                   <div>
                     <label className="text-xs text-vigno-muted block mb-1.5 font-medium">Email</label>
-                    <input
-                      name="email" value={email}
-                      onChange={e => setEmail(e.target.value)}
-                      autoComplete="email" placeholder="you@example.com"
-                      className={inputCls}
-                    />
+                    <input name="email" value={email} onChange={e => setEmail(e.target.value)}
+                      autoComplete="email" placeholder="you@example.com" className={inputCls} />
                   </div>
 
                   <div>
                     <label className="text-xs text-vigno-muted block mb-1.5 font-medium">Password</label>
                     <div className="relative">
-                      <input
-                        type={showPass ? 'text' : 'password'}
-                        value={password}
-                        onChange={e => setPassword(e.target.value)}
-                        autoComplete="current-password"
-                        className={inputCls + ' pr-10'}
-                      />
+                      <input type={showPass ? 'text' : 'password'} value={password}
+                        onChange={e => setPassword(e.target.value)} autoComplete="current-password"
+                        className={inputCls + ' pr-10'} />
                       <button type="button" onClick={() => setShowPass(p => !p)}
                         className="absolute right-3 top-1/2 -translate-y-1/2 text-vigno-muted hover:text-vigno-accent2 transition-colors text-xs">
                         {showPass ? '🙈' : '👁'}
@@ -142,7 +139,7 @@ export default function Login() {
                   <button type="submit" disabled={loading}
                     className="w-full py-3 rounded-xl font-extrabold text-sm tracking-wide transition-all duration-200 disabled:opacity-60"
                     style={{ background: 'linear-gradient(135deg, #f0c040, #f0a020)', color: '#0a0f1e', boxShadow: '0 4px 20px rgba(240,192,64,0.3)' }}>
-                    {loading ? 'Signing in…' : 'Sign In'}
+                    {loading ? 'Signing in…' : 'Sign In →'}
                   </button>
 
                   <p className="text-xs text-vigno-muted text-center pt-1">

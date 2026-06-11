@@ -1,7 +1,7 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
+ 
 /* ── Theme palette (RGB channels; consumed by tailwind.config.js) ──────────── */
 :root {
   /* Dark (default) — midnight navy */
@@ -17,7 +17,7 @@
   --v-accent2: 77 166 255; /* sky blue (links/highlights) */
   --plyr-color-main: #f0c040;
 }
-
+ 
 /* Light theme — swap the same variables (applied on the app wrapper) */
 .theme-light {
   --v-bg1: 234 242 252;
@@ -31,7 +31,7 @@
   --v-accent: 240 192 64;
   --v-accent2: 10 102 194; /* darker blue for contrast on light */
 }
-
+ 
 html, body, #root { height: 100%; }
 body {
   margin: 0;
@@ -39,7 +39,7 @@ body {
   background: linear-gradient(160deg, #050b1a 0%, #0a1535 40%, #0d1f4a 80%, #0a2a5a 100%);
   background-attachment: fixed;
 }
-
+ 
 /* Subtle star-field texture (dark only; hidden under the light wrapper) */
 body::before {
   content: '';
@@ -53,18 +53,18 @@ body::before {
   pointer-events: none;
   z-index: 0;
 }
-
+ 
 /* The light wrapper paints its own background over the body + sets text colour */
 .theme-light {
   background: linear-gradient(160deg, #eaf3ff 0%, #d6e8ff 55%, #c7dcf8 100%);
   color: rgb(var(--v-txt));
 }
-
+ 
 /* ── Loader: small clean ring spinner ────────────────────────────────────────
    Route/page Suspense fallback + any in-app loading state. The same look is
    inlined in index.html as the boot splash so first paint matches. */
 @keyframes vigno-spin { to { transform: rotate(360deg); } }
-
+ 
 .vigno-loader {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: 0.9rem;
@@ -74,7 +74,7 @@ body::before {
   position: fixed; inset: 0; z-index: 50;
   background: rgb(var(--v-bg1));
 }
-
+ 
 .vigno-spinner {
   width: 40px; height: 40px;
   border: 3px solid rgb(var(--v-accent) / 0.18);
@@ -82,16 +82,16 @@ body::before {
   border-radius: 50%;
   animation: vigno-spin 0.7s linear infinite;
 }
-
+ 
 .vigno-loader__text {
   color: rgb(var(--v-muted)); font-size: 0.85rem; font-weight: 500; letter-spacing: 0.03em;
 }
-
+ 
 /* Respect reduced-motion: slow the spin to a gentle turn. */
 @media (prefers-reduced-motion: reduce) {
   .vigno-spinner { animation-duration: 2s; }
 }
-
+ 
 /* ── Video player: custom control bar ────────────────────────────────────────*/
 .vp-btn {
   display: inline-flex; align-items: center; justify-content: center;
@@ -99,7 +99,7 @@ body::before {
   color: #fff; transition: background-color 0.15s;
 }
 .vp-btn:hover { background: rgba(255, 255, 255, 0.16); }
-
+ 
 /* Range inputs (seek + volume) */
 .vp-range {
   -webkit-appearance: none; appearance: none;
@@ -122,7 +122,7 @@ body::before {
   background: linear-gradient(to right,
     rgb(var(--v-accent)) var(--pct, 0%), rgba(255, 255, 255, 0.28) var(--pct, 0%));
 }
-
+ 
 /* Translucent utilities aren't theme-variable-driven, so adapt them by theme.
    In dark they're light-on-dark; in light they should be dark-on-light. */
 .theme-light .bg-white\/10 { background-color: rgba(13, 26, 58, 0.06); }
@@ -132,3 +132,18 @@ body::before {
 .theme-light .bg-black\/30,
 .theme-light .bg-black\/25,
 .theme-light .bg-black\/20 { background-color: rgba(255, 255, 255, 0.6); }
+ 
+/* ── Thin scrollbar for sidebar nav ────────────────────────────────────────── */
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(var(--v-line) / 0.6) transparent;
+}
+.scrollbar-thin::-webkit-scrollbar { width: 4px; }
+.scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+.scrollbar-thin::-webkit-scrollbar-thumb { background: rgb(var(--v-line) / 0.6); border-radius: 4px; }
+ 
+/* ── Subtle translucent utility not in tailwind defaults ────────────────────── */
+.bg-white\/8 { background-color: rgb(255 255 255 / 0.08); }
+.bg-black\/20 { background-color: rgb(0 0 0 / 0.20); }
+.bg-black\/25 { background-color: rgb(0 0 0 / 0.25); }
+.bg-white\/2  { background-color: rgb(255 255 255 / 0.02); }
