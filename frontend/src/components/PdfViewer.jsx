@@ -18,15 +18,26 @@ export default function PdfViewer({ url, watermark }) {
         if (cancelled) return
         const container = containerRef.current
         container.innerHTML = ''
+        // Render at the screen's pixel density so pages stay crisp on HiDPI/retina
+        // (the old code rendered at CSS size, so the bitmap got upscaled → blur).
+        const dpr = Math.min(window.devicePixelRatio || 1, 3)
+        const containerWidth = container.clientWidth || 820
         for (let n = 1; n <= pdf.numPages; n++) {
           const page = await pdf.getPage(n)
-          const viewport = page.getViewport({ scale: 1.3 })
+          const base = page.getViewport({ scale: 1 })
+          // Fit the page to the container width (cap upscaling at 2x for small PDFs).
+          const cssScale = Math.min(containerWidth / base.width, 2)
+          // Bitmap is rendered at cssScale × dpr; CSS shrinks it back → sharp.
+          const viewport = page.getViewport({ scale: cssScale * dpr })
           const canvas = document.createElement('canvas')
-          canvas.width = viewport.width
-          canvas.height = viewport.height
-          canvas.className = 'mx-auto mb-4 rounded-lg shadow-lg'
+          canvas.width = Math.floor(viewport.width)
+          canvas.height = Math.floor(viewport.height)
+          canvas.style.width = `${Math.floor(base.width * cssScale)}px`
+          canvas.style.height = `${Math.floor(base.height * cssScale)}px`
+          canvas.className = 'mx-auto mb-4 rounded-lg shadow-lg max-w-full'
           container.appendChild(canvas)
           await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise
+          if (cancelled) return
         }
         setStatus('done')
       } catch (e) {

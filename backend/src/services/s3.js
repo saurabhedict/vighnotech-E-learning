@@ -5,6 +5,7 @@ import {
   HeadObjectCommand,
   DeleteObjectCommand,
 } from '@aws-sdk/client-s3'
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import { env } from '../config/env.js'
 
 /**
@@ -91,6 +92,32 @@ export async function getObjectBuffer(key) {
   const chunks = []
   for await (const chunk of body) chunks.push(chunk)
   return Buffer.concat(chunks)
+}
+
+// Presigned PUT URL for direct browser→S3 upload. Kept header-free (no signed
+// content-type/SSE) so a plain PUT works; the bucket's default encryption still
+// encrypts the object at rest, and we serve bytes back through our own proxy so
+// the stored content-type doesn't matter. Requires bucket CORS to allow PUT.
+export async function presignPutUrl(key, { expiresIn = 3600 } = {}) {
+  return getSignedUrl(s3(), new PutObjectCommand({ Bucket: env.s3.bucket, Key: fullKey(key) }), { expiresIn })
+}
+
+// Presigned GET URL for direct browser→S3 playback/download. Lets the <video>
+// element stream byte-ranges straight from S3 (no proxy hop, native range
+// support) instead of pulling everything through our server. TTL must cover the
+// whole viewing session since one URL serves all the player's range requests.
+export async function presignGetUrl(key, { expiresIn = 3600, contentType } = {}) {
+  return getSignedUrl(
+    s3(),
+    new GetObjectCommand({
+      Bucket: env.s3.bucket,
+      Key: fullKey(key),
+      // Force the response content-type so the <video> always gets e.g. video/mp4
+      // even if the stored object's type is generic (octet-stream).
+      ...(contentType ? { ResponseContentType: contentType } : {}),
+    }),
+    { expiresIn }
+  )
 }
 
 // Best-effort delete (never throws — orphan cleanup must not break a request).

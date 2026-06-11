@@ -92,6 +92,37 @@ body::before {
   .vigno-spinner { animation-duration: 2s; }
 }
 
+/* ── Video player: custom control bar ────────────────────────────────────────*/
+.vp-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  height: 34px; min-width: 34px; padding: 0 6px; border-radius: 8px;
+  color: #fff; transition: background-color 0.15s;
+}
+.vp-btn:hover { background: rgba(255, 255, 255, 0.16); }
+
+/* Range inputs (seek + volume) */
+.vp-range {
+  -webkit-appearance: none; appearance: none;
+  height: 5px; border-radius: 999px; cursor: pointer; outline: none;
+  background: rgba(255, 255, 255, 0.28);
+}
+.vp-range::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 14px; height: 14px; border-radius: 50%;
+  background: rgb(var(--v-accent)); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
+  transition: transform 0.12s;
+}
+.vp-range:hover::-webkit-slider-thumb { transform: scale(1.15); }
+.vp-range::-moz-range-thumb {
+  width: 14px; height: 14px; border: none; border-radius: 50%;
+  background: rgb(var(--v-accent)); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
+}
+/* Played-portion fill, driven by the inline --pct variable. */
+.vp-seek {
+  background: linear-gradient(to right,
+    rgb(var(--v-accent)) var(--pct, 0%), rgba(255, 255, 255, 0.28) var(--pct, 0%));
+}
+
 /* Translucent utilities aren't theme-variable-driven, so adapt them by theme.
    In dark they're light-on-dark; in light they should be dark-on-light. */
 .theme-light .bg-white\/10 { background-color: rgba(13, 26, 58, 0.06); }

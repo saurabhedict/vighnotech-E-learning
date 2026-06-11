@@ -38,6 +38,9 @@ router.post('/content', validate({ body: admin.createContentSchema }), admin.cre
 router.patch('/content/:id', admin.updateContent)
 router.delete('/content/:id', admin.deleteContent)
 router.post('/content/:id/upload', upload.single('file'), admin.uploadContentFile)
+// Direct browser→S3 upload (stream lane): presign a URL, then confirm completion.
+router.post('/content/:id/upload-url', admin.getContentUploadUrl)
+router.post('/content/:id/upload-complete', validate({ body: admin.completeContentUploadSchema }), admin.completeContentUpload)
 
 // License administration (issue grant / revoke for refunds & fraud)
 router.post('/licenses/issue', validate({ body: lic.adminIssueSchema }), lic.adminIssue)

@@ -15,7 +15,7 @@ import { License } from '../models/License.js'
 import { Purchase } from '../models/Purchase.js'
 import { User } from '../models/User.js'
 import { AuditLog } from '../models/AuditLog.js'
-import { saveBuffer, saveEncryptedBuffer, removeObject } from '../services/storage.js'
+import { saveBuffer, saveEncryptedBuffer, removeObject, statObject, directUploadSupported, createDirectUpload } from '../services/storage.js'
 import { submitHlsJob, mediaConvertEnabled } from '../services/mediaconvert.js'
 import { deriveContentKey, newSalt } from '../services/contentCrypto.js'
 
@@ -138,7 +138,24 @@ export const deleteContent = asyncHandler(async (req, res) => {
   res.json({ ok: true })
 })
 
-// POST /admin/content/:id/upload — multipart file → storage (S3 stand-in).
+// Start an adaptive-HLS transcode for a freshly uploaded video (no-op unless it's
+// a video AND MediaConvert is configured). Sets content.hls accordingly. A submit
+// failure never blocks the upload — playback simply falls back to progressive MP4.
+async function maybeTranscodeVideo(content, storageKey) {
+  content.hls = { status: null, jobId: '', masterKey: '', error: '' }
+  if (content.type === 'video' && mediaConvertEnabled()) {
+    try {
+      const { jobId, masterKey } = await submitHlsJob({ inputKey: storageKey, contentId: content._id.toString() })
+      content.hls = { status: 'processing', jobId, masterKey, error: '' }
+    } catch (e) {
+      content.hls = { status: 'failed', jobId: '', masterKey: '', error: e?.message || 'transcode submit failed' }
+    }
+  }
+}
+
+// POST /admin/content/:id/upload — multipart file streamed THROUGH the server.
+// Used for the encrypted download lane (games), and as a fallback for the stream
+// lane when S3 (and thus direct upload) isn't configured.
 export const uploadContentFile = asyncHandler(async (req, res) => {
   if (!req.file) throw badRequest('No file uploaded (field name: "file")')
   const content = await Content.findById(req.params.id)
@@ -161,28 +178,55 @@ export const uploadContentFile = asyncHandler(async (req, res) => {
     content.storageKey = storageKey
     content.sizeBytes = sizeBytes
     content.enc = { encrypted: false }
-    // Reset any prior transcode state for this content item.
-    content.hls = { status: null, jobId: '', masterKey: '', error: '' }
-    // Videos → kick off an adaptive-HLS transcode (when MediaConvert is set up).
-    // A failure here must never block the upload — playback falls back to MP4.
-    if (content.type === 'video' && mediaConvertEnabled()) {
-      try {
-        const { jobId, masterKey } = await submitHlsJob({
-          inputKey: content.storageKey,
-          contentId: content._id.toString(),
-        })
-        content.hls = { status: 'processing', jobId, masterKey, error: '' }
-      } catch (e) {
-        content.hls = { status: 'failed', jobId: '', masterKey: '', error: e?.message || 'transcode submit failed' }
-      }
-    }
+    await maybeTranscodeVideo(content, storageKey)
   }
   content.externalUrl = ''
   await content.save()
   // Free the replaced object (best-effort) so S3/disk doesn't accumulate orphans.
   if (previousKey && previousKey !== content.storageKey) await removeObject(previousKey)
   audit(req, 'cms.content.upload', { targetType: 'Content', targetId: content._id, meta: { encrypted: content.lane === 'download' } })
-  res.json({ ok: true, encrypted: content.lane === 'download', hls: content.hls?.status || null })
+  res.json({ ok: true, encrypted: content.lane === 'download', hls: content.lane === 'download' ? null : content.hls?.status || null })
+})
+
+// POST /admin/content/:id/upload-url — mint a presigned URL for a DIRECT
+// browser→S3 upload (stream lane only; the download lane needs server-side
+// encryption). Returns { supported:false } when S3 is off or lane is download,
+// so the client falls back to the through-the-server upload above.
+export const getContentUploadUrl = asyncHandler(async (req, res) => {
+  const content = await Content.findById(req.params.id)
+  if (!content) throw notFound('Content not found')
+  if (content.lane === 'download' || !directUploadSupported()) {
+    return res.json({ supported: false })
+  }
+  const { storageKey, url } = await createDirectUpload(req.body?.filename || '')
+  res.json({ supported: true, url, storageKey })
+})
+
+// POST /admin/content/:id/upload-complete — record an object the browser just
+// PUT directly to S3. We confirm it actually exists before pointing content at it.
+export const completeContentUploadSchema = z.object({
+  // Must match the obj_<20> key shape minted in createDirectUpload (no traversal).
+  storageKey: z.string().regex(/^obj_[a-z0-9]{20}(\.[a-z0-9]+)?$/),
+})
+export const completeContentUpload = asyncHandler(async (req, res) => {
+  const content = await Content.findById(req.params.id)
+  if (!content) throw notFound('Content not found')
+  if (content.lane === 'download') throw badRequest('Download-lane content must use the encrypted upload')
+
+  const { storageKey } = req.body
+  const stat = await statObject(storageKey)
+  if (!stat) throw badRequest('Upload not found in storage — did the PUT succeed?')
+
+  const previousKey = content.storageKey
+  content.storageKey = storageKey
+  content.sizeBytes = stat.size
+  content.enc = { encrypted: false }
+  content.externalUrl = ''
+  await maybeTranscodeVideo(content, storageKey)
+  await content.save()
+  if (previousKey && previousKey !== storageKey) await removeObject(previousKey)
+  audit(req, 'cms.content.upload', { targetType: 'Content', targetId: content._id, meta: { direct: true } })
+  res.json({ ok: true, hls: content.hls?.status || null })
 })
 
 // ── Dashboard (LLD: Admin Dashboard & Reports) ───────────────────────────────

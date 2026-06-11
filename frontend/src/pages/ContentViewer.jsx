@@ -49,7 +49,7 @@ export default function ContentViewer() {
       </h1>
       <div className="text-xs text-vigno-muted mb-4 capitalize">
         {item.type} ·{' '}
-        {item.type === 'video' ? 'HLS adaptive stream (Plyr + HLS.js)'
+        {item.type === 'video' ? (item.hls ? 'Adaptive HLS · secure stream' : 'Secure video stream')
           : item.type === 'pdf' ? 'PDF.js — download disabled'
           : 'preview'}
         {item.paid && <> · <span className="text-vigno-accent2">{item.locked ? 'Locked' : 'Owned'}</span></>}

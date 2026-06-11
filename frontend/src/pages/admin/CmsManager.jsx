@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { CONTENT_TYPES } from '@vigno/shared'
 import { adminApi } from '../../api/adminApi'
 import { apiErrorMessage } from '../../api/authApi'
+import { subscribeUploads, startUpload } from '../../lib/uploadManager'
 
 const CHILD = { course: 'subject', subject: 'module', module: 'chapter' }
 const childKindOf = (node) => (!node ? 'course' : node.kind === 'chapter' ? 'content' : CHILD[node.kind] || null)
@@ -77,7 +78,12 @@ export default function CmsManager() {
     const p = window.prompt('Price (₹)', c.price)
     if (p != null) await adminApi.updateContent(c._id, { isPaid: Number(p) > 0, price: Number(p) || 0 })
   })
-  const upload = guard(async (c, file) => { if (file) await adminApi.uploadContentFile(c._id, file) })
+
+  // Upload progress comes from the module-level manager so it survives switching
+  // admin tabs (which unmounts this component). Map: { [contentId]: {pct,status} }.
+  const [uploads, setUploads] = useState({})
+  useEffect(() => subscribeUploads(setUploads), [])
+  const upload = (c, file) => { if (file) { setErr(''); startUpload(c, file) } }
 
   const input = 'px-3 py-2 rounded-lg bg-vigno-bg2 border border-vigno-line text-sm outline-none focus:border-vigno-accent'
 
@@ -165,9 +171,23 @@ export default function CmsManager() {
             <button onClick={() => togglePublished(c)} className={'text-xs rounded px-2 py-1 ' + (c.published ? 'bg-white/10' : 'bg-yellow-500/20 text-yellow-200')}>
               {c.published ? 'Published' : 'Hidden'}
             </button>
-            <label className="text-xs bg-white/10 hover:bg-white/20 rounded px-2 py-1 cursor-pointer">
-              Upload<input type="file" className="hidden" onChange={(e) => upload(c, e.target.files?.[0])} />
-            </label>
+            {uploads[c._id] ? (
+              <span className={'text-xs flex items-center gap-2 min-w-[150px] ' + (uploads[c._id].status === 'error' ? 'text-red-300' : 'text-vigno-accent2')} title={uploads[c._id].error || 'Uploading…'}>
+                {uploads[c._id].status !== 'error' && (
+                  <span className="h-1.5 w-20 rounded bg-white/10 overflow-hidden">
+                    <span className="block h-full bg-vigno-accent transition-all duration-150" style={{ width: `${Math.min(uploads[c._id].pct, 100)}%` }} />
+                  </span>
+                )}
+                {uploads[c._id].status === 'error' ? 'Upload failed'
+                  : uploads[c._id].status === 'done' ? 'Done ✓'
+                  : uploads[c._id].pct < 100 ? `Uploading ${uploads[c._id].pct}%`
+                  : 'Processing…'}
+              </span>
+            ) : (
+              <label className="text-xs bg-white/10 hover:bg-white/20 rounded px-2 py-1 cursor-pointer">
+                Upload<input type="file" className="hidden" onChange={(e) => upload(c, e.target.files?.[0])} />
+              </label>
+            )}
             <button onClick={() => delContent(c)} className="text-xs bg-red-500/70 hover:bg-red-500 text-white rounded px-2 py-1">Delete</button>
           </li>
         ))}

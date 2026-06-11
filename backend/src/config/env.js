@@ -92,6 +92,20 @@ export const env = {
     },
   },
 
+  // CloudFront CDN in front of the S3 bucket — edge-caches media near viewers so
+  // streaming is fast worldwide (vs. pulling from one S3 region). Access stays
+  // private via CloudFront signed URLs. Not configured → fall back to presigned
+  // S3 URLs. The private key may be inline (PEM, \n-escaped) or a file path.
+  cloudfront: {
+    domain: process.env.CLOUDFRONT_DOMAIN || '', // e.g. d111abc.cloudfront.net
+    keyPairId: process.env.CLOUDFRONT_KEY_PAIR_ID || '',
+    privateKey: (process.env.CLOUDFRONT_PRIVATE_KEY || '').replace(/\\n/g, '\n'),
+    privateKeyPath: process.env.CLOUDFRONT_PRIVATE_KEY_PATH || '',
+    get configured() {
+      return !!(this.domain && this.keyPairId && (this.privateKey || this.privateKeyPath))
+    },
+  },
+
   // Cloudinary for profile photos. Not configured → avatars are stored inline
   // as data URLs (dev fallback) so the feature still works with zero setup.
   cloudinary: {

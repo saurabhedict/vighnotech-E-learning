@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { adminApi } from '../../api/adminApi'
 import { apiErrorMessage } from '../../api/authApi'
+import { subscribeUploads } from '../../lib/uploadManager'
 import CmsManager from './CmsManager'
 import UsersPanel from './UsersPanel'
 import ReportsPanel from './ReportsPanel'
@@ -88,6 +89,36 @@ function AuditLog() {
   )
 }
 
+// Active uploads, shown on every admin tab — proof they keep running while you
+// navigate, plus a guard against closing the page mid-upload.
+function GlobalUploads() {
+  const [uploads, setUploads] = useState({})
+  useEffect(() => subscribeUploads(setUploads), [])
+  const active = Object.entries(uploads).filter(([, u]) => u.status === 'uploading' || u.status === 'processing')
+  useEffect(() => {
+    if (!active.length) return
+    const warn = (e) => { e.preventDefault(); e.returnValue = '' }
+    window.addEventListener('beforeunload', warn)
+    return () => window.removeEventListener('beforeunload', warn)
+  }, [active.length])
+  if (!active.length) return null
+  return (
+    <div className="mb-5 rounded-xl border border-vigno-accent/40 bg-vigno-accent/10 p-3 flex flex-col gap-2">
+      {active.map(([id, u]) => (
+        <div key={id} className="flex items-center gap-3 text-sm">
+          <span className="text-vigno-accent">⬆</span>
+          <span className="flex-1 truncate">{u.title || 'Uploading'}</span>
+          <span className="h-1.5 w-28 rounded bg-white/10 overflow-hidden">
+            <span className="block h-full bg-vigno-accent transition-all duration-150" style={{ width: `${Math.min(u.pct, 100)}%` }} />
+          </span>
+          <span className="text-vigno-muted w-24 text-right">{u.pct < 100 ? `${u.pct}%` : 'Processing…'}</span>
+        </div>
+      ))}
+      <p className="text-[11px] text-vigno-muted">Uploads keep running while you use other tabs — just don't close this page.</p>
+    </div>
+  )
+}
+
 function Panel({ title, children }) {
   return (
     <section className="bg-vigno-card border border-vigno-line rounded-2xl p-5 mb-6">
@@ -120,6 +151,8 @@ export default function AdminDashboard() {
       <div className="flex flex-wrap gap-2 mb-6">
         {TABS.map((t) => <button key={t.key} className={tabCls(tab === t.key)} onClick={() => setTab(t.key)}>{t.label}</button>)}
       </div>
+
+      <GlobalUploads />
 
       {tab === 'overview' && <><div className="mb-6"><Overview /></div></>}
       {tab === 'content' && <Panel title="Content Tree Manager"><CmsManager /></Panel>}

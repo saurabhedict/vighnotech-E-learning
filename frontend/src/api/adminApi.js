@@ -1,4 +1,7 @@
+import axios from 'axios'
 import api from './axiosClient'
+
+const onProg = (cb) => (e) => { if (cb && e.total) cb(Math.round((e.loaded / e.total) * 100)) }
 
 // Admin CMS + dashboard. All routes require an admin session (RBAC enforced
 // server-side; the UI also hides them from non-admins).
@@ -64,12 +67,41 @@ export const adminApi = {
   deleteContent(id) {
     return api.delete(`/admin/content/${id}`).then((r) => r.data)
   },
-  uploadContentFile(id, file) {
+  // Uploads a media file. `content` may be the content object (preferred — its
+  // `lane` decides the path) or just an id. `onProgress(percent 0..100)` fires as
+  // bytes leave the browser. timeout:0 disables the default 12s cap (videos are big).
+  //
+  // Stream lane (pdf/video/3d) uploads DIRECTLY to S3 via a presigned URL — bytes
+  // never touch our server, so there's no size/RAM limit and the % is true
+  // end-to-end. The encrypted download lane (games), or any setup without S3,
+  // falls back to streaming through the server.
+  async uploadContentFile(content, file, onProgress) {
+    const id = content?._id || content?.id || content
+    const lane = content?.lane
+
+    if (lane !== 'download') {
+      const { data: presign } = await api.post(`/admin/content/${id}/upload-url`, { filename: file.name })
+      if (presign?.supported) {
+        // PUT straight to S3 (raw axios — no baseURL, auth header, or cookies).
+        await axios.put(presign.url, file, {
+          headers: { 'Content-Type': file.type || 'application/octet-stream' },
+          timeout: 0,
+          onUploadProgress: onProg(onProgress),
+        })
+        const { data } = await api.post(`/admin/content/${id}/upload-complete`, { storageKey: presign.storageKey })
+        return data
+      }
+    }
+
+    // Fallback: stream through the server (download lane, or S3 not configured).
     const form = new FormData()
     form.append('file', file)
-    return api
-      .post(`/admin/content/${id}/upload`, form, { headers: { 'Content-Type': 'multipart/form-data' } })
-      .then((r) => r.data)
+    const { data } = await api.post(`/admin/content/${id}/upload`, form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 0,
+      onUploadProgress: onProg(onProgress),
+    })
+    return data
   },
   // License administration
   issueLicense(payload) {

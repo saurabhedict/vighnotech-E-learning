@@ -6,6 +6,9 @@ node_modules
 # Generated signing keys (KMS stand-in) — NEVER commit private keys
 keys/
 
+# CloudFront / signing private keys — NEVER commit
+*.pem
+
 # Local file storage (S3 stand-in) — uploaded content
 storage/
 

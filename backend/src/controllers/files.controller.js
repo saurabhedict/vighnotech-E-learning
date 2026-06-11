@@ -10,6 +10,7 @@ import { Device } from '../models/Device.js'
 import { hasActiveLicense, verifyToken } from '../services/licenseAuthority.js'
 import { buildStreamUrl, verifySignedToken, createSignedToken, hlsBundlePrefix } from '../services/signedUrl.js'
 import { statObject, readObjectStream, readObjectBuffer } from '../services/storage.js'
+import { cloudFrontEnabled, cloudFrontBundleBase, signCloudFrontWildcardQuery } from '../services/cloudfront.js'
 import { getDrmPlayback } from '../services/drm.js'
 import { deriveContentKey } from '../services/contentCrypto.js'
 
@@ -181,21 +182,31 @@ export const streamFile = asyncHandler(async (req, res, next) => {
 // ── Adaptive HLS proxy (private playback of MediaConvert output) ──────────────
 
 /**
- * Rewrite an .m3u8 so every child URI (variant playlists + segments) points back
- * through this signed proxy. MediaConvert writes relative filenames; we turn each
- * into an absolute, token-carrying URL. The bundle token authorizes the whole
- * folder, so one token is reused for every child of a given playlist.
+ * Rewrite an .m3u8 so every child URI is an absolute, authorized URL. MediaConvert
+ * writes relative filenames; we turn each into:
+ *   • a CloudFront-signed URL for heavy SEGMENTS (.ts) when CloudFront is on, so
+ *     they stream edge-cached near the viewer (one wildcard signature covers all);
+ *   • a backend signed-proxy URL for nested PLAYLISTS (.m3u8) — they're tiny and
+ *     must pass back through here to get their own children rewritten.
+ * Without CloudFront, everything flows through the backend proxy (token-signed).
  */
 function rewriteHlsPlaylist(text, req, contentId, userId) {
-  const base = `${req.protocol}://${req.get('host')}/api/files/${contentId}/hls/`
+  const backendBase = `${req.protocol}://${req.get('host')}/api/files/${contentId}/hls/`
   const token = createSignedToken({
     contentId,
     bundlePrefix: hlsBundlePrefix(contentId),
     userId,
     ttlSec: env.license.hlsTokenTtl,
   })
-  const signUri = (uri) =>
-    /^https?:\/\//i.test(uri) ? uri : `${base}${uri}?token=${encodeURIComponent(token)}`
+  const useCf = cloudFrontEnabled()
+  const cfBase = useCf ? cloudFrontBundleBase(hlsBundlePrefix(contentId)) : null
+  const cfQuery = useCf ? signCloudFrontWildcardQuery(hlsBundlePrefix(contentId), { expiresIn: env.license.hlsTokenTtl }) : null
+
+  const signUri = (uri) => {
+    if (/^https?:\/\//i.test(uri)) return uri
+    if (useCf && !uri.endsWith('.m3u8')) return `${cfBase}${uri}?${cfQuery}` // segment → CDN
+    return `${backendBase}${uri}?token=${encodeURIComponent(token)}` // playlist → backend
+  }
   return text
     .split(/\r?\n/)
     .map((line) => {

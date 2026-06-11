@@ -4,6 +4,7 @@ import { Content } from '../models/Content.js'
 import { listCourseSlugs, getCourseTree, getModule } from '../services/contentTree.js'
 import { hasActiveLicense } from '../services/licenseAuthority.js'
 import { buildStreamUrl, buildHlsUrl } from '../services/signedUrl.js'
+import { createMediaUrl } from '../services/storage.js'
 import { cache } from '../services/cache.js'
 
 // GET /courses → ["PPL_Ground", ...] (matches frontend fetchClasses). Cached.
@@ -73,6 +74,22 @@ export const getContent = asyncHandler(async (req, res) => {
   if (content.type === 'video' && content.hls?.status === 'ready' && content.hls.masterKey) {
     const src = buildHlsUrl(req, { contentId: content._id.toString(), userId })
     return res.json({ ...base, locked: false, src, hls: true })
+  }
+
+  // Progressive video → hand a CDN/direct media URL (CloudFront edge-cache when
+  // configured, else presigned S3) so the player gets fast, native byte-range
+  // seeking with no backend proxy hop (which was causing constant re-buffering).
+  // The drifting email watermark still applies; ownership was verified above.
+  if (content.type === 'video' && content.storageKey) {
+    const direct = await createMediaUrl(content.storageKey)
+    if (direct) {
+      return res.json({
+        ...base,
+        locked: false,
+        src: direct,
+        ...(content.hls?.status === 'processing' ? { transcoding: true } : {}),
+      })
+    }
   }
 
   const signed = buildStreamUrl(req, {

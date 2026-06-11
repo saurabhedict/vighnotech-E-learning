@@ -3,7 +3,8 @@ import crypto from 'node:crypto'
 import path from 'node:path'
 import { customAlphabet } from 'nanoid'
 import { env } from '../config/env.js'
-import { s3Enabled, putObject, headObject, getObjectStream, getObjectBuffer, deleteObject } from './s3.js'
+import { s3Enabled, putObject, headObject, getObjectStream, getObjectBuffer, deleteObject, presignPutUrl, presignGetUrl } from './s3.js'
+import { cloudFrontEnabled, signCloudFrontUrl } from './cloudfront.js'
 
 /**
  * Object storage for all uploaded media (Doc 2 §1, §8).
@@ -79,6 +80,32 @@ export async function saveEncryptedBuffer(buffer, keyBuf) {
     tag: tag.toString('base64'),
     sizeBytes: ciphertext.length,
   }
+}
+
+// ── Direct browser→S3 upload (presigned) ─────────────────────────────────────
+
+// Only available when S3 is configured (no presigned URLs for local disk).
+export const directUploadSupported = () => s3Enabled()
+
+// Mint a storageKey + a presigned PUT URL the browser uploads to directly.
+// Keys follow the same `obj_<id><ext>` convention as saveBuffer().
+export async function createDirectUpload(originalName = '') {
+  const ext = path.extname(originalName).toLowerCase().replace(/[^.a-z0-9]/g, '')
+  const key = `obj_${newName()}${ext}`
+  const url = await presignPutUrl(key, { expiresIn: 3600 }) // 1h — big videos take a while
+  return { storageKey: key, url }
+}
+
+// A ready-to-play media URL for a stored object, fastest path first:
+//   1. CloudFront-signed (edge-cached near the viewer) when CF is configured,
+//   2. else a presigned S3 URL (direct from the bucket region),
+//   3. else null → the caller streams it through the backend proxy.
+// Default TTL comfortably covers a long video (one URL serves all range requests).
+export async function createMediaUrl(storageKey, { expiresIn = 14400 } = {}) {
+  if (!storageKey) return null
+  if (cloudFrontEnabled()) return signCloudFrontUrl(storageKey, { expiresIn })
+  if (s3Enabled()) return presignGetUrl(storageKey, { expiresIn, contentType: mimeFor(storageKey) })
+  return null
 }
 
 // ── Reads ────────────────────────────────────────────────────────────────────
