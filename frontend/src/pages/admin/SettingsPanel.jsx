@@ -23,6 +23,7 @@ const HUB = [
   { key: 'home', icon: '🏠', title: 'Home Page', desc: 'Hero heading & subtitle' },
   { key: 'footer', icon: '📑', title: 'Footer', desc: 'Columns, links, contact, social' },
   { key: 'auth', icon: '🔑', title: 'Login & Signup', desc: 'Greeting & subtitles' },
+  { key: 'launcher', icon: '🖥️', title: 'Desktop Launcher', desc: 'Installer link for games / software' },
 ]
 
 function RemoveBtn({ onClick, title = 'Remove' }) {
@@ -160,8 +161,9 @@ function SectionCard({ section, index, count, onChange, onMove, onRemove }) {
 
 // Normalize loaded data → editable form (all editable areas).
 function toForm(d) {
-  const b = d?.brand || {}, h = d?.header || {}, hm = d?.home || {}, au = d?.auth || {}, f = d?.footer || {}
+  const b = d?.brand || {}, h = d?.header || {}, hm = d?.home || {}, au = d?.auth || {}, f = d?.footer || {}, lc = d?.launcher || {}
   return {
+    launcher: { url: lc.url || '', version: lc.version || '' },
     brand: { name: b.name || '', tagline: b.tagline || '', logoEmoji: b.logoEmoji || '✈' },
     header: {
       showSearch: h.showSearch !== false,
@@ -226,6 +228,7 @@ export default function SettingsPanel() {
   const setAnnounce = (k, v) => { markDirty('header'); setForm((s) => ({ ...s, header: { ...s.header, announcement: { ...s.header.announcement, [k]: v } } })) }
   const setHome = (k, v) => { markDirty('home'); setForm((s) => ({ ...s, home: { ...s.home, [k]: v } })) }
   const setAuth = (k, v) => { markDirty('auth'); setForm((s) => ({ ...s, auth: { ...s.auth, [k]: v } })) }
+  const setLauncher = (k, v) => { markDirty('launcher'); setForm((s) => ({ ...s, launcher: { ...s.launcher, [k]: v } })) }
   const setFooter = (k, v) => { markDirty('footer'); setForm((s) => ({ ...s, footer: { ...s.footer, [k]: v } })) }
   const sections = form.footer.sections
   const updateSection = (i, next) => setFooter('sections', sections.map((s, idx) => (idx === i ? next : s)))
@@ -303,6 +306,20 @@ export default function SettingsPanel() {
         <Field label="Login greeting"><input className={input} value={form.auth.loginGreeting} onChange={(e) => setAuth('loginGreeting', e.target.value)} placeholder="Welcome back" /></Field>
         <Field label="Login subtitle"><input className={input} value={form.auth.loginSubtitle} onChange={(e) => setAuth('loginSubtitle', e.target.value)} placeholder="Sign in to continue" /></Field>
         <Field label="Signup subtitle"><input className={input} value={form.auth.signupSubtitle} onChange={(e) => setAuth('signupSubtitle', e.target.value)} placeholder="Create your account" /></Field>
+      </div>
+    ),
+    launcher: (
+      <div className="space-y-3">
+        <p className="text-xs text-vigno-muted">
+          Build the installer (<span className="font-mono">cd launcher &amp;&amp; npm run dist</span>), host the file (S3 / GitHub release / your
+          server), and paste its public link below. Owners of game/software titles then see an <b>“Install the Launcher”</b> button.
+        </p>
+        <Field label="Installer download URL" hint="Direct https:// link to the .exe / .dmg / .AppImage">
+          <input className={input} value={form.launcher.url} onChange={(e) => setLauncher('url', e.target.value)} placeholder="https://downloads.example.com/VignoLauncher-Setup.exe" />
+        </Field>
+        <Field label="Version (optional)" hint="Shown next to the button, e.g. 1.0.0">
+          <input className={input + ' max-w-[200px]'} value={form.launcher.version} onChange={(e) => setLauncher('version', e.target.value)} placeholder="1.0.0" />
+        </Field>
       </div>
     ),
     footer: (

@@ -6,6 +6,7 @@ import {
   DeleteObjectCommand,
 } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
+import { Upload } from '@aws-sdk/lib-storage'
 import { env } from '../config/env.js'
 
 /**
@@ -60,6 +61,25 @@ export async function putObject(key, body, contentType) {
   )
 }
 
+// Stream a (possibly huge) Readable to S3 via multipart upload — no need to buffer
+// the whole object in memory or know its length up front. Used to write the
+// encrypted ciphertext of a large download-lane game.
+export async function uploadStream(key, body, contentType) {
+  const up = new Upload({
+    client: s3(),
+    params: {
+      Bucket: env.s3.bucket,
+      Key: fullKey(key),
+      Body: body,
+      ...(contentType ? { ContentType: contentType } : {}),
+      ...sseParams(),
+    },
+    queueSize: 4,
+    partSize: 8 * 1024 * 1024, // 8 MB parts
+  })
+  await up.done()
+}
+
 // HEAD → { size } (bytes), or null if the object does not exist.
 export async function headObject(key) {
   try {
@@ -106,7 +126,7 @@ export async function presignPutUrl(key, { expiresIn = 3600 } = {}) {
 // element stream byte-ranges straight from S3 (no proxy hop, native range
 // support) instead of pulling everything through our server. TTL must cover the
 // whole viewing session since one URL serves all the player's range requests.
-export async function presignGetUrl(key, { expiresIn = 3600, contentType } = {}) {
+export async function presignGetUrl(key, { expiresIn = 3600, contentType, disposition } = {}) {
   return getSignedUrl(
     s3(),
     new GetObjectCommand({
@@ -115,6 +135,8 @@ export async function presignGetUrl(key, { expiresIn = 3600, contentType } = {})
       // Force the response content-type so the <video> always gets e.g. video/mp4
       // even if the stored object's type is generic (octet-stream).
       ...(contentType ? { ResponseContentType: contentType } : {}),
+      // `attachment; filename="…"` makes the browser download (used for the launcher).
+      ...(disposition ? { ResponseContentDisposition: disposition } : {}),
     }),
     { expiresIn }
   )

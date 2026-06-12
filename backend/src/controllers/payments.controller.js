@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { asyncHandler } from '../utils/asyncHandler.js'
 import { audit } from '../utils/audit.js'
-import { badRequest, notFound, conflict, paymentRequired } from '../utils/ApiError.js'
+import { badRequest, notFound, conflict, paymentRequired, forbidden } from '../utils/ApiError.js'
 import { env } from '../config/env.js'
 import { Content } from '../models/Content.js'
 import { Purchase } from '../models/Purchase.js'
@@ -51,6 +51,16 @@ async function finalizePurchase(purchase, content) {
   return { license, token }
 }
 
+// Downloadable software (download lane) is the piracy-sensitive content, so we
+// require the buyer to have 2FA enabled before they can own it (configurable).
+async function assertDownloadEligibility(userId, content) {
+  if (content.lane !== 'download' || !env.security.require2faForDownload) return
+  const user = await User.findById(userId).select('twoFAEnabled')
+  if (!user?.twoFAEnabled) {
+    throw forbidden('Enable two-factor authentication (Profile → Security) before purchasing downloadable software.')
+  }
+}
+
 // POST /payments/order { contentId, couponCode? }
 export const orderSchema = z.object({ contentId: z.string().length(24), couponCode: z.string().trim().optional() })
 
@@ -59,6 +69,7 @@ export const createOrderHandler = asyncHandler(async (req, res) => {
   if (!content || !content.published) throw notFound('Content not found')
   if (!content.isPaid) throw badRequest('This content is free — no purchase needed')
   if (await hasActiveLicense(req.user.id, content._id)) throw conflict('You already own this content')
+  await assertDownloadEligibility(req.user.id, content)
 
   const pricing = await resolvePricing(content, req.body.couponCode)
 
@@ -160,6 +171,7 @@ export const walletPay = asyncHandler(async (req, res) => {
   if (!content || !content.published) throw notFound('Content not found')
   if (!content.isPaid) throw badRequest('This content is free — no purchase needed')
   if (await hasActiveLicense(req.user.id, content._id)) throw conflict('You already own this content')
+  await assertDownloadEligibility(req.user.id, content)
 
   const pricing = await resolvePricing(content, req.body.couponCode)
   const user = await User.findById(req.user.id)

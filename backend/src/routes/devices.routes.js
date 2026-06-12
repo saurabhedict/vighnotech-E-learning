@@ -7,5 +7,6 @@ const router = Router()
 
 router.post('/register', requireAuth, validate({ body: devices.registerSchema }), devices.registerDevice)
 router.get('/mine', requireAuth, devices.myDevices)
+router.delete('/:id', requireAuth, devices.deauthorizeDevice)
 
 export default router

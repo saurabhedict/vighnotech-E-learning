@@ -25,11 +25,17 @@ const contentSchema = new mongoose.Schema(
     storageKey: { type: String, default: '' },
     // AES-256-GCM encryption-at-rest params for download-lane objects.
     // `salt` derives the key; `iv`/`tag` are needed to decrypt. Never expose salt.
+    // Large games are encrypted in the BACKGROUND (decoupled from the upload
+    // request): `status` tracks it; `rawKey` is the temp unencrypted object being
+    // processed (so a restart can resume). Not ready until status === 'ready'.
     enc: {
       encrypted: { type: Boolean, default: false },
       iv: { type: String, select: false },
       tag: { type: String, select: false },
       salt: { type: String, select: false },
+      status: { type: String, enum: ['encrypting', 'ready', 'failed', null], default: null },
+      rawKey: { type: String, default: '', select: false },
+      error: { type: String, default: '' },
     },
     // For external HLS/test streams used in the demo viewer.
     externalUrl: { type: String, default: '' },

@@ -7,12 +7,14 @@ import { badRequest, notFound, paymentRequired, forbidden } from '../utils/ApiEr
 import { env } from '../config/env.js'
 import { Content } from '../models/Content.js'
 import { Device } from '../models/Device.js'
+import { License } from '../models/License.js'
 import { hasActiveLicense, verifyToken } from '../services/licenseAuthority.js'
 import { buildStreamUrl, verifySignedToken, createSignedToken, hlsBundlePrefix } from '../services/signedUrl.js'
-import { statObject, readObjectStream, readObjectBuffer } from '../services/storage.js'
+import { statObject, readObjectStream, readObjectBuffer, createMediaUrl } from '../services/storage.js'
 import { cloudFrontEnabled, cloudFrontBundleBase, signCloudFrontWildcardQuery } from '../services/cloudfront.js'
 import { getDrmPlayback } from '../services/drm.js'
 import { deriveContentKey } from '../services/contentCrypto.js'
+import { signGameToken } from '../services/gameLicense.js'
 
 // GET /content/:id/drm-token — ownership-gated DRM playback descriptor.
 // Returns { drm:false } when no provider/asset is configured (HLS fallback).
@@ -282,7 +284,10 @@ export const downloadEncrypted = asyncHandler(async (req, res, next) => {
 
   const owns = await hasActiveLicense(req.user.id, content._id)
   if (!owns) throw paymentRequired()
-  if (!content.storageKey) throw notFound('No file uploaded for this content')
+  if (!content.storageKey) {
+    if (content.enc?.status === 'encrypting') throw badRequest('This title is still being prepared — try again in a few minutes')
+    throw notFound('No file uploaded for this content')
+  }
 
   // In production this object is encrypted at rest (S3 SSE-KMS); the launcher
   // keeps it encrypted on disk and only decrypts in memory after fetching a key.
@@ -291,6 +296,48 @@ export const downloadEncrypted = asyncHandler(async (req, res, next) => {
   res.set('Content-Disposition', `attachment; filename="${content._id}.enc"`)
   audit(req, 'file.download', { targetType: 'Content', targetId: content._id })
   pipeWithErrors(await readObjectStream(content.storageKey), res, next)
+})
+
+// POST /content/:id/game-license — issue a device-bound, signed token the launcher
+// writes into the extracted game. The game's LicenseGuard re-reads the local
+// machine id and verifies our signature, so a copied game folder won't run on
+// another PC. Ownership + device are checked before signing.
+export const gameLicenseSchema = z.object({
+  deviceId: z.string().length(24),
+  machineId: z.string().min(4).max(256), // stable per-machine GUID from the launcher
+})
+export const getGameLicense = asyncHandler(async (req, res) => {
+  const content = await Content.findById(req.params.id)
+  if (!content) throw notFound('Content not found')
+  if (content.lane !== 'download') throw badRequest('Not a download-lane title')
+  const { deviceId, machineId } = req.body
+  const device = await Device.findOne({ _id: deviceId, userId: req.user.id })
+  if (!device) throw forbidden('Unknown device')
+  if (!(await hasActiveLicense(req.user.id, content._id))) throw paymentRequired()
+  const token = signGameToken({ contentId: content._id.toString(), machineId, userId: req.user.id })
+  audit(req, 'file.game_license', { targetType: 'Content', targetId: content._id })
+  res.json({ token, fileName: env.security.licenseGuardFile, ttlDays: env.security.gameLicenseTtlDays })
+})
+
+// GET /content/:id/download-url — license-gated direct download. Returns a
+// CDN/presigned URL to the ENCRYPTED object so the launcher streams it straight
+// from S3 (fast, with progress, no backend proxy). The bytes stay encrypted; the
+// decryption key is still gated separately by license + device.
+export const getDownloadUrl = asyncHandler(async (req, res) => {
+  const content = await Content.findById(req.params.id)
+  if (!content) throw notFound('Content not found')
+  if (content.lane !== 'download') throw badRequest('This content uses the stream lane')
+  const owns = await hasActiveLicense(req.user.id, content._id)
+  if (!owns) throw paymentRequired()
+  if (!content.storageKey) {
+    if (content.enc?.status === 'encrypting') throw badRequest('This title is still being prepared — try again in a few minutes')
+    throw notFound('No file uploaded for this content')
+  }
+  const url = await createMediaUrl(content.storageKey, { expiresIn: 3600 })
+  if (!url) throw badRequest('Direct download unavailable (storage not configured)')
+  const stat = await statObject(content.storageKey)
+  audit(req, 'file.download_url', { targetType: 'Content', targetId: content._id })
+  res.json({ url, sizeBytes: stat?.size || content.sizeBytes || 0 })
 })
 
 /**
@@ -303,6 +350,23 @@ export const keySchema = z.object({
   deviceId: z.string().length(24),
 })
 
+// Anti-sharing telemetry: if this user owns a download license for the content but
+// it's bound to a DIFFERENT device than the requester, record the offending device
+// and flag the license once too many distinct ones hit it. Non-destructive (the
+// denial already blocks access) — the flag just surfaces sharing for admin review.
+async function flagIfShared(req, contentId, userId, device) {
+  const lic = await License.findOne({ userId, contentId, type: 'download', status: 'active' })
+  if (!lic || !lic.deviceId || lic.deviceId.toString() === device._id.toString()) return
+  if (lic.deniedDevices.includes(device.fingerprint)) return
+  lic.deniedDevices.push(device.fingerprint)
+  if (lic.deniedDevices.length >= env.security.licenseFlagThreshold && !lic.flagged) {
+    lic.flagged = true
+    lic.flaggedReason = `Key requested from ${lic.deniedDevices.length} unauthorized devices`
+    audit(req, 'license.flagged', { targetType: 'License', targetId: lic._id, meta: { devices: lic.deniedDevices.length } })
+  }
+  await lic.save()
+}
+
 export const getDecryptionKey = asyncHandler(async (req, res) => {
   const content = await Content.findById(req.params.id).select('+enc.salt +enc.iv +enc.tag')
   if (!content) throw notFound('Content not found')
@@ -313,6 +377,7 @@ export const getDecryptionKey = asyncHandler(async (req, res) => {
 
   const result = await verifyToken(token, { deviceId })
   if (!result.valid) {
+    await flagIfShared(req, content._id, req.user.id, device)
     audit(req, 'file.key.deny', { targetType: 'Content', targetId: content._id, meta: { reason: result.reason } })
     throw forbidden(`License ${result.reason}`)
   }
@@ -338,5 +403,6 @@ export const getDecryptionKey = asyncHandler(async (req, res) => {
   device.lastSeenAt = new Date()
   await device.save()
   audit(req, 'file.key.grant', { targetType: 'Content', targetId: content._id })
-  res.json({ key, iv: content.enc.iv, tag: content.enc.tag, alg: 'aes-256-gcm', expiresInSec: 300 })
+  // graceDays = server-controlled offline window the launcher caches the key for.
+  res.json({ key, iv: content.enc.iv, tag: content.enc.tag, alg: 'aes-256-gcm', expiresInSec: 300, graceDays: env.license.graceDays })
 })

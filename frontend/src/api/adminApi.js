@@ -77,23 +77,25 @@ export const adminApi = {
   // falls back to streaming through the server.
   async uploadContentFile(content, file, onProgress) {
     const id = content?._id || content?.id || content
-    const lane = content?.lane
 
-    if (lane !== 'download') {
-      const { data: presign } = await api.post(`/admin/content/${id}/upload-url`, { filename: file.name })
-      if (presign?.supported) {
-        // PUT straight to S3 (raw axios — no baseURL, auth header, or cookies).
-        await axios.put(presign.url, file, {
-          headers: { 'Content-Type': file.type || 'application/octet-stream' },
-          timeout: 0,
-          onUploadProgress: onProg(onProgress),
-        })
-        const { data } = await api.post(`/admin/content/${id}/upload-complete`, { storageKey: presign.storageKey })
-        return data
-      }
+    // Direct-to-S3 for BOTH lanes when S3 is configured. Stream lane (pdf/video/3d)
+    // keeps the object as-is; download lane (games) uploads a raw temp that the
+    // server then stream-encrypts — so multi-GB games never hit the 200 MB server cap.
+    const { data: presign } = await api.post(`/admin/content/${id}/upload-url`, { filename: file.name })
+    if (presign?.supported) {
+      // PUT straight to S3 (raw axios — no baseURL, auth header, or cookies).
+      await axios.put(presign.url, file, {
+        headers: { 'Content-Type': file.type || 'application/octet-stream' },
+        timeout: 0,
+        onUploadProgress: onProg(onProgress),
+      })
+      // Finalize: stream lane records it; download lane encrypts (can take a while
+      // for a big game) → no timeout. The UI shows "Processing…" during this step.
+      const { data } = await api.post(`/admin/content/${id}/upload-complete`, { storageKey: presign.storageKey }, { timeout: 0 })
+      return data
     }
 
-    // Fallback: stream through the server (download lane, or S3 not configured).
+    // Fallback: stream through the server (S3 not configured).
     const form = new FormData()
     form.append('file', file)
     const { data } = await api.post(`/admin/content/${id}/upload`, form, {

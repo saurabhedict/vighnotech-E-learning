@@ -227,13 +227,35 @@ function TwoFactor() {
   return (
     <div>
       <Msg msg={msg} />
-      <p className="text-sm text-vigno-muted mb-3">Add a second step at sign-in. Recommended: an authenticator app (Google Authenticator / Authy).</p>
+      <p className="text-sm text-vigno-muted mb-3">Add a second step at sign-in. Choose a method:</p>
 
       {!setup ? (
-        <div className="flex flex-wrap gap-2 justify-center">
-          <button onClick={startTotp} disabled={loading} className={btn}>{loading ? '…' : 'Set up authenticator app'}</button>
-          <button onClick={enableEmail} disabled={loading || !user?.emailVerified} className={btnGhost}
-            title={user?.emailVerified ? '' : 'Verify your email first'}>Use email codes</button>
+        <div className="flex flex-col gap-2.5">
+          {/* Authenticator app */}
+          <div className="flex items-center gap-3 bg-black/20 rounded-lg p-3">
+            <span className="text-xl">📱</span>
+            <div className="flex-1">
+              <div className="text-sm font-semibold">Authenticator app</div>
+              <div className="text-xs text-vigno-muted">Google Authenticator / Authy — works offline.</div>
+            </div>
+            <button onClick={startTotp} disabled={loading} className={btn}>{loading ? '…' : 'Set up'}</button>
+          </div>
+
+          {/* Email OTP codes */}
+          <div className="flex items-center gap-3 bg-black/20 rounded-lg p-3">
+            <span className="text-xl">✉️</span>
+            <div className="flex-1">
+              <div className="text-sm font-semibold">Email codes (OTP)</div>
+              <div className="text-xs text-vigno-muted">
+                {user?.emailVerified
+                  ? 'A one-time code is emailed to you at each sign-in.'
+                  : "Verify your email first — use “Verify Account” in Security."}
+              </div>
+            </div>
+            {user?.emailVerified
+              ? <button onClick={enableEmail} disabled={loading} className={btn}>{loading ? '…' : 'Enable'}</button>
+              : <span className="text-xs text-vigno-accent2 whitespace-nowrap">Verify email first</span>}
+          </div>
         </div>
       ) : (
         <form onSubmit={enableTotp}>

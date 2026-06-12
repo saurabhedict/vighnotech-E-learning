@@ -44,6 +44,27 @@ export const env = {
     // HLS playback fetches many segments over the length of a video, so the
     // per-bundle token lives longer than a one-shot file URL (still expires).
     hlsTokenTtl: num(process.env.HLS_TOKEN_TTL_SECONDS, 14400), // 4h
+    // Download-lane offline grace: how long a launched game keeps running offline
+    // before it must re-verify online. Shorter = harder to abuse. Server-controlled.
+    graceDays: num(process.env.DOWNLOAD_GRACE_DAYS, 2),
+  },
+
+  // Anti-piracy / account-security policy for the download lane.
+  security: {
+    // Max devices a user may register (the "home devices" cap). Deauthorize to swap.
+    maxDevicesPerUser: num(process.env.MAX_DEVICES_PER_USER, 3),
+    // Distinct rejected devices on one license before it's flagged for review.
+    licenseFlagThreshold: num(process.env.LICENSE_FLAG_THRESHOLD, 3),
+    // Require 2FA enabled to buy downloadable software (games/launcher titles).
+    require2faForDownload: bool(process.env.REQUIRE_2FA_FOR_DOWNLOAD, true),
+    // Redirect http→https + send long HSTS (enable when behind a TLS proxy in prod).
+    forceHttps: bool(process.env.FORCE_HTTPS, false),
+    // In-game device-license (LicenseGuard): how long a token is valid offline, and
+    // the DISGUISED filename the launcher drops into the extracted game's _Data dir
+    // (set something that blends in, e.g. app.dat / resources.dat — game's guard
+    // script must read the same name).
+    gameLicenseTtlDays: num(process.env.GAME_LICENSE_TTL_DAYS, 7),
+    licenseGuardFile: process.env.LICENSE_GUARD_FILE || 'app.dat',
   },
 
   razorpay: {

@@ -3,7 +3,7 @@ import crypto from 'node:crypto'
 import path from 'node:path'
 import { customAlphabet } from 'nanoid'
 import { env } from '../config/env.js'
-import { s3Enabled, putObject, headObject, getObjectStream, getObjectBuffer, deleteObject, presignPutUrl, presignGetUrl } from './s3.js'
+import { s3Enabled, putObject, uploadStream, headObject, getObjectStream, getObjectBuffer, deleteObject, presignPutUrl, presignGetUrl } from './s3.js'
 import { cloudFrontEnabled, signCloudFrontUrl } from './cloudfront.js'
 
 /**
@@ -58,6 +58,28 @@ export async function saveBuffer(buffer, originalName = '') {
     fs.writeFileSync(path.join(objectsDir, key), buffer)
   }
   return { storageKey: key, sizeBytes: buffer.length }
+}
+
+// Encrypt an object ALREADY in S3 (a raw direct-upload) into a new encrypted
+// object, streaming S3 → AES-256-GCM → S3 so a multi-GB game never sits in RAM.
+// The GCM tag is captured after the stream drains. S3-only (no local-disk path).
+export async function saveEncryptedFromObject(rawKey, keyBuf) {
+  if (!s3Enabled()) throw new Error('S3 not configured')
+  const src = await getObjectStream(rawKey)
+  if (!src) throw new Error('Raw upload not found in storage')
+  const iv = crypto.randomBytes(12)
+  const cipher = crypto.createCipheriv('aes-256-gcm', keyBuf, iv)
+  const key = `obj_${newName()}.enc`
+  // src → cipher (Transform) → multipart upload of the ciphertext.
+  await uploadStream(key, src.pipe(cipher), 'application/octet-stream')
+  const tag = cipher.getAuthTag() // valid once the cipher has flushed
+  const stat = await headObject(key)
+  return {
+    storageKey: key,
+    iv: iv.toString('base64'),
+    tag: tag.toString('base64'),
+    sizeBytes: stat?.size || 0,
+  }
 }
 
 // Encrypt a buffer with AES-256-GCM and persist the ciphertext (download lane).

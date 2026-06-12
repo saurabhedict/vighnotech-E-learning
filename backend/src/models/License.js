@@ -25,6 +25,13 @@ const licenseSchema = new mongoose.Schema(
     expiresAt: { type: Date, required: true, index: true },
     revokedAt: { type: Date },
     revokedReason: { type: String },
+
+    // Anti-sharing signal: distinct devices REJECTED trying to use this license
+    // (a stolen file/token used elsewhere). Past a threshold the license is
+    // `flagged` for admin review/revoke. The denial itself already blocks access.
+    deniedDevices: { type: [String], default: [] },
+    flagged: { type: Boolean, default: false, index: true },
+    flaggedReason: { type: String, default: '' },
   },
   { timestamps: true, _id: false }
 )

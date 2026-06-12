@@ -2,6 +2,7 @@ import { useEffect, useCallback, lazy, Suspense } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useSelector } from 'react-redux'
 import { useContentItem } from '../hooks/useContent'
+import { useSiteSettings } from '../hooks/useSiteSettings'
 import { discoverApi } from '../api/discoverApi'
 import VideoPlayer from '../components/VideoPlayer'
 import PdfViewer from '../components/PdfViewer'
@@ -17,6 +18,12 @@ export default function ContentViewer() {
   const { className, moduleId, contentId } = useParams()
   const user = useSelector((s) => s.auth.user)
   const { data: item, isLoading, isError, refetch } = useContentItem(contentId)
+  const { data: settings } = useSiteSettings()
+  const launcher = settings?.launcher || {}
+  // Prefer an admin-set external URL; else our own S3-hosted installer via the
+  // public redirect endpoint (built off the API base so it works in any env).
+  const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000/api'
+  const launcherDownloadUrl = launcher.url || (launcher.hasInstaller ? `${apiBase}/settings/launcher-download` : '')
 
   const accessible = !!item && !item.locked && !item.requiresLauncher
 
@@ -70,12 +77,31 @@ export default function ContentViewer() {
 
         {/* Download lane (software/games) → launcher */}
         {!item.locked && item.requiresLauncher && (
-          <div className="h-72 flex flex-col items-center justify-center text-vigno-muted text-center">
-            <div className="text-5xl mb-2">🎮</div>
+          <div className="py-10 flex flex-col items-center justify-center text-vigno-muted text-center gap-4">
+            <div className="text-5xl">🎮</div>
             <div className="max-w-md">
               You own this. Download &amp; run it through the secure desktop launcher — the
               license + device binding are verified before it decrypts.
             </div>
+            {launcherDownloadUrl ? (
+              <div className="flex flex-col items-center gap-1.5">
+                <a
+                  href={launcherDownloadUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="bg-vigno-accent text-[#1a0d0f] font-bold px-5 py-2.5 rounded-lg text-sm hover:brightness-110 inline-flex items-center gap-2"
+                >
+                  ⬇ Install the Launcher{launcher.version ? ` (v${launcher.version})` : ''}
+                </a>
+                <span className="text-xs text-vigno-muted">
+                  Already installed? Open <b>Vigno Launcher</b> and sign in to download this title.
+                </span>
+              </div>
+            ) : (
+              <span className="text-xs text-vigno-muted">
+                The launcher download isn’t set up yet — an admin can add it under <b>Admin → Site Settings → Desktop Launcher</b>.
+              </span>
+            )}
           </div>
         )}
 

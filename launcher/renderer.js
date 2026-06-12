@@ -54,14 +54,24 @@ async function showLibrary() {
     const play = document.createElement('button'); play.textContent = '▶ Play'; play.disabled = !downloaded
     dl.onclick = async () => {
       dl.disabled = true; log(`Downloading "${it.content.title}" (encrypted)…`)
-      try { const r = await vigno.download({ contentId: it.content.id }); log(`Downloaded ${r.bytes} encrypted bytes.`); play.disabled = false; dl.textContent = 'Re-download' }
-      catch (e) { log(`✗ ${e.message}`) } finally { dl.disabled = false }
+      const off = vigno.onDownloadProgress(({ contentId, received, total }) => {
+        if (contentId !== it.content.id) return
+        const mb = (received / 1048576).toFixed(1)
+        const pct = total ? Math.floor((received / total) * 100) : null
+        dl.textContent = pct != null ? `${pct}% · ${mb} MB` : `${mb} MB`
+      })
+      try {
+        const r = await vigno.download({ contentId: it.content.id })
+        log(`✓ Downloaded ${(r.bytes / 1048576).toFixed(1)} MB (encrypted).`)
+        play.disabled = false; dl.textContent = 'Re-download'
+      } catch (e) { log(`✗ ${e.message}`); dl.textContent = 'Download' }
+      finally { dl.disabled = false; off && off() }
     }
     play.onclick = async () => {
       play.disabled = true; log(`Verifying license + device for "${it.content.title}"…`)
       try {
         const r = await vigno.play({ contentId: it.content.id, jti: it.jti })
-        log(`✓ Decrypted in memory (${r.sizeBytes} bytes, ${r.online ? 'online' : 'offline grace'}). Launching… [${r.preview.replace(/\n/g, ' ')}]`)
+        log(`✓ Verified — launching ${r.exe} (${r.online ? 'online' : 'offline grace'})…`)
       } catch (e) { log(`✗ ${e.message}`) } finally { play.disabled = false }
     }
     row.append(dl, play)

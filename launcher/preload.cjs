@@ -11,4 +11,10 @@ contextBridge.exposeInMainWorld('vigno', {
   download: (p) => ipcRenderer.invoke('download', p),
   play: (p) => ipcRenderer.invoke('play', p),
   logout: () => ipcRenderer.invoke('logout'),
+  // Subscribe to download progress; returns an unsubscribe fn.
+  onDownloadProgress: (cb) => {
+    const handler = (_e, data) => cb(data)
+    ipcRenderer.on('download-progress', handler)
+    return () => ipcRenderer.removeListener('download-progress', handler)
+  },
 })

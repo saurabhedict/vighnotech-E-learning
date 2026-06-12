@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import { keystore } from '../services/keystore.js'
+import { gameLicensePublicKey } from '../services/gameLicense.js'
 
 const router = Router()
 
@@ -11,6 +12,12 @@ const router = Router()
 router.get('/.well-known/vigno-public-key', (_req, res) => {
   res.set('Cache-Control', 'public, max-age=3600')
   res.json(keystore.jwks())
+})
+
+// Public RSA key (PEM) the in-game LicenseGuard embeds to verify device tokens.
+router.get('/.well-known/game-license-public-key', (_req, res) => {
+  res.set('Cache-Control', 'public, max-age=3600')
+  res.type('text/plain').send(gameLicensePublicKey())
 })
 
 export default router

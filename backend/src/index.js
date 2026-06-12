@@ -6,6 +6,21 @@ import { createApp } from './app.js'
 import { startTranscodePoller, stopTranscodePoller } from './services/transcodePoller.js'
 import { mediaConvertEnabled } from './services/mediaconvert.js'
 import { cloudFrontEnabled } from './services/cloudfront.js'
+import { Content } from './models/Content.js'
+import { startDownloadEncryption } from './controllers/admin.controller.js'
+
+// Resume any download-lane encryptions interrupted by a restart.
+async function recoverEncryptions() {
+  try {
+    const stuck = await Content.find({ 'enc.status': 'encrypting' }).select('_id storageKey +enc.rawKey').lean()
+    for (const c of stuck) {
+      if (c.enc?.rawKey) {
+        console.log(`[encrypt] resuming interrupted encryption for ${c._id}`)
+        startDownloadEncryption(c._id.toString(), c.enc.rawKey, c.storageKey)
+      }
+    }
+  } catch { /* best-effort */ }
+}
 
 async function start() {
   await connectDB()
@@ -35,6 +50,8 @@ async function start() {
 
   // Watch MediaConvert jobs and flip transcoded videos to 'ready' (no-op unless configured).
   startTranscodePoller({ log: (m) => console.log(m) })
+  // Resume any download-lane game encryption interrupted by a previous shutdown.
+  recoverEncryptions()
 
   const shutdown = async (sig) => {
     console.log(`\n[${sig}] shutting down…`)

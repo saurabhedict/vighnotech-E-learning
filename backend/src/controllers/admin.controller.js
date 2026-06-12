@@ -15,7 +15,7 @@ import { License } from '../models/License.js'
 import { Purchase } from '../models/Purchase.js'
 import { User } from '../models/User.js'
 import { AuditLog } from '../models/AuditLog.js'
-import { saveBuffer, saveEncryptedBuffer, removeObject, statObject, directUploadSupported, createDirectUpload } from '../services/storage.js'
+import { saveBuffer, saveEncryptedBuffer, saveEncryptedFromObject, removeObject, statObject, directUploadSupported, createDirectUpload } from '../services/storage.js'
 import { submitHlsJob, mediaConvertEnabled } from '../services/mediaconvert.js'
 import { deriveContentKey, newSalt } from '../services/contentCrypto.js'
 
@@ -189,42 +189,79 @@ export const uploadContentFile = asyncHandler(async (req, res) => {
 })
 
 // POST /admin/content/:id/upload-url — mint a presigned URL for a DIRECT
-// browser→S3 upload (stream lane only; the download lane needs server-side
-// encryption). Returns { supported:false } when S3 is off or lane is download,
-// so the client falls back to the through-the-server upload above.
+// browser→S3 upload. The browser PUTs to S3 for BOTH lanes; the stream lane keeps
+// the object as-is, the download lane uploads a RAW temp that upload-complete then
+// encrypts server-side. Returns { supported:false } when S3 is off (→ fall back).
 export const getContentUploadUrl = asyncHandler(async (req, res) => {
   const content = await Content.findById(req.params.id)
   if (!content) throw notFound('Content not found')
-  if (content.lane === 'download' || !directUploadSupported()) {
-    return res.json({ supported: false })
-  }
+  if (!directUploadSupported()) return res.json({ supported: false })
   const { storageKey, url } = await createDirectUpload(req.body?.filename || '')
   res.json({ supported: true, url, storageKey })
 })
 
-// POST /admin/content/:id/upload-complete — record an object the browser just
-// PUT directly to S3. We confirm it actually exists before pointing content at it.
+// POST /admin/content/:id/upload-complete — finalize an object the browser just
+// PUT directly to S3. Stream lane: point content at it (+ transcode video).
+// Download lane: stream-encrypt the raw upload (AES-256-GCM, S3→S3) and drop the
+// raw copy — so even a multi-GB game is encrypted at rest without buffering in RAM.
 export const completeContentUploadSchema = z.object({
   // Must match the obj_<20> key shape minted in createDirectUpload (no traversal).
   storageKey: z.string().regex(/^obj_[a-z0-9]{20}(\.[a-z0-9]+)?$/),
 })
+// Encrypt a raw download-lane upload in the BACKGROUND (fire-and-forget) so a
+// multi-GB game can never tie up — or time out — the HTTP request. Flips
+// enc.status to 'ready'/'failed' when done, then frees the raw + any replaced
+// object. The previous file stays playable until the new one is ready.
+export async function startDownloadEncryption(contentId, rawKey, previousKey) {
+  try {
+    const content = await Content.findById(contentId)
+    if (!content) return
+    const salt = newSalt()
+    const key = deriveContentKey(contentId, salt)
+    const { storageKey, iv, tag, sizeBytes } = await saveEncryptedFromObject(rawKey, key)
+    content.storageKey = storageKey
+    content.sizeBytes = sizeBytes
+    content.enc = { encrypted: true, status: 'ready', iv, tag, salt, rawKey: '', error: '' }
+    await content.save()
+    await removeObject(rawKey)
+    if (previousKey && previousKey !== storageKey) await removeObject(previousKey)
+  } catch (e) {
+    await Content.findByIdAndUpdate(contentId, {
+      $set: { 'enc.status': 'failed', 'enc.error': e?.message || 'encryption failed' },
+    }).catch(() => {})
+  }
+}
+
 export const completeContentUpload = asyncHandler(async (req, res) => {
   const content = await Content.findById(req.params.id)
   if (!content) throw notFound('Content not found')
-  if (content.lane === 'download') throw badRequest('Download-lane content must use the encrypted upload')
 
-  const { storageKey } = req.body
-  const stat = await statObject(storageKey)
+  const { storageKey: uploadKey } = req.body
+  const stat = await statObject(uploadKey)
   if (!stat) throw badRequest('Upload not found in storage — did the PUT succeed?')
 
   const previousKey = content.storageKey
-  content.storageKey = storageKey
+
+  if (content.lane === 'download') {
+    // Mark encrypting + process in the background. We DON'T touch storageKey/iv/tag
+    // here, so any previously-published game keeps working until the new one is ready.
+    content.enc.status = 'encrypting'
+    content.enc.rawKey = uploadKey
+    content.enc.error = ''
+    content.externalUrl = ''
+    await content.save()
+    startDownloadEncryption(content._id.toString(), uploadKey, previousKey) // fire-and-forget
+    audit(req, 'cms.content.upload', { targetType: 'Content', targetId: content._id, meta: { direct: true, encrypting: true } })
+    return res.json({ ok: true, encrypting: true })
+  }
+
+  content.storageKey = uploadKey
   content.sizeBytes = stat.size
   content.enc = { encrypted: false }
+  await maybeTranscodeVideo(content, uploadKey)
   content.externalUrl = ''
-  await maybeTranscodeVideo(content, storageKey)
   await content.save()
-  if (previousKey && previousKey !== storageKey) await removeObject(previousKey)
+  if (previousKey && previousKey !== content.storageKey) await removeObject(previousKey)
   audit(req, 'cms.content.upload', { targetType: 'Content', targetId: content._id, meta: { direct: true } })
   res.json({ ok: true, hls: content.hls?.status || null })
 })

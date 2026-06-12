@@ -117,6 +117,15 @@ const schema = new mongoose.Schema(
       loginSubtitle: { type: String, default: 'Sign in to continue' },
       signupSubtitle: { type: String, default: 'Create your account' },
     },
+    // Desktop launcher (download lane) — installer download shown as an "Install
+    // the Launcher" button to owners of game/software titles. Either an external
+    // `url`, or `storageKey` for an installer hosted in our own S3 bucket (served
+    // via the public /launcher-download redirect).
+    launcher: {
+      url: { type: String, default: '' },
+      version: { type: String, default: '' },
+      storageKey: { type: String, default: '' },
+    },
     footer: {
       blurb: { type: String, default: 'Practice mock tests for competitive exams with real exam simulation.' },
       sections: { type: [section], default: () => [] },
@@ -174,6 +183,11 @@ schema.methods.toPublic = function toPublic() {
       loginGreeting: this.auth?.loginGreeting || 'Welcome back',
       loginSubtitle: this.auth?.loginSubtitle || 'Sign in to continue',
       signupSubtitle: this.auth?.signupSubtitle || 'Create your account',
+    },
+    launcher: {
+      url: this.launcher?.url || '',
+      version: this.launcher?.version || '',
+      hasInstaller: !!this.launcher?.storageKey, // S3-hosted installer available
     },
     footer: {
       blurb: this.footer?.blurb || '',

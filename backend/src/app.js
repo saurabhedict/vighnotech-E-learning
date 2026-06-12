@@ -31,6 +31,15 @@ export function createApp() {
   const app = express()
   app.set('trust proxy', 1)
 
+  // Force HTTPS when enabled (behind a TLS-terminating proxy/LB): redirect any
+  // plaintext request to https so tokens/keys never travel in the clear.
+  if (env.security.forceHttps) {
+    app.use((req, res, next) => {
+      if (req.secure || req.headers['x-forwarded-proto'] === 'https') return next()
+      res.redirect(308, `https://${req.headers.host}${req.originalUrl}`)
+    })
+  }
+
   // ── Static files ───────────────────────────────────────────────────────────
   const __dirname = path.dirname(fileURLToPath(import.meta.url))
   const publicPath = path.join(__dirname, '../../frontend/public')
@@ -38,7 +47,14 @@ export function createApp() {
 
   // ── Performance & hardening (Doc 2 §9) ─────────────────────────────────────
   app.use(compression()) // gzip/brotli responses
-  app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }))
+  app.use(
+    helmet({
+      crossOriginResourcePolicy: { policy: 'cross-origin' },
+      // 1-year HSTS (browsers force https) only when we're actually on TLS; off in
+      // local dev so http://localhost isn't pinned to https.
+      hsts: env.security.forceHttps ? { maxAge: 31536000, includeSubDomains: true, preload: true } : false,
+    })
+  )
   // In dev, accept any localhost / 127.0.0.1 / private-LAN origin on any port —
   // Vite's `host: true` prints a Network URL (e.g. http://192.168.x.x:5173) and
   // opening that would otherwise be CORS-blocked. Prod stays on the strict list.

@@ -28,6 +28,8 @@ export default function CmsManager() {
       if (current.kind === 'chapter') return adminApi.listChapterContent(current.id)
       return adminApi.listNodes({ parentId: current.id })
     },
+    // While a game is encrypting in the background, poll so the row flips to ✓.
+    refetchInterval: (q) => (Array.isArray(q.state.data) && q.state.data.some((c) => c?.enc?.status === 'encrypting') ? 4000 : false),
   })
 
   const refresh = () => qc.invalidateQueries({ queryKey: key })
@@ -162,7 +164,11 @@ export default function CmsManager() {
         {isContentLevel && children.data?.map((c) => (
           <li key={c._id} className="flex items-center gap-2 bg-black/20 rounded-lg px-3 py-2 text-sm flex-wrap">
             <span className="flex-1 min-w-[160px]">{ICON[c.type] || '📦'} {c.title}
-              <span className="text-xs text-vigno-muted ml-2">{c.type} · {c.lane}{c.storageKey ? ' · file ✓' : ''}</span>
+              <span className="text-xs text-vigno-muted ml-2">{c.type} · {c.lane}
+                {c.enc?.status === 'encrypting' ? <span className="text-vigno-accent2"> · 🔒 encrypting…</span>
+                  : c.enc?.status === 'failed' ? <span className="text-red-300"> · ⚠ encrypt failed</span>
+                  : c.storageKey ? ' · file ✓' : ''}
+              </span>
             </span>
             <button onClick={() => togglePaid(c)} className={'text-xs rounded px-2 py-1 ' + (c.isPaid ? 'bg-[#ff9d6b]/20 text-[#ff9d6b]' : 'bg-green-500/20 text-green-300')}>
               {c.isPaid ? `₹${c.price}` : 'FREE'}
