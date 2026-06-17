@@ -38,10 +38,10 @@ const b64url = (buf) => Buffer.from(buf).toString('base64url')
 
 // Sign a device-bound token. `machineId` is the player's stable machine GUID,
 // which the game re-reads locally and compares — so a copied token won't validate.
-export function signGameToken({ contentId, machineId, userId, ttlDays = env.security.gameLicenseTtlDays }) {
+export function signGameToken({ contentId, machineId, userId, ttlMinutes = env.security.gameLicenseTtlMinutes }) {
   const { privateKey } = loadKeys()
   const now = Math.floor(Date.now() / 1000)
-  const payload = { c: String(contentId), m: String(machineId), u: String(userId), iat: now, exp: now + ttlDays * 86400 }
+  const payload = { c: String(contentId), m: String(machineId), u: String(userId), iat: now, exp: now + ttlMinutes * 60 }
   const body = b64url(JSON.stringify(payload))
   const sig = crypto.sign('RSA-SHA256', Buffer.from(body), privateKey)
   return `${body}.${b64url(sig)}`
@@ -50,6 +50,13 @@ export function signGameToken({ contentId, machineId, userId, ttlDays = env.secu
 // The public key the game embeds to verify tokens (served at a well-known URL).
 export function gameLicensePublicKey() {
   return loadKeys().publicKey
+}
+
+// Public key as raw modulus/exponent (base64url). Unity's Mono runtime can't
+// import a PEM, so the in-game LicenseGuard imports these via RSAParameters.
+export function gameLicenseJwk() {
+  const jwk = crypto.createPublicKey(loadKeys().publicKey).export({ format: 'jwk' })
+  return { modulus: jwk.n, exponent: jwk.e }
 }
 
 // Self-check used in tests: verify a token the way the game will.

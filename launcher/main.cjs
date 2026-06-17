@@ -61,7 +61,21 @@ function machineGuid() {
 
 // Running games, so we can wipe their decrypted files on quit. { dir, child }
 const activeRuns = new Set()
-const rmrf = (dir) => { try { fs.rmSync(dir, { recursive: true, force: true }) } catch { /* best-effort */ } }
+// maxRetries handles Windows briefly holding file locks right after the game exits
+// (without it the delete silently fails and decrypted files linger).
+const rmrf = (dir) => { try { fs.rmSync(dir, { recursive: true, force: true, maxRetries: 8, retryDelay: 400 }) } catch { /* best-effort */ } }
+
+// Delete EVERY leftover decrypted-game temp dir (from crashes, force-quits, or a
+// failed cleanup), skipping any game that's currently running.
+function sweepTempGames() {
+  const active = new Set([...activeRuns].map((r) => r.dir))
+  try {
+    for (const name of fs.readdirSync(os.tmpdir())) {
+      const full = path.join(os.tmpdir(), name)
+      if (name.startsWith('vigno-game-') && !active.has(full)) rmrf(full)
+    }
+  } catch { /* */ }
+}
 
 // Find the game's main executable in an extracted Unity build: skip the crash
 // handler, and prefer the <name>.exe that has a sibling <name>_Data folder.
@@ -96,6 +110,7 @@ function createWindow() {
 app.whenReady().then(() => {
   ensureDirs()
   wipeCachedKeys() // online-only: clear any keys cached by previous versions
+  sweepTempGames() // remove any decrypted-game temp dirs left by a crash/force-quit
   createWindow()
   app.on('activate', () => BrowserWindow.getAllWindows().length === 0 && createWindow())
 })
@@ -108,6 +123,7 @@ app.on('before-quit', () => {
     rmrf(run.dir)
   }
   activeRuns.clear()
+  sweepTempGames() // belt-and-suspenders: clear any stragglers
 })
 
 // ── IPC ──────────────────────────────────────────────────────────────────────
@@ -260,6 +276,14 @@ ipcMain.handle('play', async (_e, { contentId, jti }) => {
 })
 
 ipcMain.handle('logout', () => {
+  // End any running games and wipe every decrypted temp dir (incl. app.dat) so
+  // nothing licensed to this session survives the logout.
+  for (const run of activeRuns) {
+    try { run.child.kill() } catch { /* */ }
+    rmrf(run.dir)
+  }
+  activeRuns.clear()
+  sweepTempGames()
   session.token = null
   session.user = null
   session.deviceId = null

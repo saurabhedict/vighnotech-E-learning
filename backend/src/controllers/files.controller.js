@@ -316,7 +316,7 @@ export const getGameLicense = asyncHandler(async (req, res) => {
   if (!(await hasActiveLicense(req.user.id, content._id))) throw paymentRequired()
   const token = signGameToken({ contentId: content._id.toString(), machineId, userId: req.user.id })
   audit(req, 'file.game_license', { targetType: 'Content', targetId: content._id })
-  res.json({ token, fileName: env.security.licenseGuardFile, ttlDays: env.security.gameLicenseTtlDays })
+  res.json({ token, fileName: env.security.licenseGuardFile, ttlMinutes: env.security.gameLicenseTtlMinutes })
 })
 
 // GET /content/:id/download-url — license-gated direct download. Returns a

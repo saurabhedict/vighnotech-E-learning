@@ -59,11 +59,12 @@ export const env = {
     require2faForDownload: bool(process.env.REQUIRE_2FA_FOR_DOWNLOAD, true),
     // Redirect http→https + send long HSTS (enable when behind a TLS proxy in prod).
     forceHttps: bool(process.env.FORCE_HTTPS, false),
-    // In-game device-license (LicenseGuard): how long a token is valid offline, and
-    // the DISGUISED filename the launcher drops into the extracted game's _Data dir
-    // (set something that blends in, e.g. app.dat / resources.dat — game's guard
-    // script must read the same name).
-    gameLicenseTtlDays: num(process.env.GAME_LICENSE_TTL_DAYS, 7),
+    // In-game device-license (LicenseGuard): how long a token is valid (MINUTES).
+    // Kept short so a captured app.dat dies quickly — the launcher mints a fresh
+    // one on every play, so legit launches always have a valid token. And the
+    // DISGUISED filename dropped into the extracted game's _Data dir (set something
+    // that blends in, e.g. app.dat — the game's guard script must read the same name).
+    gameLicenseTtlMinutes: num(process.env.GAME_LICENSE_TTL_MINUTES, 120),
     licenseGuardFile: process.env.LICENSE_GUARD_FILE || 'app.dat',
   },
 

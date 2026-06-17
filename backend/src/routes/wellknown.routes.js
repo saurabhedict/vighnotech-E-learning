@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { keystore } from '../services/keystore.js'
-import { gameLicensePublicKey } from '../services/gameLicense.js'
+import { gameLicensePublicKey, gameLicenseJwk } from '../services/gameLicense.js'
 
 const router = Router()
 
@@ -14,10 +14,12 @@ router.get('/.well-known/vigno-public-key', (_req, res) => {
   res.json(keystore.jwks())
 })
 
-// Public RSA key (PEM) the in-game LicenseGuard embeds to verify device tokens.
+// Public RSA key the in-game LicenseGuard embeds to verify device tokens. Returns
+// modulus/exponent (what Unity/Mono needs via RSAParameters) plus the PEM.
 router.get('/.well-known/game-license-public-key', (_req, res) => {
   res.set('Cache-Control', 'public, max-age=3600')
-  res.type('text/plain').send(gameLicensePublicKey())
+  const { modulus, exponent } = gameLicenseJwk()
+  res.json({ algorithm: 'RS256', modulus, exponent, pem: gameLicensePublicKey() })
 })
 
 export default router

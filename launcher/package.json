@@ -1,6 +1,6 @@
 {
   "name": "vigno-launcher",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "private": true,
   "description": "Vigno Smart Class desktop launcher (download lane) — login, device binding, encrypted download, license+device verify, fetch key, decrypt + extract + run, offline grace.",
   "main": "main.cjs",

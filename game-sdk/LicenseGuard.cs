@@ -2,20 +2,24 @@
 //
 // Drop this single file anywhere under your Unity project's Assets/ folder. It
 // runs automatically BEFORE the first scene loads and QUITS the game if it isn't
-// running on the licensed machine — so a copied game folder won't run on another
-// PC (even the decrypted files extracted at runtime).
+// running on the licensed machine — so a copied game folder won't run elsewhere.
 //
 // HOW IT FITS: the Vigno Launcher decrypts the game, then writes a small signed
-// token (disguised filename) into the game's <Game>_Data folder. This script reads
-// it, verifies our RSA signature, and checks the bound machine id == this PC.
+// token (disguised filename) into the game's <Game>_Data folder. This script
+// verifies our signature + that the bound machine id == this PC, and quits if not.
 //
 // ── ONE-TIME SETUP (must match your Vigno server) ────────────────────────────
-//   1. LICENSE_FILE   : set equal to the server's LICENSE_GUARD_FILE (default "app.dat").
-//   2. PUBLIC_KEY_PEM  : paste the key from  GET /.well-known/game-license-public-key
-//   Then build your game normally. Done.
+//   1. LICENSE_FILE   : equal to the server's LICENSE_GUARD_FILE (default "app.dat").
+//   2. PUBLIC_MODULUS  : the "modulus" value from  GET /.well-known/game-license-public-key
+//   3. PUBLIC_EXPONENT : the "exponent" value from the same place (usually "AQAB").
+//   Then build for Windows Standalone as usual.
 //
-// Requirements: Unity 2021 LTS+ with Player Settings → "Api Compatibility Level"
-//   = .NET Standard 2.1 (needed for RSA.ImportSubjectPublicKeyInfo). Windows target.
+// Why modulus/exponent (not a PEM): Unity's Mono runtime does NOT support PEM
+// import (ImportSubjectPublicKeyInfo) — it throws "Operation is not supported on
+// this platform". Importing raw modulus/exponent (RSAParameters) works everywhere.
+//
+// Requirements: Windows Standalone build. Player Settings → Api Compatibility
+// Level = .NET Standard 2.1 (or .NET Framework — both work with this method).
 // -----------------------------------------------------------------------------
 
 using System;
@@ -29,13 +33,12 @@ using Microsoft.Win32;
 
 public static class LicenseGuard
 {
-    // ── EDIT THESE TWO TO MATCH YOUR SERVER ──────────────────────────────────
+    // ── EDIT THESE TO MATCH YOUR SERVER ──────────────────────────────────────
     const string LICENSE_FILE = "app.dat"; // == server LICENSE_GUARD_FILE
 
-    const string PUBLIC_KEY_PEM =
-@"-----BEGIN PUBLIC KEY-----
-PASTE_YOUR_KEY_FROM_/.well-known/game-license-public-key
------END PUBLIC KEY-----";
+    // From GET /.well-known/game-license-public-key  ("modulus" and "exponent").
+    const string PUBLIC_MODULUS = "PASTE_MODULUS_HERE";
+    const string PUBLIC_EXPONENT = "AQAB"; // 65537 — paste if your server differs
     // ─────────────────────────────────────────────────────────────────────────
 
     [Serializable]
@@ -44,6 +47,10 @@ PASTE_YOUR_KEY_FROM_/.well-known/game-license-public-key
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
     static void Check()
     {
+        // Don't enforce inside the Unity Editor (no launcher/token there) so devs
+        // can keep testing. The guard only runs in real builds.
+        if (Application.isEditor) return;
+
         string reason;
         bool ok;
         try { ok = Validate(out reason); }
@@ -68,11 +75,21 @@ PASTE_YOUR_KEY_FROM_/.well-known/game-license-public-key
         string body = token.Substring(0, dot);
         byte[] signature = FromBase64Url(token.Substring(dot + 1));
 
-        using (var rsa = RSA.Create())
+        // Mono-safe RSA-PKCS1-SHA256 verification (no PEM import).
+        using (var rsa = new RSACryptoServiceProvider())
         {
-            rsa.ImportSubjectPublicKeyInfo(PemToDer(PUBLIC_KEY_PEM), out _);
-            bool sigOk = rsa.VerifyData(Encoding.UTF8.GetBytes(body), signature, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
-            if (!sigOk) { reason = "Invalid license signature."; return false; }
+            rsa.ImportParameters(new RSAParameters
+            {
+                Modulus = FromBase64Url(PUBLIC_MODULUS),
+                Exponent = FromBase64Url(PUBLIC_EXPONENT),
+            });
+            using (var sha = SHA256.Create())
+            {
+                byte[] hash = sha.ComputeHash(Encoding.UTF8.GetBytes(body));
+                var deformatter = new RSAPKCS1SignatureDeformatter(rsa);
+                deformatter.SetHashAlgorithm("SHA256");
+                if (!deformatter.VerifySignature(hash, signature)) { reason = "Invalid license signature."; return false; }
+            }
         }
 
         var p = JsonUtility.FromJson<Payload>(Encoding.UTF8.GetString(FromBase64Url(body)));
@@ -82,7 +99,7 @@ PASTE_YOUR_KEY_FROM_/.well-known/game-license-public-key
         if (!string.Equals(p.m, MachineId(), StringComparison.OrdinalIgnoreCase))
         { reason = "This copy is not licensed for this device."; return false; }
 
-        return true; // ✓ signed by Vigno, not expired, and bound to THIS machine
+        return true; // ✓ signed by Vigno, not expired, bound to THIS machine
     }
 
     // Same id the launcher binds the token to (Windows MachineGuid from the registry).
@@ -98,14 +115,6 @@ PASTE_YOUR_KEY_FROM_/.well-known/game-license-public-key
 #else
         return SystemInfo.deviceUniqueIdentifier;
 #endif
-    }
-
-    static byte[] PemToDer(string pem)
-    {
-        var sb = new StringBuilder();
-        foreach (var line in pem.Split('\n'))
-            if (!line.StartsWith("-----")) sb.Append(line.Trim());
-        return Convert.FromBase64String(sb.ToString());
     }
 
     static byte[] FromBase64Url(string s)
