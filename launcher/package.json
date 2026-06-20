@@ -1,8 +1,8 @@
 {
   "name": "vigno-launcher",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "private": true,
-  "description": "Vigno Smart Class desktop launcher (download lane) — login, device binding, encrypted download, license+device verify, fetch key, decrypt + extract + run, offline grace.",
+  "description": "Vigno Smart Class desktop launcher (download lane) — login, device binding, encrypted download, license+device verify, fetch key, streaming decrypt + extract + run, offline grace.",
   "main": "main.cjs",
   "scripts": {
     "start": "electron .",
@@ -14,7 +14,7 @@
     "electron-builder": "^24.13.3"
   },
   "dependencies": {
-    "adm-zip": "^0.5.17"
+    "yauzl": "^3.4.0"
   },
   "build": {
     "appId": "in.vigno.launcher",

@@ -1,13 +1,14 @@
 // Vigno Launcher — Electron main process (download lane, Doc 2 §7).
 // Implements: login (+2FA), device binding, encrypted download, license+device
-// verify, server-gated key fetch, in-memory decrypt, and offline grace.
+// verify, server-gated key fetch, streaming decrypt + extract, and offline grace.
 const { app, BrowserWindow, ipcMain } = require('electron')
 const path = require('node:path')
 const fs = require('node:fs')
 const os = require('node:os')
 const crypto = require('node:crypto')
 const { spawn, execSync } = require('node:child_process')
-const AdmZip = require('adm-zip')
+const { pipeline } = require('node:stream/promises')
+const yauzl = require('yauzl')
 
 const API = process.env.VIGNO_API || 'http://localhost:4000/api'
 const DATA_DIR = path.join(app.getPath('userData'), 'vigno')
@@ -203,10 +204,51 @@ ipcMain.handle('download', async (e, { contentId }) => {
 
 ipcMain.handle('isDownloaded', (_e, { contentId }) => fs.existsSync(encPath(contentId)))
 
+// Stream-decrypt a .enc file to a plaintext file on disk (AES-256-GCM). We STREAM
+// (not readFileSync) so multi-GB games never blow Node's 2 GiB single-read limit
+// or exhaust RAM. The GCM auth tag is set up front and verified when the stream
+// ends — a tampered/corrupt/wrong-key file makes the pipeline reject.
+async function decryptToFile(srcPath, destPath, keyInfo) {
+  const d = crypto.createDecipheriv('aes-256-gcm', Buffer.from(keyInfo.key, 'base64'), Buffer.from(keyInfo.iv, 'base64'))
+  d.setAuthTag(Buffer.from(keyInfo.tag, 'base64'))
+  await pipeline(fs.createReadStream(srcPath), d, fs.createWriteStream(destPath))
+}
+
+// Stream-extract a ZIP into a directory using yauzl (random-access via fd, low
+// memory, zip64/>4GB-safe). Guards against zip-slip path traversal.
+function extractZip(zipPath, destDir) {
+  return new Promise((resolve, reject) => {
+    yauzl.open(zipPath, { lazyEntries: true, autoClose: true }, (err, zip) => {
+      if (err) return reject(err)
+      zip.on('error', reject)
+      zip.on('end', resolve)
+      zip.readEntry()
+      zip.on('entry', (entry) => {
+        const out = path.join(destDir, entry.fileName)
+        const rel = path.relative(destDir, out)
+        if (rel.startsWith('..') || path.isAbsolute(rel)) return reject(new Error(`Unsafe path in archive: ${entry.fileName}`))
+        if (entry.fileName.endsWith('/')) { // directory entry
+          fs.mkdirSync(out, { recursive: true })
+          return zip.readEntry()
+        }
+        fs.mkdirSync(path.dirname(out), { recursive: true })
+        zip.openReadStream(entry, (e, rs) => {
+          if (e) return reject(e)
+          const ws = fs.createWriteStream(out)
+          rs.on('error', reject)
+          ws.on('error', reject)
+          ws.on('close', () => zip.readEntry())
+          rs.pipe(ws)
+        })
+      })
+    })
+  })
+}
+
 /**
  * Play (ONLINE-ONLY): verify license + device, fetch the server-gated key, and
- * decrypt the ciphertext IN MEMORY. The key is never written to disk — so a live
- * server check is required every time and no key file exists for anyone to read.
+ * decrypt the ciphertext via STREAMING. The key is never written to disk — so a
+ * live server check is required every time and no key file exists for anyone to read.
  */
 ipcMain.handle('play', async (_e, { contentId, jti }) => {
   if (!fs.existsSync(encPath(contentId))) throw new Error('Not downloaded yet')
@@ -237,20 +279,21 @@ ipcMain.handle('play', async (_e, { contentId, jti }) => {
   } catch { /* optional — older backend / unguarded game */ }
   const online = true
 
-  const ct = fs.readFileSync(encPath(contentId))
-  const d = crypto.createDecipheriv('aes-256-gcm', Buffer.from(keyInfo.key, 'base64'), Buffer.from(keyInfo.iv, 'base64'))
-  d.setAuthTag(Buffer.from(keyInfo.tag, 'base64'))
-  const plain = Buffer.concat([d.update(ct), d.final()]) // the decrypted game ZIP, in memory
-
-  // Extract the decrypted ZIP to a throwaway temp dir and launch the game. The
-  // decrypted files exist on disk ONLY while the game runs — we delete them when it
-  // exits (and on launcher quit). At rest, only the encrypted .enc remains.
+  // Decrypt + unpack via STREAMING (never load the whole game into RAM): the .enc is
+  // stream-decrypted to a temp .zip, then stream-extracted. This handles multi-GB
+  // titles that exceed Node's 2 GiB single-buffer limit. The temp .zip is deleted the
+  // moment extraction finishes; the extracted files exist on disk ONLY while the game
+  // runs (wiped on exit / quit / crash sweep). At rest, only the encrypted .enc remains.
   const workDir = fs.mkdtempSync(path.join(os.tmpdir(), 'vigno-game-'))
+  const tmpZip = path.join(workDir, '__title.zip') // inside workDir so crash-sweep also removes it
   try {
-    new AdmZip(plain).extractAllTo(workDir, /* overwrite */ true)
+    await decryptToFile(encPath(contentId), tmpZip, keyInfo)
+    await extractZip(tmpZip, workDir)
   } catch (e) {
     rmrf(workDir)
     throw new Error(`Could not unpack the title: ${e.message}`)
+  } finally {
+    try { fs.rmSync(tmpZip, { force: true }) } catch { /* */ }
   }
   const exe = findGameExe(workDir)
   if (!exe) { rmrf(workDir); throw new Error('No runnable .exe found in this title') }

@@ -85,7 +85,9 @@ export function createApp() {
       credentials: true,
     })
   )
-  if (!env.isProd) app.use(morgan('dev'))
+  // Skip 304 "Not Modified" responses — these are mostly the CMS status-polls
+  // (e.g. the 4s "is it done encrypting yet?" refetch) and just flood the console.
+  if (!env.isProd) app.use(morgan('dev', { skip: (_req, res) => res.statusCode === 304 }))
   app.use(globalLimiter)
 
   // Razorpay webhook needs the RAW body for signature verification — mount it

@@ -213,6 +213,9 @@ export const completeContentUploadSchema = z.object({
 // enc.status to 'ready'/'failed' when done, then frees the raw + any replaced
 // object. The previous file stays playable until the new one is ready.
 export async function startDownloadEncryption(contentId, rawKey, previousKey) {
+  const startedAt = Date.now()
+  // eslint-disable-next-line no-console
+  console.log(`[enc] start ${contentId} (src=${rawKey})`)
   try {
     const content = await Content.findById(contentId)
     if (!content) return
@@ -225,7 +228,11 @@ export async function startDownloadEncryption(contentId, rawKey, previousKey) {
     await content.save()
     await removeObject(rawKey)
     if (previousKey && previousKey !== storageKey) await removeObject(previousKey)
+    // eslint-disable-next-line no-console
+    console.log(`[enc] done  ${contentId} → ready (${Math.round(sizeBytes / 1e6)}MB in ${Math.round((Date.now() - startedAt) / 1000)}s)`)
   } catch (e) {
+    // eslint-disable-next-line no-console
+    console.error(`[enc] FAIL  ${contentId} after ${Math.round((Date.now() - startedAt) / 1000)}s:`, e?.message || e)
     await Content.findByIdAndUpdate(contentId, {
       $set: { 'enc.status': 'failed', 'enc.error': e?.message || 'encryption failed' },
     }).catch(() => {})
