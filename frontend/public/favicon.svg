@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="AeroLearn">
+  <rect width="64" height="64" rx="14" fill="#0a0f1e"/>
+  <path d="M32 12 L49 51 L41 51 L37.5 42.5 L26.5 42.5 L23 51 L15 51 Z" fill="#f0c040"/>
+  <path d="M29 36 L35 36 L32 28 Z" fill="#0a0f1e"/>
+</svg>
