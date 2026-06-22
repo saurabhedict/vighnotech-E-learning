@@ -15,4 +15,18 @@ export default defineConfig({
     // ../shared (outside this app's root) via the file: dependency symlink.
     fs: { allow: ['..'] },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        // Split rarely-changing vendor code into its own long-cached chunks so a
+        // routine app-code change doesn't bust the whole bundle hash for returning
+        // users. (Heavy media libs — hls.js / pdfjs / three — are intentionally NOT
+        // listed here; they stay route/component-lazy so they load only on demand.)
+        manualChunks: {
+          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+          'state-vendor': ['@reduxjs/toolkit', 'react-redux', '@tanstack/react-query'],
+        },
+      },
+    },
+  },
 })

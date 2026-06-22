@@ -4,12 +4,14 @@ import { useSelector } from 'react-redux'
 import { useContentItem } from '../hooks/useContent'
 import { useSiteSettings } from '../hooks/useSiteSettings'
 import { discoverApi } from '../api/discoverApi'
-import VideoPlayer from '../components/VideoPlayer'
-import PdfViewer from '../components/PdfViewer'
 import BuyButton from '../components/BuyButton'
 import FavoriteButton from '../components/FavoriteButton'
 
-// Lazy so Three.js is only downloaded when a 3D item is opened.
+// Lazy-load the heavy media viewers so each library (hls.js ≈ video, pdfjs ≈ pdf,
+// three.js ≈ 3d) is fetched ONLY when its content type is actually opened. This
+// keeps the ContentViewer chunk small instead of bundling all three together.
+const VideoPlayer = lazy(() => import('../components/VideoPlayer'))
+const PdfViewer = lazy(() => import('../components/PdfViewer'))
 const Model3DViewer = lazy(() => import('../components/Model3DViewer'))
 
 // Picks the right secure viewer based on content type, and gates paid content
@@ -107,25 +109,21 @@ export default function ContentViewer() {
 
         {/* Unlocked stream content */}
         {accessible && (
-          <>
+          <Suspense fallback={<div className="h-72 flex items-center justify-center text-vigno-muted">Loading viewer…</div>}>
             {item.type === 'video' && <VideoPlayer src={item.src} watermark={watermark} onProgress={onProgress} />}
             {item.type === 'pdf' && (
               <div className="bg-white rounded-xl p-3 max-h-[70vh] overflow-auto">
                 <PdfViewer url={item.url} watermark={watermark} />
               </div>
             )}
-            {item.type === '3d' && (
-              <Suspense fallback={<div className="h-72 flex items-center justify-center text-vigno-muted">Loading 3D viewer…</div>}>
-                <Model3DViewer src={item.url} watermark={watermark} />
-              </Suspense>
-            )}
+            {item.type === '3d' && <Model3DViewer src={item.url} watermark={watermark} />}
             {item.type === 'game' && (
               <div className="h-72 flex flex-col items-center justify-center text-vigno-muted text-center">
                 <div className="text-5xl mb-2">🎮</div>
                 <div>Simulation launches via the secure desktop launcher.</div>
               </div>
             )}
-          </>
+          </Suspense>
         )}
       </div>
 

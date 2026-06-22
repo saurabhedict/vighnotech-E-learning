@@ -1,14 +1,17 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, lazy, Suspense } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { adminApi } from '../../api/adminApi'
 import { apiErrorMessage } from '../../api/authApi'
 import { subscribeUploads } from '../../lib/uploadManager'
-import CmsManager from './CmsManager'
-import UsersPanel from './UsersPanel'
-import ReportsPanel from './ReportsPanel'
-import CommercePanel from './CommercePanel'
-import SettingsPanel from './SettingsPanel'
 import Breadcrumb from '../../components/Breadcrumb'
+
+// Lazy-load each tab panel so the dashboard only downloads the panel you open,
+// instead of bundling all five (CMS, users, reports, commerce, settings) up front.
+const CmsManager = lazy(() => import('./CmsManager'))
+const UsersPanel = lazy(() => import('./UsersPanel'))
+const ReportsPanel = lazy(() => import('./ReportsPanel'))
+const CommercePanel = lazy(() => import('./CommercePanel'))
+const SettingsPanel = lazy(() => import('./SettingsPanel'))
 
 function StatCard({ label, value, accent }) {
   return (
@@ -154,14 +157,16 @@ export default function AdminDashboard() {
 
       <GlobalUploads />
 
-      {tab === 'overview' && <><div className="mb-6"><Overview /></div></>}
-      {tab === 'content' && <Panel title="Content Tree Manager"><CmsManager /></Panel>}
-      {tab === 'users' && <Panel title="Manage Users"><UsersPanel /></Panel>}
-      {tab === 'reports' && <Panel title="Reports & Export"><ReportsPanel /></Panel>}
-      {tab === 'commerce' && <Panel title="Coupons & Refunds"><CommercePanel /></Panel>}
-      {tab === 'licenses' && <Panel title="Revoke License"><RevokeLicense /></Panel>}
-      {tab === 'settings' && <Panel title="Site Settings — Footer & Branding"><SettingsPanel /></Panel>}
-      {tab === 'audit' && <Panel title="Recent Activity (Audit Log)"><AuditLog /></Panel>}
+      <Suspense fallback={<p className="text-vigno-muted">Loading…</p>}>
+        {tab === 'overview' && <div className="mb-6"><Overview /></div>}
+        {tab === 'content' && <Panel title="Content Tree Manager"><CmsManager /></Panel>}
+        {tab === 'users' && <Panel title="Manage Users"><UsersPanel /></Panel>}
+        {tab === 'reports' && <Panel title="Reports & Export"><ReportsPanel /></Panel>}
+        {tab === 'commerce' && <Panel title="Coupons & Refunds"><CommercePanel /></Panel>}
+        {tab === 'licenses' && <Panel title="Revoke License"><RevokeLicense /></Panel>}
+        {tab === 'settings' && <Panel title="Site Settings — Footer & Branding"><SettingsPanel /></Panel>}
+        {tab === 'audit' && <Panel title="Recent Activity (Audit Log)"><AuditLog /></Panel>}
+      </Suspense>
     </div>
   )
 }
