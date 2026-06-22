@@ -29,6 +29,9 @@ const treeNodeSchema = new mongoose.Schema(
   { timestamps: true }
 )
 
-treeNodeSchema.index({ parentId: 1, order: 1 })
+// Hot path: list a node's children (CMS tree + course tree walk), filtered by
+// kind and sorted by display order. Compound covers parentId, parentId+kind,
+// and the parentId+kind+order sort in one index.
+treeNodeSchema.index({ parentId: 1, kind: 1, order: 1 })
 
 export const TreeNode = mongoose.model('TreeNode', treeNodeSchema)

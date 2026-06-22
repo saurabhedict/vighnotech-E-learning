@@ -17,4 +17,7 @@ const auditLogSchema = new mongoose.Schema(
   { timestamps: { createdAt: 'time', updatedAt: false } }
 )
 
+// Admin audit feed: newest-first, indexed so deep pages don't in-memory sort.
+auditLogSchema.index({ time: -1 })
+
 export const AuditLog = mongoose.model('AuditLog', auditLogSchema)

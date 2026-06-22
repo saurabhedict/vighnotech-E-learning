@@ -12,6 +12,9 @@ const CACHE_KEY = 'site:settings'
 // GET /api/settings — public; the footer/site renders from this.
 export const getSettings = asyncHandler(async (_req, res) => {
   const data = await cache.wrap(CACHE_KEY, 30, async () => (await SiteSettings.getSingleton()).toPublic())
+  // Non-personalized + already 30s server-cached → let the browser serve it from
+  // cache without a revalidation round-trip, and refresh in the background after.
+  res.set('Cache-Control', 'public, max-age=30, stale-while-revalidate=60')
   res.json(data)
 })
 

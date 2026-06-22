@@ -8,7 +8,13 @@ import { createMediaUrl } from '../services/storage.js'
 import { cache } from '../services/cache.js'
 
 // GET /courses → ["PPL_Ground", ...] (matches frontend fetchClasses). Cached.
+// The course catalog/tree is non-personalized (same for everyone — only paid
+// flags, no per-user ownership), so let browsers cache it briefly and skip the
+// revalidation round-trip on back-and-forth browsing.
+const CATALOG_CACHE = 'public, max-age=30, stale-while-revalidate=60'
+
 export const listCourses = asyncHandler(async (_req, res) => {
+  res.set('Cache-Control', CATALOG_CACHE)
   res.json(await cache.wrap('courses:slugs', 30, listCourseSlugs))
 })
 
@@ -16,6 +22,7 @@ export const listCourses = asyncHandler(async (_req, res) => {
 export const courseTree = asyncHandler(async (req, res) => {
   const tree = await getCourseTree(req.params.className)
   if (!tree) throw notFound('Course not found')
+  res.set('Cache-Control', CATALOG_CACHE)
   res.json(tree)
 })
 
@@ -23,6 +30,7 @@ export const courseTree = asyncHandler(async (req, res) => {
 export const moduleView = asyncHandler(async (req, res) => {
   const mod = await getModule(req.params.className, req.params.moduleId)
   if (!mod) throw notFound('Module not found')
+  res.set('Cache-Control', CATALOG_CACHE)
   res.json(mod)
 })
 

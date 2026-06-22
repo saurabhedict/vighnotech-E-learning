@@ -18,5 +18,7 @@ const progressSchema = new mongoose.Schema(
 )
 
 progressSchema.index({ userId: 1, contentId: 1 }, { unique: true })
+// "Continue watching": a user's most-recent items without an in-memory sort.
+progressSchema.index({ userId: 1, lastViewedAt: -1 })
 
 export const Progress = mongoose.model('Progress', progressSchema)

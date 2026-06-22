@@ -67,6 +67,10 @@ const contentSchema = new mongoose.Schema(
 )
 
 contentSchema.index({ courseKey: 1, published: 1 })
+// Hot path: list a chapter's content in display order (CMS + public tree).
+contentSchema.index({ chapterId: 1, published: 1, order: 1 })
+// Recommended fallback: newest paid, published content.
+contentSchema.index({ published: 1, isPaid: 1, createdAt: -1 })
 // Full-text index for search (title/description/tags).
 contentSchema.index({ title: 'text', description: 'text', tags: 'text' })
 

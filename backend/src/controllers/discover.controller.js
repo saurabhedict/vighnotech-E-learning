@@ -4,6 +4,11 @@ import { Favorite } from '../models/Favorite.js'
 import { Progress } from '../models/Progress.js'
 import { Content } from '../models/Content.js'
 import { License } from '../models/License.js'
+import { cache } from '../services/cache.js'
+
+// Only the fields card() needs — keeps list payloads small and avoids pulling
+// heavy/secret-ish content fields (hls, drm, storageKey, description, tags…).
+const CARD_FIELDS = 'title type lane isPaid price courseKey'
 
 const card = (c) => ({
   id: c._id.toString(),
@@ -37,7 +42,7 @@ export const myFavoriteIds = asyncHandler(async (req, res) => {
 })
 
 export const myFavorites = asyncHandler(async (req, res) => {
-  const favs = await Favorite.find({ userId: req.user.id }).sort({ createdAt: -1 }).populate('contentId').lean()
+  const favs = await Favorite.find({ userId: req.user.id }).sort({ createdAt: -1 }).populate('contentId', CARD_FIELDS).lean()
   res.json({ items: favs.filter((f) => f.contentId).map((f) => card(f.contentId)) })
 })
 
@@ -57,7 +62,7 @@ export const search = asyncHandler(async (req, res) => {
     const rx = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i')
     filter.$or = [{ title: rx }, { description: rx }, { tags: rx }]
   }
-  const items = await Content.find(filter).sort({ createdAt: -1 }).limit(60).lean()
+  const items = await Content.find(filter).sort({ createdAt: -1 }).limit(60).select(CARD_FIELDS).lean()
   res.json({ items: items.map(card), count: items.length })
 })
 
@@ -83,7 +88,7 @@ export const upsertProgress = asyncHandler(async (req, res) => {
 
 export const myProgress = asyncHandler(async (req, res) => {
   const limit = Math.min(Number(req.query.limit) || 12, 50)
-  const rows = await Progress.find({ userId: req.user.id }).sort({ lastViewedAt: -1 }).limit(limit).populate('contentId').lean()
+  const rows = await Progress.find({ userId: req.user.id }).sort({ lastViewedAt: -1 }).limit(limit).populate('contentId', CARD_FIELDS).lean()
   const items = rows
     .filter((r) => r.contentId)
     .map((r) => ({ ...card(r.contentId), position: r.position, duration: r.duration, completed: r.completed, lastViewedAt: r.lastViewedAt }))
@@ -93,14 +98,17 @@ export const myProgress = asyncHandler(async (req, res) => {
 // ── Recommended ──────────────────────────────────────────────────────────────
 export const recommended = asyncHandler(async (req, res) => {
   const owned = (await License.find({ userId: req.user.id, status: 'active' }).distinct('contentId')).map((i) => i.toString())
-  // Popularity by licenses issued.
-  const popular = await License.aggregate([
-    { $group: { _id: '$contentId', n: { $sum: 1 } } },
-    { $sort: { n: -1 } },
-    { $limit: 30 },
-  ])
+  // Popularity by licenses issued. This is GLOBAL (not per-user) and scans the
+  // whole License collection, so cache it for 60s instead of recomputing per request.
+  const popular = await cache.wrap('recommended:popular', 60, () =>
+    License.aggregate([
+      { $group: { _id: '$contentId', n: { $sum: 1 } } },
+      { $sort: { n: -1 } },
+      { $limit: 30 },
+    ])
+  )
   const popularIds = popular.map((p) => p._id).filter(Boolean)
-  let items = await Content.find({ _id: { $in: popularIds }, published: true }).lean()
+  let items = await Content.find({ _id: { $in: popularIds }, published: true }).select(CARD_FIELDS).lean()
   // order by popularity
   const rank = Object.fromEntries(popular.map((p, i) => [p._id?.toString(), i]))
   items.sort((a, b) => (rank[a._id.toString()] ?? 99) - (rank[b._id.toString()] ?? 99))
@@ -111,6 +119,7 @@ export const recommended = asyncHandler(async (req, res) => {
     const more = await Content.find({ published: true, isPaid: true, _id: { $nin: [...owned, ...items.map((i) => i._id)] } })
       .sort({ createdAt: -1 })
       .limit(8)
+      .select(CARD_FIELDS)
       .lean()
     items = [...items, ...more]
   }
