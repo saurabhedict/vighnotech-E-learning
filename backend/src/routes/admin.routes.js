@@ -15,6 +15,7 @@ router.use(requireAuth, requireRole('admin'))
 // Dashboard
 router.get('/stats', admin.stats)
 router.get('/audit', admin.recentAudit)
+router.delete('/audit', admin.clearAuditLog)
 
 // Reports + export (CSV / XLSX / PDF)
 router.get('/reports/:type', admin.getReport)
@@ -30,6 +31,7 @@ router.get('/nodes', admin.listNodes)
 router.post('/nodes', validate({ body: admin.createNodeSchema }), admin.createNode)
 router.post('/nodes/reorder', validate({ body: admin.reorderSchema }), admin.reorderNodes)
 router.patch('/nodes/:id', admin.updateNode)
+router.post('/nodes/:id/upload-thumbnail', upload.single('file'), admin.uploadCourseThumbnail)
 router.delete('/nodes/:id', admin.deleteNode)
 router.get('/chapters/:chapterId/content', admin.listContentByChapter)
 
@@ -38,6 +40,12 @@ router.post('/content', validate({ body: admin.createContentSchema }), admin.cre
 router.patch('/content/:id', admin.updateContent)
 router.delete('/content/:id', admin.deleteContent)
 router.post('/content/:id/upload', upload.single('file'), admin.uploadContentFile)
+router.post('/content/:id/upload-thumbnail', upload.single('file'), admin.uploadContentThumbnail)
+
+// Standalone resources
+router.post('/resources', admin.createStandaloneResource)
+router.get('/resources', admin.listStandaloneResources)
+router.delete('/resources/:id', admin.deleteStandaloneResource)
 // Direct browser→S3 upload (stream lane): presign a URL, then confirm completion.
 router.post('/content/:id/upload-url', admin.getContentUploadUrl)
 router.post('/content/:id/upload-complete', validate({ body: admin.completeContentUploadSchema }), admin.completeContentUpload)

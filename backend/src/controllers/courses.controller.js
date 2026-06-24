@@ -36,8 +36,24 @@ export const getContent = asyncHandler(async (req, res) => {
   const content = await Content.findById(req.params.contentId)
   if (!content || !content.published) throw notFound('Content not found')
 
-  const owned = content.isPaid && req.user ? await hasActiveLicense(req.user.id, content._id) : false
+  const isAdmin = req.user?.role === 'admin'
+  const owned = content.isPaid && req.user ? (isAdmin || await hasActiveLicense(req.user.id, content._id)) : false
   const accessible = !content.isPaid || owned
+
+  let thumbnailUrl = content.thumbnail || ''
+  let thumbnailStorageKey = content.thumbnailStorageKey || ''
+
+  if (!thumbnailStorageKey && thumbnailUrl) {
+    const match = thumbnailUrl.match(/(obj_[a-z0-9]{20}(?:\.[a-z0-9]+)?)/i)
+    if (match) {
+      thumbnailStorageKey = match[1]
+      await Content.updateOne({ _id: content._id }, { $set: { thumbnailStorageKey } })
+    }
+  }
+
+  if (thumbnailStorageKey) {
+    thumbnailUrl = await createMediaUrl(thumbnailStorageKey)
+  }
 
   const base = {
     id: content._id.toString(),
@@ -46,6 +62,10 @@ export const getContent = asyncHandler(async (req, res) => {
     lane: content.lane,
     paid: content.isPaid,
     price: content.price,
+    courseKey: content.courseKey || '',
+    description: content.description || '',
+    previewText: content.previewText || '',
+    thumbnailUrl,
   }
 
   if (!accessible) {

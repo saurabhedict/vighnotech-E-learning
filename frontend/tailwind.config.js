@@ -14,6 +14,7 @@ export default {
           panel: v('panel'), card: v('card'), line: v('line'),
           txt: v('txt'), muted: v('muted'),
           accent: v('accent'), accent2: v('accent2'),
+          'accent-txt': v('accent-txt'),
         },
       },
       fontFamily: { sans: ['Segoe UI', 'system-ui', 'Arial', 'sans-serif'] },

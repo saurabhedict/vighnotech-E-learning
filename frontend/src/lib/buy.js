@@ -4,7 +4,7 @@ import { SITE_SETTINGS_KEY } from '../hooks/useSiteSettings'
 
 // Brand name shown in the Razorpay checkout modal — read from cached settings.
 function brandName() {
-  return queryClient.getQueryData(SITE_SETTINGS_KEY)?.brand?.name || 'AeroLearn'
+  return queryClient.getQueryData(SITE_SETTINGS_KEY)?.brand?.name || 'Aerolearn'
 }
 
 // Lazily load the Razorpay checkout script (only needed for live payments).
@@ -54,6 +54,46 @@ export async function purchaseContent(contentId, user, couponCode) {
       handler: (resp) => {
         paymentsApi
           .verify({
+            orderId: resp.razorpay_order_id,
+            paymentId: resp.razorpay_payment_id,
+            signature: resp.razorpay_signature,
+          })
+          .then(resolve)
+          .catch(reject)
+      },
+      modal: { ondismiss: () => reject(new Error('Payment cancelled')) },
+    })
+    rzp.open()
+  })
+}
+
+export async function purchaseCourse(courseSlug, user, couponCode) {
+  const order = await paymentsApi.createCourseOrder(courseSlug, couponCode)
+
+  if (order.free) return order
+
+  if (order.mock) {
+    return paymentsApi.verifyCourse({
+      orderId: order.orderId,
+      paymentId: order.mockPaymentId,
+      signature: order.mockSignature,
+    })
+  }
+
+  await loadRazorpayScript()
+  return new Promise((resolve, reject) => {
+    const rzp = new window.Razorpay({
+      key: order.keyId,
+      amount: order.amount,
+      currency: order.currency,
+      name: brandName(),
+      description: 'Course license',
+      order_id: order.orderId,
+      prefill: { email: user?.email },
+      theme: { color: '#e67e22' },
+      handler: (resp) => {
+        paymentsApi
+          .verifyCourse({
             orderId: resp.razorpay_order_id,
             paymentId: resp.razorpay_payment_id,
             signature: resp.razorpay_signature,

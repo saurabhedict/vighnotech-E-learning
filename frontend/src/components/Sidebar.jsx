@@ -8,95 +8,151 @@ export default function Sidebar() {
   const { className } = useParams()
   const dispatch = useDispatch()
   const collapsed = useSelector((s) => s.ui.sidebarCollapsed)
+  const theme = useSelector((s) => s.ui.theme)
+  const user = useSelector((s) => s.auth.user)
   const { data: classes, isLoading } = useClasses()
   const { data: settings } = useSiteSettings()
-  const brandName = settings?.brand?.name || 'AeroLearn'
+  const brandName = settings?.brand?.name || 'Aerolearn'
   const logoEmoji = settings?.brand?.logoEmoji ?? '✈'
+  const isAdmin = user?.role === 'admin'
+  const isDark = theme === 'dark'
+
+  const base = [
+    'aero-sidebar flex-none flex flex-col sticky top-0 h-screen overflow-hidden',
+    isDark
+      ? 'bg-black/30 border-r border-vigno-line/40'
+      : 'bg-white/80 border-r border-vigno-line',
+  ].join(' ')
+
+  const activeItem = isDark
+    ? 'bg-gradient-to-r from-vigno-accent/35 to-transparent border-l-2 border-vigno-accent text-vigno-txt'
+    : 'bg-vigno-accent/15 border-l-2 border-vigno-accent text-vigno-txt font-semibold'
+
+  const inactiveItem = isDark
+    ? 'hover:bg-white/10 text-vigno-muted hover:text-vigno-txt'
+    : 'hover:bg-vigno-line/30 text-vigno-muted hover:text-vigno-txt'
+
+  const navItemCls = (isActive) =>
+    `text-left rounded-lg px-2.5 py-2 text-sm flex justify-between items-center transition-all ${isActive ? activeItem : inactiveItem}`
 
   if (collapsed) {
     return (
-      <aside className="w-14 flex-none bg-vigno-panel border-r border-vigno-line/50 p-2 flex flex-col items-center pt-4 gap-3">
+      <aside className={base + ' w-12 p-2 items-center gap-2'}>
         <button
           onClick={() => dispatch(toggleSidebar())}
           title="Expand sidebar"
           aria-label="Expand sidebar"
-          className="w-9 h-9 grid place-items-center rounded-lg bg-white/8 hover:bg-vigno-accent/20 border border-vigno-line text-vigno-muted hover:text-vigno-accent transition-all duration-150"
+          className={[
+            'w-8 h-8 grid place-items-center rounded-lg border transition-all',
+            isDark
+              ? 'bg-white/10 hover:bg-white/20 border-vigno-line text-vigno-muted hover:text-vigno-txt'
+              : 'bg-vigno-line/30 hover:bg-vigno-line/60 border-vigno-line text-vigno-muted hover:text-vigno-txt',
+          ].join(' ')}
         >
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M5 3l4 4-4 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          »
         </button>
-        <div className="mt-2 text-vigno-muted/60 text-base" title="Courses">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+        <div className="mt-1 text-vigno-muted" title="Courses">
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
+          </svg>
         </div>
+        {isAdmin && (
+          <NavLink
+            to="/app/admin?tab=overview"
+            title="Admin Dashboard"
+            className={({ isActive }) => [
+              'mt-2 w-8 h-8 grid place-items-center rounded-lg border transition-all text-sm',
+              isActive
+                ? isDark ? 'bg-vigno-accent/30 border-vigno-accent/50 text-vigno-accent' : 'bg-amber-100 border-amber-300 text-amber-700'
+                : isDark ? 'bg-white/10 hover:bg-vigno-accent/15 border-vigno-line text-vigno-muted hover:text-vigno-accent' : 'bg-amber-50/60 hover:bg-amber-100 border-amber-200 text-amber-600',
+            ].join(' ')}
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+          </NavLink>
+        )}
       </aside>
     )
   }
 
   return (
-    <aside className="w-64 flex-none bg-vigno-panel border-r border-vigno-line/50 flex flex-col">
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-vigno-line/40">
-        <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-md bg-vigno-accent/20 flex items-center justify-center text-vigno-accent text-sm font-bold">
-            {logoEmoji}
-          </div>
-          <span className="font-semibold text-sm text-vigno-txt">{brandName}</span>
+    <aside className={base + ' w-60 p-4 overflow-auto'}>
+      {/* Brand header */}
+      <div className="flex items-center justify-between pb-3 mb-1">
+        <div style={{ fontFamily: "'Caveat', cursive" }} className="text-3xl font-bold px-2 select-none text-vigno-txt">
+          {brandName}
         </div>
         <button
           onClick={() => dispatch(toggleSidebar())}
           title="Collapse sidebar"
           aria-label="Collapse sidebar"
-          className="w-7 h-7 grid place-items-center rounded-md hover:bg-white/10 text-vigno-muted hover:text-vigno-txt transition-colors"
+          className={[
+            'w-7 h-7 grid place-items-center rounded-lg border text-sm transition-all',
+            isDark
+              ? 'bg-white/10 hover:bg-white/20 border-vigno-line text-vigno-muted hover:text-vigno-txt'
+              : 'bg-vigno-line/30 hover:bg-vigno-line/60 border-vigno-line text-vigno-muted hover:text-vigno-txt',
+          ].join(' ')}
         >
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M9 3L5 7l4 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          «
         </button>
       </div>
 
-      {/* Filter tabs */}
-      <div className="px-3 pt-3 pb-2">
-        <div className="flex gap-1 bg-black/20 rounded-lg p-0.5 text-xs">
-          <span className="flex-1 text-center bg-vigno-accent text-[#1a1000] font-semibold rounded-md py-1.5 cursor-default">Ground</span>
-          <span className="flex-1 text-center text-vigno-muted/50 rounded-md py-1.5 cursor-not-allowed" title="Coming soon">Flight</span>
-          <NavLink to="/app/favorites" className={({ isActive }) =>
-            'flex-1 text-center rounded-md py-1.5 transition-colors ' +
-            (isActive ? 'bg-vigno-accent text-[#1a1000] font-semibold' : 'text-vigno-muted hover:bg-white/10 hover:text-vigno-txt')
-          }>★ Saved</NavLink>
-        </div>
+      {/* Mode tabs */}
+      <div className={[
+        'flex gap-1 rounded-xl p-1 mb-4 text-xs',
+        isDark ? 'bg-black/25' : 'bg-vigno-line/30',
+      ].join(' ')}>
+        <span className="flex-1 text-center bg-vigno-accent text-vigno-accent-txt font-bold rounded-lg py-1.5 shadow-sm">Ground</span>
+        <span className="flex-1 text-center text-vigno-muted/50 rounded-lg py-1.5 cursor-not-allowed" title="Coming soon">Flight</span>
+        <NavLink to="/app/favorites" className={({ isActive }) =>
+          `flex-1 text-center rounded-lg py-1.5 transition-all ${isActive
+            ? 'bg-vigno-accent text-vigno-accent-txt font-bold shadow-sm'
+            : isDark ? 'text-vigno-muted hover:bg-white/10' : 'text-vigno-muted hover:bg-vigno-line/40'
+          }`
+        }>★ Saved</NavLink>
       </div>
 
-      {/* Section label */}
-      <div className="px-4 pt-2 pb-1.5">
-        <span className="text-[10px] font-semibold tracking-widest uppercase text-vigno-muted/70">Courses</span>
-      </div>
+      {/* Admin link — only for admin users */}
+      {isAdmin && (
+        <>
+          <NavLink
+            to="/app/admin?tab=overview"
+            className={({ isActive }) => [
+              'flex items-center gap-2 rounded-lg px-2.5 py-2 text-sm mb-2 border transition-all font-medium',
+              isActive
+                ? isDark ? 'bg-vigno-accent/20 border-vigno-accent/40 text-vigno-accent' : 'bg-amber-50 border-amber-200 text-amber-700 font-semibold'
+                : isDark ? 'bg-vigno-accent/8 border-vigno-accent/20 text-vigno-accent/80 hover:bg-vigno-accent/15 hover:text-vigno-accent' : 'bg-amber-50/60 border-amber-100 text-amber-600 hover:bg-amber-100 hover:text-amber-700',
+            ].join(' ')}
+          >
+            <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            <span>Admin Dashboard</span>
+          </NavLink>
+          <div className={`h-px mb-3 ${isDark ? 'bg-vigno-line/40' : 'bg-vigno-line/60'}`} />
+        </>
+      )}
 
-      {/* Scrollable nav */}
-      <nav className="flex-1 overflow-y-auto px-2 pb-4 scrollbar-thin">
-        {isLoading && (
-          <div className="flex flex-col gap-1.5 px-2 py-2">
-            {[...Array(6)].map((_, i) => (
-              <div key={i} className="h-9 rounded-lg bg-white/5 animate-pulse" />
-            ))}
-          </div>
-        )}
-        <div className="flex flex-col gap-0.5">
-          {classes?.map((c) => (
-            <NavLink
-              key={c}
-              to={`/app/${c}`}
-              onClick={() => dispatch(setSelectedClass(c))}
-              className={({ isActive }) =>
-                'group flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-all duration-150 ' +
-                ((isActive || c === className)
-                  ? 'bg-vigno-accent/15 text-vigno-accent border-l-2 border-vigno-accent font-medium pl-[10px]'
-                  : 'text-vigno-muted hover:bg-white/8 hover:text-vigno-txt border-l-2 border-transparent pl-[10px]')
-              }
-            >
-              <span className="truncate">{c.replace(/_/g, ' ')}</span>
-              <svg className="shrink-0 opacity-40 group-hover:opacity-70 transition-opacity" width="12" height="12" viewBox="0 0 12 12" fill="none">
-                <path d="M4.5 3l3 3-3 3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </NavLink>
-          ))}
-        </div>
+      {/* Courses heading */}
+      <div className="text-xs text-vigno-muted uppercase tracking-wide px-2 mb-1">Courses ▾</div>
+      {isLoading && <div className="text-sm text-vigno-muted px-2 py-2">Loading…</div>}
+
+      {/* Course list */}
+      <nav className="flex flex-col gap-0.5">
+        {classes?.map((c) => (
+          <NavLink
+            key={c}
+            to={`/app/${c}`}
+            onClick={() => dispatch(setSelectedClass(c))}
+            className={({ isActive }) => navItemCls(isActive || c === className)}
+          >
+            {c.replace(/_/g, ' ')}
+            <span className="text-vigno-muted">›</span>
+          </NavLink>
+        ))}
       </nav>
     </aside>
   )

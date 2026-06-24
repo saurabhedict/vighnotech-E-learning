@@ -7,7 +7,7 @@ export default function AnnouncementBar() {
   const { data } = useSiteSettings()
   const a = data?.header?.announcement
   if (!a?.enabled || !a.text) return null
-  const cls = 'block w-full text-center text-xs font-semibold py-1.5 px-4 bg-vigno-accent text-[#1a0d0f]'
+  const cls = 'block w-full text-center text-xs font-semibold py-1.5 px-4 bg-vigno-accent text-vigno-accent-txt'
   if (a.link) {
     return a.link.startsWith('/') && !a.link.startsWith('//')
       ? <Link to={a.link} className={cls + ' hover:brightness-95'}>{a.text}</Link>

@@ -105,7 +105,7 @@ export async function createMediaUrl(storageKey, { expiresIn = 14400 } = {}) {
   if (!storageKey) return null
   if (cloudFrontEnabled()) return signCloudFrontUrl(storageKey, { expiresIn })
   if (s3Enabled()) return presignGetUrl(storageKey, { expiresIn, contentType: mimeFor(storageKey) })
-  return null
+  return `http://localhost:${env.port}/api/files/local/${storageKey}`
 }
 
 // ── Reads ────────────────────────────────────────────────────────────────────

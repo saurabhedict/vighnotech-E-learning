@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { adminApi } from '../../api/adminApi'
 import { apiErrorMessage } from '../../api/authApi'
 
-const input = 'px-3 py-2 rounded-lg bg-vigno-bg2 border border-vigno-line text-sm outline-none focus:border-vigno-accent'
+const input = 'px-3 py-2 rounded-lg bg-vigno-bg2 border border-vigno-line text-sm outline-none'
 
 function Coupons() {
   const qc = useQueryClient()
@@ -42,7 +42,7 @@ function Coupons() {
         </select>
         <input type="number" placeholder="value" value={form.value} onChange={set('value')} className={input + ' w-24'} />
         <input type="number" placeholder="max (0=∞)" value={form.maxRedemptions} onChange={set('maxRedemptions')} className={input + ' w-28'} />
-        <button onClick={create} disabled={!form.code.trim()} className="bg-vigno-accent text-[#1a0d0f] font-bold px-4 py-2 rounded-lg text-sm disabled:opacity-50">Create</button>
+        <button onClick={create} disabled={!form.code.trim()} className="bg-vigno-accent text-vigno-accent-txt font-bold px-4 py-2 rounded-lg text-sm disabled:opacity-50">Create</button>
       </div>
       <table className="w-full text-sm">
         <thead className="bg-black/20 text-vigno-muted text-xs">

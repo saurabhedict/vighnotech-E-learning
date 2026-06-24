@@ -1,80 +1,83 @@
+@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
- 
+
 /* ── Theme palette (RGB channels; consumed by tailwind.config.js) ──────────── */
 :root {
   /* Dark (default) — midnight navy */
-  --v-bg1: 10 15 30;
-  --v-bg2: 13 21 48;
-  --v-bg3: 26 42 94;
+  --v-bg1:   10 15 30;
+  --v-bg2:   13 21 48;
+  --v-bg3:   26 42 94;
   --v-panel: 15 24 41;
-  --v-card: 12 20 34;
-  --v-line: 30 48 96;
-  --v-txt: 232 240 255;
+  --v-card:  12 20 34;
+  --v-line:  30 48 96;
+  --v-txt:   232 240 255;
   --v-muted: 122 156 196;
-  --v-accent: 240 192 64; /* instrument gold (primary CTA) */
-  --v-accent2: 77 166 255; /* sky blue (links/highlights) */
+  --v-accent:  240 192 64;
+  --v-accent2: 77 166 255;
+  --v-accent-txt: 10 15 30;
   --plyr-color-main: #f0c040;
 }
- 
-/* Light theme — swap the same variables (applied on the app wrapper) */
+
+/* Light theme — swap the same variables */
 .theme-light {
-  --v-bg1: 234 242 252;
-  --v-bg2: 248 251 255;
-  --v-bg3: 224 236 250;
+  --v-bg1:   255 255 255;
+  --v-bg2:   247 249 250;
+  --v-bg3:   241 242 244;
   --v-panel: 255 255 255;
-  --v-card: 247 250 255;
-  --v-line: 197 218 241;
-  --v-txt: 13 26 58;
-  --v-muted: 74 106 154;
-  --v-accent: 240 192 64;
-  --v-accent2: 10 102 194; /* darker blue for contrast on light */
+  --v-card:  255 255 255;
+  --v-line:  209 215 220;
+  --v-txt:   28 29 31;
+  --v-muted: 106 111 115;
+  --v-accent:  0 51 204;
+  --v-accent2: 0 51 204;
+  --v-accent-txt: 255 255 255;
 }
- 
+
 html, body, #root { height: 100%; }
+
 body {
   margin: 0;
+  font-family: 'Segoe UI', system-ui, Arial, sans-serif;
   color: rgb(var(--v-txt));
   background: linear-gradient(160deg, #050b1a 0%, #0a1535 40%, #0d1f4a 80%, #0a2a5a 100%);
   background-attachment: fixed;
 }
- 
-/* Subtle star-field texture (dark only; hidden under the light wrapper) */
+
+/* Star-field texture (dark only) */
 body::before {
   content: '';
   position: fixed;
   inset: 0;
   background-image:
     radial-gradient(1px 1px at 20% 30%, rgba(255,255,255,0.15) 0%, transparent 100%),
-    radial-gradient(1px 1px at 60% 70%, rgba(255,255,255,0.1) 0%, transparent 100%),
+    radial-gradient(1px 1px at 60% 70%, rgba(255,255,255,0.10) 0%, transparent 100%),
     radial-gradient(1.5px 1.5px at 80% 20%, rgba(255,255,255,0.12) 0%, transparent 100%),
     radial-gradient(1px 1px at 40% 80%, rgba(255,255,255,0.08) 0%, transparent 100%);
   pointer-events: none;
   z-index: 0;
 }
- 
-/* The light wrapper paints its own background over the body + sets text colour */
+
+/* Light wrapper — covers body gradient & star-field */
 .theme-light {
-  background: linear-gradient(160deg, #eaf3ff 0%, #d6e8ff 55%, #c7dcf8 100%);
+  background: #ffffff;
   color: rgb(var(--v-txt));
+  min-height: 100vh;
 }
- 
-/* ── Loader: small clean ring spinner ────────────────────────────────────────
-   Route/page Suspense fallback + any in-app loading state. The same look is
-   inlined in index.html as the boot splash so first paint matches. */
+.theme-light body::before { display: none; }
+
+/* ── Loader ─────────────────────────────────────────────────────────────────── */
 @keyframes vigno-spin { to { transform: rotate(360deg); } }
- 
+
 .vigno-loader {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: 0.9rem;
 }
-/* Full-viewport variant — themed backdrop so there's no blank flash. */
 .vigno-loader--fullscreen {
   position: fixed; inset: 0; z-index: 50;
   background: rgb(var(--v-bg1));
 }
- 
 .vigno-spinner {
   width: 40px; height: 40px;
   border: 3px solid rgb(var(--v-accent) / 0.18);
@@ -82,68 +85,178 @@ body::before {
   border-radius: 50%;
   animation: vigno-spin 0.7s linear infinite;
 }
- 
 .vigno-loader__text {
   color: rgb(var(--v-muted)); font-size: 0.85rem; font-weight: 500; letter-spacing: 0.03em;
 }
- 
-/* Respect reduced-motion: slow the spin to a gentle turn. */
 @media (prefers-reduced-motion: reduce) {
   .vigno-spinner { animation-duration: 2s; }
 }
- 
-/* ── Video player: custom control bar ────────────────────────────────────────*/
+
+/* ── Video player ────────────────────────────────────────────────────────────*/
 .vp-btn {
   display: inline-flex; align-items: center; justify-content: center;
   height: 34px; min-width: 34px; padding: 0 6px; border-radius: 8px;
   color: #fff; transition: background-color 0.15s;
 }
-.vp-btn:hover { background: rgba(255, 255, 255, 0.16); }
- 
-/* Range inputs (seek + volume) */
+.vp-btn:hover { background: rgba(255,255,255,0.16); }
 .vp-range {
   -webkit-appearance: none; appearance: none;
   height: 5px; border-radius: 999px; cursor: pointer; outline: none;
-  background: rgba(255, 255, 255, 0.28);
+  background: rgba(255,255,255,0.28);
 }
 .vp-range::-webkit-slider-thumb {
   -webkit-appearance: none; appearance: none;
   width: 14px; height: 14px; border-radius: 50%;
-  background: rgb(var(--v-accent)); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
+  background: rgb(var(--v-accent)); box-shadow: 0 0 0 1px rgba(0,0,0,0.35);
   transition: transform 0.12s;
 }
 .vp-range:hover::-webkit-slider-thumb { transform: scale(1.15); }
 .vp-range::-moz-range-thumb {
   width: 14px; height: 14px; border: none; border-radius: 50%;
-  background: rgb(var(--v-accent)); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
+  background: rgb(var(--v-accent)); box-shadow: 0 0 0 1px rgba(0,0,0,0.35);
 }
-/* Played-portion fill, driven by the inline --pct variable. */
 .vp-seek {
   background: linear-gradient(to right,
-    rgb(var(--v-accent)) var(--pct, 0%), rgba(255, 255, 255, 0.28) var(--pct, 0%));
+    rgb(var(--v-accent)) var(--pct, 0%), rgba(255,255,255,0.28) var(--pct, 0%));
 }
- 
-/* Translucent utilities aren't theme-variable-driven, so adapt them by theme.
-   In dark they're light-on-dark; in light they should be dark-on-light. */
-.theme-light .bg-white\/10 { background-color: rgba(13, 26, 58, 0.06); }
-.theme-light .bg-white\/10:hover,
-.theme-light .hover\:bg-white\/20:hover { background-color: rgba(13, 26, 58, 0.12); }
-.theme-light .bg-white\/5 { background-color: rgba(13, 26, 58, 0.04); }
-.theme-light .bg-black\/30,
-.theme-light .bg-black\/25,
-.theme-light .bg-black\/20 { background-color: rgba(255, 255, 255, 0.6); }
- 
-/* ── Thin scrollbar for sidebar nav ────────────────────────────────────────── */
-.scrollbar-thin {
-  scrollbar-width: thin;
-  scrollbar-color: rgb(var(--v-line) / 0.6) transparent;
+
+/* ── Scrollbar theming ───────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgb(var(--v-line)); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: rgb(var(--v-muted) / 0.5); }
+
+/* ── Selection ───────────────────────────────────────────────────────────── */
+::selection { background: rgb(var(--v-accent2) / 0.3); color: rgb(var(--v-txt)); }
+
+/* ── Focus rings ─────────────────────────────────────────────────────────── */
+:focus-visible { outline: 2px solid rgb(var(--v-accent2)); outline-offset: 2px; border-radius: 4px; }
+input:focus-visible, textarea:focus-visible, select:focus-visible { outline: none !important; }
+
+/* ── Translucent utilities — light mode inversions ──────────────────────── */
+.theme-light .bg-black\/30  { background-color: rgba(255,255,255,0.75); }
+.theme-light .bg-black\/25  { background-color: rgba(255,255,255,0.65); }
+.theme-light .bg-black\/20  { background-color: rgba(255,255,255,0.55); }
+.theme-light .bg-white\/10  { background-color: rgba(13,26,58,0.06); }
+.theme-light .bg-white\/5   { background-color: rgba(13,26,58,0.03); }
+.theme-light .hover\:bg-white\/20:hover { background-color: rgba(13,26,58,0.10); }
+.theme-light .bg-white\/10:hover        { background-color: rgba(13,26,58,0.10); }
+
+/* ── Navbar — light mode ─────────────────────────────────────────────────── */
+.theme-light header.aero-nav {
+  background: rgba(248,251,255,0.95) !important;
+  border-bottom: 1px solid rgb(var(--v-line)) !important;
+  backdrop-filter: blur(20px);
 }
-.scrollbar-thin::-webkit-scrollbar { width: 4px; }
-.scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
-.scrollbar-thin::-webkit-scrollbar-thumb { background: rgb(var(--v-line) / 0.6); border-radius: 4px; }
- 
-/* ── Subtle translucent utility not in tailwind defaults ────────────────────── */
-.bg-white\/8 { background-color: rgb(255 255 255 / 0.08); }
-.bg-black\/20 { background-color: rgb(0 0 0 / 0.20); }
-.bg-black\/25 { background-color: rgb(0 0 0 / 0.25); }
-.bg-white\/2  { background-color: rgb(255 255 255 / 0.02); }
+
+/* ── Sidebar — light mode ────────────────────────────────────────────────── */
+.theme-light aside.aero-sidebar {
+  background: rgba(240,247,255,0.95) !important;
+  border-right: 1px solid rgb(var(--v-line)) !important;
+}
+
+/* ── Auth cards — light mode ─────────────────────────────────────────────── */
+.theme-light .auth-card {
+  background: linear-gradient(160deg, #ffffff 0%, #f0f6ff 100%) !important;
+  border-color: rgb(var(--v-line)) !important;
+  box-shadow: 0 8px 40px rgba(10,40,100,0.12) !important;
+}
+
+/* ── Inputs — light mode ─────────────────────────────────────────────────── */
+.theme-light input:not([type="checkbox"]):not([type="radio"]),
+.theme-light textarea,
+.theme-light select {
+  background-color: #ffffff !important;
+  color: rgb(var(--v-txt)) !important;
+  border-color: rgb(var(--v-line)) !important;
+}
+.theme-light input::placeholder,
+.theme-light textarea::placeholder { color: rgb(var(--v-muted) / 0.6) !important; }
+.theme-light input:focus,
+.theme-light textarea:focus,
+.theme-light select:focus {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+/* ── Progress bar track — light mode ────────────────────────────────────── */
+.theme-light .h-1\.5.bg-black\/30 { background-color: rgb(var(--v-line)) !important; }
+
+/* ── Back button — light mode ────────────────────────────────────────────── */
+.theme-light .back-btn {
+  background-color: rgba(255,255,255,0.8);
+  border-color: rgb(var(--v-line));
+  color: rgb(var(--v-txt));
+}
+.theme-light .back-btn:hover { background-color: #ffffff; }
+
+/* ── Error / success text overrides for light ────────────────────────────── */
+.theme-light .text-red-300 { color: #dc2626; }
+.theme-light .text-green-300 { color: #16a34a; }
+.theme-light .bg-red-500\/10 { background-color: rgba(239,68,68,0.08); }
+.theme-light .border-red-500\/30 { border-color: rgba(239,68,68,0.4); }
+.theme-light .bg-green-500\/10 { background-color: rgba(22,163,74,0.08); }
+.theme-light .border-green-500\/20 { border-color: rgba(22,163,74,0.3); }
+
+/* ── Nav panel slide animation ───────────────────────────────────────────── */
+@keyframes panel-in {
+  from { transform: translateX(100%); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+@keyframes panel-out {
+  from { transform: translateX(0);    opacity: 1; }
+  to   { transform: translateX(100%); opacity: 0; }
+}
+
+/* ── Card popover — always on top of everything ──────────────────────────── */
+.card-popover-layer { z-index: 999; }
+
+/* ── Horizontal scroll row — hide scrollbar on webkit ───────────────────── */
+.scroll-row::-webkit-scrollbar { display: none; }
+.scroll-row { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* ── Formal typography refinements ──────────────────────────────────────── */
+h1, h2, h3, h4 { font-feature-settings: "kern" 1, "liga" 1; }
+
+/* ── Section heading rule ────────────────────────────────────────────────── */
+.section-rule {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+}
+.section-rule::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: rgb(var(--v-line) / 0.4);
+}
+
+/* ── Popover isolation — prevent clipping by overflow:hidden ancestors ───── */
+.popover-host { position: relative; z-index: 0; }
+.popover-host:hover { z-index: 50; }
+
+/* ── Light mode — card shadows ───────────────────────────────────────────── */
+.theme-light .card-shadow { box-shadow: 0 1px 4px rgba(10,30,80,0.07), 0 4px 16px rgba(10,30,80,0.05); }
+.theme-light .card-shadow:hover { box-shadow: 0 4px 20px rgba(10,30,80,0.13); }
+
+/* ── Navbar height utility ───────────────────────────────────────────────── */
+.navbar-h { height: 3.5rem; }
+
+/* ── Hide Scrollbars ────────────────────────────────────────────────────── */
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+/* ── Hide Number Input Spinners ──────────────────────────────────────────── */
+.no-spinner::-webkit-inner-spin-button,
+.no-spinner::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.no-spinner {
+  -moz-appearance: textfield;
+}

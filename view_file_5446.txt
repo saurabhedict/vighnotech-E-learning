@@ -1,0 +1,44 @@
+﻿Created At: 2026-06-24T06:58:39Z
+Completed At: 2026-06-24T06:58:39Z
+File Path: `file:///c:/Users/Dhruv/OneDrive/Desktop/Oi/frontend/src/components/UdemyHoverPopover.jsx`
+Total Lines: 267
+Total Bytes: 10515
+Showing lines 1 to 35
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1: import { useMemo } from 'react'
+2: import { createPortal } from 'react-dom'
+3: import { useSelector, useDispatch } from 'react-redux'
+4: import { useNavigate } from 'react-router-dom'
+5: import FavoriteButton from './FavoriteButton'
+6: import { addCartItem, removeCartItem } from '../store/cartSlice'
+7: 
+8: const TYPE_LABEL = { pdf: 'PDF', video: 'Video', game: 'Simulator', '3d': '3D Model' }
+9: 
+10: export default function UdemyHoverPopover({
+11:   title,
+12:   isCourse,
+13:   isPaid,
+14:   price,
+15:   oldPrice,
+16:   instructor,
+17:   description,
+18:   previewText,
+19:   learningOutcomes = [],
+20:   isEnrolled,
+21:   type,
+22:   onActionClick,
+23:   contentId,
+24:   favoriteId,
+25:   side = 'right',
+26:   coords
+27: }) {
+28:   const dispatch = useDispatch()
+29:   const navigate = useNavigate()
+30:   const isDark = useSelector((s) => s.ui.theme) === 'dark'
+31:   const cartItems = useSelector((s) => s.cart.items)
+32:   const isInCart = contentId ? cartItems.some((i) => i.id === contentId) : false
+33:   const favId = favoriteId || contentId
+34: 
+35:   const handleCartToggle = (e) => {
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.
+

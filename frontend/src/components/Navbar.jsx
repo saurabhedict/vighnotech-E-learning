@@ -1,31 +1,167 @@
 import { useState, useRef, useEffect } from 'react'
-import { useNavigate, NavLink, Link } from 'react-router-dom'
+import { useNavigate, NavLink, Link, useLocation } from 'react-router-dom'
 import { useSelector, useDispatch } from 'react-redux'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { logout } from '../store/authSlice'
 import { toggleTheme } from '../store/uiSlice'
 import { authApi } from '../api/authApi'
+import { commerceApi } from '../api/commerceApi'
 import { useSiteSettings } from '../hooks/useSiteSettings'
 import { safeHref } from '../lib/safeUrl'
 import Avatar from './Avatar'
+import { paymentsApi } from '../api/paymentsApi'
+import { removeCartItem, clearCart } from '../store/cartSlice'
+import { purchaseCourse, purchaseContent } from '../lib/buy'
+function NavPanel({ open, onClose, user, isAdmin, isDark, settings, onLogout, onToggleTheme, theme, q, setQ, onSearch }) {
+  const panelRef = useRef(null)
+  const extraLinks = settings?.header?.extraLinks || []
 
-const CART_ITEMS = 0 // placeholder — wire to real cart state when implemented
+  useEffect(() => {
+    if (!open) return
+    const handler = (e) => {
+      if (panelRef.current && !panelRef.current.contains(e.target)) onClose()
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [open, onClose])
+
+  const navLink = (to, label, end = false) => (
+    <NavLink
+      to={to}
+      end={end}
+      onClick={onClose}
+      className={({ isActive }) => [
+        'block px-4 py-2.5 rounded-lg text-sm font-medium transition-all',
+        isActive
+          ? isDark ? 'bg-vigno-accent/15 text-vigno-accent border-l-2 border-vigno-accent pl-3.5' : 'bg-vigno-accent/12 text-[#8a6200] border-l-2 border-vigno-accent pl-3.5'
+          : isDark ? 'text-vigno-txt hover:bg-white/6 hover:text-white' : 'text-vigno-txt hover:bg-vigno-line/40',
+      ].join(' ')}
+    >
+      {label}
+    </NavLink>
+  )
+
+  return (
+    <>
+      {/* Backdrop */}
+      <div
+        className={`fixed inset-0 z-40 transition-opacity duration-300 ${open ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
+        style={{ background: 'rgba(0,0,0,0.35)', backdropFilter: 'blur(2px)' }}
+        onClick={onClose}
+      />
+
+      {/* Panel */}
+      <div
+        ref={panelRef}
+        className={[
+          'fixed top-0 right-0 h-full z-50 flex flex-col transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]',
+          open ? 'translate-x-0' : 'translate-x-full',
+          isDark ? 'bg-[#0d1829] border-l border-vigno-line/40' : 'bg-white border-l border-vigno-line',
+        ].join(' ')}
+        style={{ width: 280 }}
+      >
+        {/* Panel header */}
+        <div className={`flex items-center justify-between px-5 py-4 border-b ${isDark ? 'border-vigno-line/30' : 'border-vigno-line/60'}`}>
+          <div className="flex items-center gap-3">
+            <Avatar user={user} size={36} verified={user?.verified} />
+            <div>
+              <div className="text-sm font-semibold text-vigno-txt leading-tight">{user?.name || 'My Account'}</div>
+              <div className="text-xs text-vigno-muted truncate max-w-[140px]">{user?.email}</div>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className={`w-8 h-8 grid place-items-center rounded-lg text-vigno-muted transition-all ${isDark ? 'hover:bg-white/10 hover:text-vigno-txt' : 'hover:bg-vigno-line/40 hover:text-vigno-txt'}`}
+          >
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <path d="M1 1l12 12M13 1L1 13" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+            </svg>
+          </button>
+        </div>
+
+        {/* Search */}
+        <div className="px-4 py-3">
+          <form onSubmit={onSearch}>
+            <input
+              value={q}
+              onChange={e => setQ(e.target.value)}
+              placeholder="Search courses..."
+              className={[
+                'w-full px-3 py-2 rounded-lg text-sm outline-none transition-all border',
+                isDark
+                  ? 'bg-vigno-bg1 border-vigno-line text-vigno-txt placeholder-vigno-muted/50'
+                  : 'bg-vigno-bg2 border-vigno-line text-vigno-txt placeholder-vigno-muted/50',
+              ].join(' ')}
+            />
+          </form>
+        </div>
+
+        {/* Nav links */}
+        <nav className="flex-1 overflow-y-auto px-3 py-1 space-y-0.5">
+          {isAdmin ? (
+            <>
+              <p className={`text-[10px] font-semibold uppercase tracking-widest px-4 py-2 ${isDark ? 'text-vigno-muted/50' : 'text-vigno-muted/60'}`}>Administration</p>
+              {navLink('/app/admin?tab=overview', 'Admin Dashboard')}
+            </>
+          ) : (
+            <>
+              <p className={`text-[10px] font-semibold uppercase tracking-widest px-4 py-2 ${isDark ? 'text-vigno-muted/50' : 'text-vigno-muted/60'}`}>Navigation</p>
+              {navLink('/app', 'Home', true)}
+              {navLink('/app/library', 'My Library')}
+              {navLink('/app/favorites', 'Saved')}
+              {navLink('/app/wallet', 'Wallet')}
+              {navLink('/app/profile', 'Profile')}
+
+              {extraLinks.filter(l => l.label).map((l, i) =>
+                l.url?.startsWith('/') ? (
+                  <NavLink key={i} to={l.url} onClick={onClose}
+                    className={({ isActive }) => `block px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${isActive ? (isDark ? 'bg-vigno-accent/15 text-vigno-accent' : 'bg-vigno-accent/12 text-[#8a6200]') : (isDark ? 'text-vigno-txt hover:bg-white/6' : 'text-vigno-txt hover:bg-vigno-line/40')}`}>
+                    {l.label}
+                  </NavLink>
+                ) : (
+                  <a key={i} href={safeHref(l.url)} target="_blank" rel="noreferrer" onClick={onClose}
+                    className={`block px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${isDark ? 'text-vigno-txt hover:bg-white/6' : 'text-vigno-txt hover:bg-vigno-line/40'}`}>
+                    {l.label}
+                  </a>
+                )
+              )}
+            </>
+          )}
+        </nav>
+
+        {/* Panel footer */}
+        <div className={`px-3 py-3 border-t space-y-1 ${isDark ? 'border-vigno-line/30' : 'border-vigno-line/60'}`}>
+          <button
+            onClick={() => { onLogout(); onClose() }}
+            className={`w-full text-left px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${isDark ? 'text-red-400/80 hover:bg-red-500/10 hover:text-red-300' : 'text-red-600/80 hover:bg-red-50 hover:text-red-600'}`}
+          >
+            Sign out
+          </button>
+        </div>
+      </div>
+    </>
+  )
+}
 
 export default function Navbar() {
+  const queryClient = useQueryClient()
   const navigate = useNavigate()
+  const location = useLocation()
   const dispatch = useDispatch()
   const user = useSelector((s) => s.auth.user)
   const theme = useSelector((s) => s.ui.theme)
   const { data: settings } = useSiteSettings()
-  const brandName = settings?.brand?.name || 'AeroLearn'
-  const logoEmoji = settings?.brand?.logoEmoji ?? '✈'
+  const brandName = settings?.brand?.name || 'Aerolearn'
   const showSearch = settings?.header?.showSearch !== false
-  const extraLinks = settings?.header?.extraLinks || []
   const [q, setQ] = useState('')
-  const [profileOpen, setProfileOpen] = useState(false)
-  const profileRef = useRef(null)
+  const [panelOpen, setPanelOpen] = useState(false)
+
+  const cartItems = useSelector((s) => s.cart.items)
+
+  const isDark = theme === 'dark'
+  const isAdmin = user?.role === 'admin'
 
   const doLogout = async () => {
-    setProfileOpen(false)
     await authApi.logout()
     dispatch(logout())
     navigate('/')
@@ -33,265 +169,154 @@ export default function Navbar() {
 
   const doSearch = (e) => {
     e.preventDefault()
+    setPanelOpen(false)
     navigate(`/app/search${q.trim() ? `?q=${encodeURIComponent(q.trim())}` : ''}`)
   }
 
-  // Close dropdown on outside click
-  useEffect(() => {
-    const handler = (e) => {
-      if (profileRef.current && !profileRef.current.contains(e.target)) {
-        setProfileOpen(false)
-      }
-    }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [])
-
-  const isLight = theme === 'light'
+  // Close panel on route change
+  useEffect(() => { setPanelOpen(false) }, [location.pathname])
 
   return (
-    <header className="sticky top-0 z-40 flex items-center gap-3 px-5 py-0 bg-vigno-panel/95 backdrop-blur-md border-b border-vigno-line/50 h-14 shrink-0">
+    <>
+      <header className={[
+        'aero-nav flex items-center justify-between gap-4 px-6 h-14 backdrop-blur-xl sticky top-0 z-30 w-full',
+        isDark
+          ? 'bg-[#080f1e]/90 border-b border-vigno-line/30'
+          : 'bg-white/95 border-b border-vigno-line/70 shadow-sm',
+      ].join(' ')}>
 
-      {/* Brand */}
-      <NavLink to="/app" className="flex items-center gap-2 shrink-0 group" title="Home">
-        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-vigno-accent/30 to-vigno-accent2/20 flex items-center justify-center text-base font-bold text-vigno-accent group-hover:scale-105 transition-transform">
-          {logoEmoji}
-        </div>
-        <span className="font-bold text-base text-vigno-txt tracking-tight hidden sm:block">{brandName}</span>
-      </NavLink>
-
-      {user?.role === 'admin' && (
-        <span className="text-[9px] bg-vigno-accent/20 text-vigno-accent rounded-full px-2 py-0.5 font-bold tracking-wider uppercase border border-vigno-accent/30">
-          Admin
-        </span>
-      )}
-
-      {/* Search bar */}
-      {showSearch ? (
-        <form onSubmit={doSearch} className="flex-1 max-w-md mx-3">
-          <div className="relative">
-            <svg className="absolute left-3 top-1/2 -translate-y-1/2 text-vigno-muted/60 pointer-events-none" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
-            </svg>
-            <input
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder="Search courses, topics…"
-              className="w-full pl-9 pr-4 py-1.5 rounded-lg bg-black/20 border border-vigno-line/60 text-sm outline-none focus:border-vigno-accent/70 focus:bg-black/30 text-vigno-txt placeholder:text-vigno-muted/50 transition-all"
-            />
-          </div>
-        </form>
-      ) : <div className="flex-1" />}
-
-      {/* Nav links */}
-      <nav className="hidden lg:flex items-center gap-1">
-        {[
-          { to: '/app', end: true, icon: HomeIcon, label: 'Home' },
-          { to: '/app/library', icon: LibraryIcon, label: 'Library' },
-          { to: '/app/wallet', icon: WalletIcon, label: 'Wallet' },
-        ].map(({ to, end, icon: Icon, label }) => (
-          <NavLink key={to} to={to} end={end} className={({ isActive }) =>
-            'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ' +
-            (isActive
-              ? 'bg-vigno-accent/15 text-vigno-accent'
-              : 'text-vigno-muted hover:text-vigno-txt hover:bg-white/8')
-          }>
-            <Icon size={15} />
-            <span>{label}</span>
-          </NavLink>
-        ))}
-        {user?.role === 'admin' && (
-          <NavLink to="/app/admin" className={({ isActive }) =>
-            'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ' +
-            (isActive ? 'bg-vigno-accent/15 text-vigno-accent' : 'text-vigno-muted hover:text-vigno-txt hover:bg-white/8')
-          }>
-            <AdminIcon size={15} />
-            <span>Admin</span>
-          </NavLink>
-        )}
-        {extraLinks.filter((l) => l.label).map((l, i) =>
-          l.url?.startsWith('/') ? (
-            <NavLink key={i} to={l.url} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-vigno-muted hover:text-vigno-txt hover:bg-white/8 transition-colors">{l.label}</NavLink>
-          ) : (
-            <a key={i} href={safeHref(l.url)} target="_blank" rel="noreferrer"
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-vigno-muted hover:text-vigno-txt hover:bg-white/8 transition-colors">{l.label}</a>
-          )
-        )}
-      </nav>
-
-      {/* Right actions */}
-      <div className="flex items-center gap-1 ml-auto lg:ml-0">
-
-        {/* Theme toggle */}
-        <button
-          onClick={() => dispatch(toggleTheme())}
-          title={isLight ? 'Switch to Dark mode' : 'Switch to Light mode'}
-          className="w-9 h-9 grid place-items-center rounded-lg text-vigno-muted hover:text-vigno-txt hover:bg-white/10 transition-colors border border-transparent hover:border-vigno-line/50"
-          aria-label="Toggle theme"
-        >
-          {isLight ? <MoonIcon size={16} /> : <SunIcon size={16} />}
-        </button>
-
-        {/* Cart */}
-        <NavLink
-          to="/app/wallet"
-          className="relative w-9 h-9 grid place-items-center rounded-lg text-vigno-muted hover:text-vigno-txt hover:bg-white/10 transition-colors border border-transparent hover:border-vigno-line/50"
-          title="Cart / Wallet"
-          aria-label="Cart"
-        >
-          <CartIcon size={17} />
-          {CART_ITEMS > 0 && (
-            <span className="absolute top-1.5 right-1.5 w-3.5 h-3.5 bg-vigno-accent rounded-full text-[8px] font-bold text-[#1a1000] flex items-center justify-center leading-none">
-              {CART_ITEMS}
-            </span>
-          )}
+        {/* Brand */}
+        <NavLink to={isAdmin ? "/app/admin?tab=overview" : "/app"} className="flex items-center shrink-0">
+          <span style={{ fontFamily: "'Caveat', cursive" }} className="text-3xl font-bold select-none text-vigno-txt">
+            {brandName}
+          </span>
         </NavLink>
 
-        {/* Profile dropdown */}
-        <div className="relative ml-1" ref={profileRef}>
-          <button
-            onClick={() => setProfileOpen((o) => !o)}
-            className="flex items-center gap-2 pl-1 pr-2.5 py-1 rounded-lg hover:bg-white/8 transition-colors border border-transparent hover:border-vigno-line/50"
-            aria-label="Profile menu"
-            aria-expanded={profileOpen}
-          >
-            <Avatar user={user} size={30} verified={user?.verified} className="shrink-0" />
-            <div className="hidden sm:flex flex-col items-start leading-tight">
-              <span className="text-xs font-semibold text-vigno-txt truncate max-w-[100px]">{user?.name?.split(' ')[0] || 'Profile'}</span>
-              <span className="text-[10px] text-vigno-muted truncate max-w-[100px]">{user?.role === 'admin' ? 'Administrator' : 'Student'}</span>
+        {/* Search — grows to fill middle */}
+        {showSearch && !isAdmin && (
+          <form onSubmit={doSearch} className="flex-1 max-w-xl mx-4 hidden sm:block">
+            <div className="relative">
+              <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-vigno-muted pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+              </svg>
+              <input
+                value={q}
+                onChange={e => setQ(e.target.value)}
+                placeholder="Search for anything..."
+                className={[
+                  'w-full pl-10 pr-4 py-2 rounded-full text-sm outline-none transition-all border',
+                  isDark
+                    ? 'bg-white/6 border-vigno-line/40 text-vigno-txt placeholder-vigno-muted/50'
+                    : 'bg-vigno-bg2/80 border-vigno-line/60 text-vigno-txt placeholder-vigno-muted/60',
+                ].join(' ')}
+              />
             </div>
-            <ChevronIcon size={12} className={'text-vigno-muted transition-transform ' + (profileOpen ? 'rotate-180' : '')} />
-          </button>
+          </form>
+        )}
 
-          {/* Dropdown */}
-          {profileOpen && (
-            <div className="absolute right-0 top-full mt-1.5 w-52 bg-vigno-panel border border-vigno-line/60 rounded-xl shadow-2xl shadow-black/40 overflow-hidden z-50 py-1">
-              {/* User info header */}
-              <div className="px-4 py-3 border-b border-vigno-line/40">
-                <div className="text-sm font-semibold text-vigno-txt truncate">{user?.name || 'User'}</div>
-                <div className="text-xs text-vigno-muted truncate mt-0.5">{user?.email}</div>
-              </div>
-
-              <div className="py-1">
-                {[
-                  { to: '/app', label: 'Home', icon: HomeIcon },
-                  { to: '/app/profile', label: 'My Profile', icon: ProfileIcon },
-                  { to: '/app/library', label: 'Library', icon: LibraryIcon },
-                  { to: '/app/favorites', label: 'Saved', icon: SavedIcon },
-                  { to: '/app/wallet', label: 'Wallet', icon: WalletIcon },
-                  ...(user?.role === 'admin' ? [{ to: '/app/admin', label: 'Admin Panel', icon: AdminIcon }] : []),
-                ].map(({ to, label, icon: Icon }) => (
-                  <NavLink
-                    key={to}
-                    to={to}
-                    onClick={() => setProfileOpen(false)}
-                    className={({ isActive }) =>
-                      'flex items-center gap-3 px-4 py-2 text-sm transition-colors ' +
-                      (isActive ? 'text-vigno-accent bg-vigno-accent/10' : 'text-vigno-muted hover:text-vigno-txt hover:bg-white/8')
-                    }
-                  >
-                    <Icon size={14} />
-                    {label}
-                  </NavLink>
-                ))}
-              </div>
-
-              <div className="border-t border-vigno-line/40 py-1">
-                <button
-                  onClick={doLogout}
-                  className="w-full flex items-center gap-3 px-4 py-2 text-sm text-vigno-muted hover:text-red-400 hover:bg-red-500/10 transition-colors"
-                >
-                  <LogoutIcon size={14} />
-                  Sign out
-                </button>
-              </div>
-            </div>
+        <div className="flex items-center gap-4">
+          {/* My learning link */}
+          {!isAdmin && (
+            <NavLink
+              to="/app/library"
+              className={({ isActive }) => [
+                'text-sm font-medium hover:text-vigno-accent transition-colors hidden md:block',
+                isActive ? 'text-vigno-accent' : 'text-vigno-txt'
+              ].join(' ')}
+            >
+              My learning
+            </NavLink>
           )}
-        </div>
-      </div>
-    </header>
-  )
-}
 
-// ── Inline SVG icon components ────────────────────────────────────────────────
-function HomeIcon({ size = 16 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
-    </svg>
-  )
-}
-function LibraryIcon({ size = 16 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
-    </svg>
-  )
-}
-function WalletIcon({ size = 16 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/>
-    </svg>
-  )
-}
-function AdminIcon({ size = 16 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="3"/><path d="M19.07 4.93A10 10 0 1 0 4.93 19.07 10 10 0 0 0 19.07 4.93z"/>
-    </svg>
-  )
-}
-function CartIcon({ size = 16 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/>
-      <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
-    </svg>
-  )
-}
-function SunIcon({ size = 16 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
-      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
-      <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
-      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
-    </svg>
-  )
-}
-function MoonIcon({ size = 16 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-    </svg>
-  )
-}
-function ProfileIcon({ size = 16 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
-    </svg>
-  )
-}
-function SavedIcon({ size = 16 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
-    </svg>
-  )
-}
-function LogoutIcon({ size = 16 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
-    </svg>
-  )
-}
-function ChevronIcon({ size = 16, className = '' }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
-      <polyline points="6 9 12 15 18 9"/>
-    </svg>
+          {isAdmin && (
+            <NavLink
+              to="/app/admin?tab=overview"
+              className={({ isActive }) => [
+                'text-sm font-medium transition-colors hidden md:block',
+                isActive ? 'text-vigno-accent' : 'text-vigno-accent/80 hover:text-vigno-accent'
+              ].join(' ')}
+            >
+              Admin panel
+            </NavLink>
+          )}
+
+          {/* Wishlist Link */}
+          {!isAdmin && (
+            <NavLink to="/app/favorites" className="text-vigno-muted hover:text-vigno-txt transition-colors p-1" title="Wishlist">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+              </svg>
+            </NavLink>
+          )}
+
+          {/* Wallet Link */}
+          {!isAdmin && (
+            <NavLink to="/app/wallet" className="text-vigno-muted hover:text-vigno-txt transition-colors p-1 relative" title="Wallet">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <rect x="3" y="5" width="18" height="14" rx="2" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21 12H17a2 2 0 00-2 2v0a2 2 0 002 2h4" />
+              </svg>
+              {user?.walletBalance > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 bg-vigno-accent text-vigno-accent-txt text-[9px] font-extrabold px-1 rounded-full scale-90">
+                  ₹
+                </span>
+              )}
+            </NavLink>
+          )}
+
+          {/* Cart Icon (functional) */}
+          {!isAdmin && (
+            <button
+              onClick={() => navigate('/app/cart')}
+              className="text-vigno-muted hover:text-vigno-txt transition-colors p-1 relative cursor-pointer focus:outline-none"
+              title="Cart"
+            >
+              <svg className="w-5 h-5" width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
+              {cartItems.length > 0 && (
+                <span className="absolute -top-1 -right-1 bg-vigno-accent text-vigno-accent-txt text-[9px] font-extrabold w-4 h-4 rounded-full flex items-center justify-center scale-90">
+                  {cartItems.length}
+                </span>
+              )}
+            </button>
+          )}
+
+          {/* Bell (Notifications Mock) */}
+          {!isAdmin && (
+            <button className="text-vigno-muted hover:text-vigno-txt transition-colors p-1" title="Notifications">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+              </svg>
+            </button>
+          )}
+
+          {/* Avatar Menu Trigger */}
+          <button
+            onClick={() => setPanelOpen(true)}
+            className="shrink-0 flex items-center"
+            title={user?.name || 'Dhruv Gupta'}
+          >
+            <Avatar user={user} size={32} verified={user?.verified}
+              className="ring-2 ring-vigno-line/40 transition-all rounded-full" />
+          </button>
+        </div>
+      </header>
+
+      <NavPanel
+        open={panelOpen}
+        onClose={() => setPanelOpen(false)}
+        user={user}
+        isAdmin={isAdmin}
+        isDark={isDark}
+        settings={settings}
+        onLogout={doLogout}
+        onToggleTheme={() => dispatch(toggleTheme())}
+        theme={theme}
+        q={q}
+        setQ={setQ}
+        onSearch={doSearch}
+      />
+    </>
   )
 }

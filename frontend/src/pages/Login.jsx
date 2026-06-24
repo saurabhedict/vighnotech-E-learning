@@ -11,7 +11,7 @@ export default function Login() {
   const theme = useSelector((s) => s.ui.theme)
   const isDark = theme === 'dark'
   const { data: settings } = useSiteSettings()
-  const brandName = settings?.brand?.name || 'AeroLearn'
+  const brandName = settings?.brand?.name || 'Aerolearn'
   const tagline = settings?.brand?.tagline || 'Aviation Training Platform'
   const logoEmoji = settings?.brand?.logoEmoji ?? '✈'
   const greeting = settings?.auth?.loginGreeting || 'Welcome back'
@@ -38,7 +38,7 @@ export default function Login() {
 
   const finish = (user, token) => {
     dispatch(setCredentials({ user, token }))
-    navigate(user.role === 'admin' ? '/app/admin' : '/app/PPL_Ground')
+    navigate(user.role === 'admin' ? '/app/admin' : '/app')
   }
 
   const submit = async (e) => {
@@ -70,7 +70,6 @@ export default function Login() {
     'w-full px-4 py-3 rounded-xl text-sm outline-none transition-all duration-200',
     'bg-vigno-bg1 border border-vigno-line',
     'text-vigno-txt placeholder-vigno-muted/50',
-    'focus:border-vigno-accent2 focus:ring-2 focus:ring-vigno-accent2/20',
   ].join(' ')
 
   return (
@@ -80,11 +79,9 @@ export default function Login() {
         style={{ background: 'linear-gradient(to top, rgba(77,166,255,0.06) 0%, transparent 100%)' }} />
 
       <div className="w-full max-w-sm">
-        {/* Logo */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-2 mb-2">
-            <span className="text-3xl">{logoEmoji}</span>
-            <span className="text-2xl font-black tracking-tight text-vigno-txt">{brandName}</span>
+            <span style={{ fontFamily: "'Caveat', cursive" }} className="text-4xl font-bold select-none text-vigno-txt">{brandName}</span>
           </div>
           <p className="text-vigno-muted text-xs tracking-widest uppercase">{tagline}</p>
         </div>
@@ -94,7 +91,7 @@ export default function Login() {
           className="auth-card rounded-2xl border border-vigno-line shadow-2xl overflow-hidden"
           style={isDark
             ? { background: 'linear-gradient(160deg, #0d1829 0%, #0a1422 100%)', backdropFilter: 'blur(12px)' }
-            : { background: 'linear-gradient(160deg, #ffffff 0%, #f0f6ff 100%)' }
+            : { background: '#ffffff' }
           }
         >
           {/* Accent stripe */}
@@ -137,8 +134,7 @@ export default function Login() {
                   </div>
 
                   <button type="submit" disabled={loading}
-                    className="w-full py-3 rounded-xl font-extrabold text-sm tracking-wide transition-all duration-200 disabled:opacity-60"
-                    style={{ background: 'linear-gradient(135deg, #f0c040, #f0a020)', color: '#0a0f1e', boxShadow: '0 4px 20px rgba(240,192,64,0.3)' }}>
+                    className="w-full py-3 rounded-xl font-extrabold text-sm tracking-wide transition-all duration-200 disabled:opacity-60 bg-vigno-accent text-vigno-accent-txt shadow-lg shadow-vigno-accent/20 hover:brightness-110">
                     {loading ? 'Signing in…' : 'Sign In →'}
                   </button>
 
@@ -160,8 +156,7 @@ export default function Login() {
                 <input autoFocus value={code} onChange={e => setCode(e.target.value)}
                   placeholder="123456" className={inputCls + ' tracking-widest text-center text-lg'} />
                 <button type="submit" disabled={loading}
-                  className="w-full py-3 rounded-xl font-extrabold text-sm transition-all disabled:opacity-60"
-                  style={{ background: 'linear-gradient(135deg, #f0c040, #f0a020)', color: '#0a0f1e' }}>
+                  className="w-full py-3 rounded-xl font-extrabold text-sm transition-all disabled:opacity-60 bg-vigno-accent text-vigno-accent-txt shadow-lg shadow-vigno-accent/20 hover:brightness-110">
                   {loading ? 'Verifying…' : 'Verify'}
                 </button>
                 <button type="button" onClick={() => { setChallenge(null); setCode(''); setError('') }}

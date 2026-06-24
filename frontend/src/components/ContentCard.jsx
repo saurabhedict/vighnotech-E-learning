@@ -1,264 +1,241 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useSelector } from 'react-redux'
-import { createPortal } from 'react-dom'
+import { useQuery } from '@tanstack/react-query'
+import { authApi } from '../api/authApi'
 import FavoriteButton from './FavoriteButton'
+import UdemyHoverPopover from './UdemyHoverPopover'
 
-// ── Type metadata ─────────────────────────────────────────────────────────────
-const TYPE_LABEL = { pdf: 'PDF', video: 'Video', game: 'Interactive', '3d': '3D Model' }
+const TYPE_LABEL = { pdf: 'PDF', video: 'Video', game: 'Simulator', '3d': '3D Model' }
 
-const TYPE_DARK = {
-  pdf:   'bg-blue-500/10 text-blue-400 border-blue-500/20',
-  video: 'bg-purple-500/10 text-purple-400 border-purple-500/20',
-  game:  'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
-  '3d':  'bg-sky-500/10 text-sky-400 border-sky-500/20',
-}
-const TYPE_LIGHT = {
-  pdf:   'bg-blue-50 text-blue-600 border-blue-200',
-  video: 'bg-purple-50 text-purple-600 border-purple-200',
-  game:  'bg-emerald-50 text-emerald-700 border-emerald-200',
-  '3d':  'bg-sky-50 text-sky-700 border-sky-200',
-}
-const TYPE_FALLBACK_DARK  = 'bg-white/10 text-vigno-muted border-white/10'
-const TYPE_FALLBACK_LIGHT = 'bg-gray-100 text-gray-600 border-gray-200'
-
-// ── Portal-based preview panel ────────────────────────────────────────────────
-// Renders into document.body so it's never clipped by overflow:hidden parents.
-function PreviewPortal({ item, isDark, anchorRect, onNavigate }) {
-  const [style, setStyle] = useState({})
-
-  useEffect(() => {
-    if (!anchorRect) return
-    const panelW = 288
-    const panelH = 340
-    const gap = 10
-    const vw = window.innerWidth
-    const vh = window.innerHeight
-
-    let left = anchorRect.right + gap
-    if (left + panelW > vw - 8) left = anchorRect.left - panelW - gap
-    if (left < 8) left = 8
-
-    let top = anchorRect.top
-    if (top + panelH > vh - 8) top = vh - panelH - 8
-    if (top < 8) top = 8
-
-    setStyle({ position: 'fixed', top, left, width: panelW, zIndex: 9999 })
-  }, [anchorRect])
-
-  const badge = isDark
-    ? (TYPE_DARK[item.type]  || TYPE_FALLBACK_DARK)
-    : (TYPE_LIGHT[item.type] || TYPE_FALLBACK_LIGHT)
-
-  return createPortal(
-    <div
-      style={style}
-      className={[
-        'rounded-lg border shadow-2xl overflow-hidden pointer-events-none',
-        isDark
-          ? 'bg-[rgb(var(--v-panel))] border-vigno-line/60'
-          : 'bg-white border-vigno-line',
-      ].join(' ')}
-    >
-      {/* Thumbnail zone */}
-      <div className={[
-        'h-28 flex items-center justify-center relative',
-        isDark ? 'bg-vigno-bg3/70' : 'bg-vigno-bg3/30',
-      ].join(' ')}>
-        <span className={[
-          'text-2xl font-bold tracking-widest select-none opacity-15',
-          isDark ? 'text-vigno-txt' : 'text-vigno-txt',
-        ].join(' ')}>
-          {(item.type || 'content').toUpperCase()}
-        </span>
-        <span className={`absolute top-2 left-2 text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded border ${badge}`}>
-          {TYPE_LABEL[item.type] || item.type || 'Content'}
-        </span>
-      </div>
-
-      {/* Body */}
-      <div className="p-4">
-        <p className={`font-semibold text-[13px] leading-snug mb-2 line-clamp-2 ${isDark ? 'text-vigno-txt' : 'text-vigno-txt'}`}>
-          {item.title}
-        </p>
-
-        {/* Meta row */}
-        <div className="flex items-center gap-3 mb-3">
-          <span className={`capitalize text-xs ${isDark ? 'text-vigno-muted' : 'text-vigno-muted'}`}>
-            {TYPE_LABEL[item.type] || item.type}
-          </span>
-          {item.duration > 0 && (
-            <span className={`text-xs ${isDark ? 'text-vigno-muted' : 'text-vigno-muted'}`}>
-              {Math.round(item.duration / 60)} min
-            </span>
-          )}
-        </div>
-
-        {/* What you get */}
-        <ul className="mb-3 space-y-1.5">
-          {[
-            'Access on all devices',
-            item.paid ? 'Secure account-linked license' : 'Free — no purchase needed',
-            item.type === 'video' ? 'Streamed securely, no download' :
-            item.type === 'pdf'   ? 'Rendered in-browser, download disabled' :
-            item.type === 'game'  ? 'Requires AeroLearn desktop launcher' :
-                                    'Opens directly in browser',
-          ].map((h, i) => (
-            <li key={i} className="flex items-start gap-2">
-              <span className={`mt-0.5 shrink-0 text-xs ${isDark ? 'text-vigno-accent' : 'text-vigno-accent'}`}>✓</span>
-              <span className={`text-xs ${isDark ? 'text-vigno-muted' : 'text-vigno-muted'}`}>{h}</span>
-            </li>
-          ))}
-        </ul>
-
-        {/* Price + CTA */}
-        <div className={`pt-3 border-t flex items-center justify-between gap-2 ${isDark ? 'border-vigno-line/30' : 'border-vigno-line'}`}>
-          {item.paid ? (
-            <span className={`font-bold text-sm ${isDark ? 'text-vigno-txt' : 'text-vigno-txt'}`}>
-              ₹{item.price?.toLocaleString('en-IN')}
-            </span>
-          ) : (
-            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded border ${isDark ? 'bg-green-500/15 text-green-300 border-green-500/20' : 'bg-green-50 text-green-700 border-green-200'}`}>
-              Free
-            </span>
-          )}
-          {/* pointer-events re-enabled on button only */}
-          <button
-            style={{ pointerEvents: 'auto' }}
-            onClick={onNavigate}
-            className={[
-              'text-xs font-semibold px-3 py-1.5 rounded transition-all',
-              isDark
-                ? 'bg-vigno-accent2 hover:opacity-85 text-white'
-                : 'bg-vigno-accent2 hover:opacity-85 text-white',
-            ].join(' ')}
-          >
-            {item.paid ? 'View / Buy' : 'Open'}
-          </button>
-        </div>
-      </div>
-    </div>,
-    document.body
+function LessonIcon({ type, className = "w-10 h-10" }) {
+  if (type === 'video') {
+    return (
+      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+    )
+  }
+  if (type === 'pdf') {
+    return (
+      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+      </svg>
+    )
+  }
+  if (type === '3d') {
+    return (
+      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+      </svg>
+    )
+  }
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
+    </svg>
   )
 }
 
-// ── Card ──────────────────────────────────────────────────────────────────────
-export default function ContentCard({ item }) {
+
+
+export default function ContentCard({ item, disablePopover = false }) {
   const navigate = useNavigate()
   const theme = useSelector((s) => s.ui.theme)
   const isDark = theme === 'dark'
+  const { data: licenses } = useQuery({ queryKey: ['licenses', 'mine'], queryFn: authApi.myLicenses })
+  const isEnrolled = !!item.courseKey && licenses?.some((l) => l.contentId?.courseKey === item.courseKey)
 
-  const [showPreview, setShowPreview] = useState(false)
-  const [anchorRect, setAnchorRect] = useState(null)
+  const [hovered, setHovered] = useState(false)
+  const [popoverSide, setPopoverSide] = useState('right')
+  const [coords, setCoords] = useState(null)
   const cardRef = useRef(null)
-  const hoverTimer = useRef(null)
+  const enterTimeout = useRef(null)
+  const leaveTimeout = useRef(null)
 
-  const pct = item.duration > 0
-    ? Math.min(100, Math.round((item.position / item.duration) * 100))
-    : 0
+  const pct = item.completed
+    ? 100
+    : (item.duration > 0 ? Math.min(100, Math.round((item.position / item.duration) * 100)) : 0)
 
-  const badge = isDark
-    ? (TYPE_DARK[item.type]  || TYPE_FALLBACK_DARK)
-    : (TYPE_LIGHT[item.type] || TYPE_FALLBACK_LIGHT)
+  // Cleanup on unmount
+  useEffect(() => () => {
+    clearTimeout(enterTimeout.current)
+    clearTimeout(leaveTimeout.current)
+  }, [])
 
   const handleMouseEnter = useCallback(() => {
-    hoverTimer.current = setTimeout(() => {
-      if (cardRef.current) setAnchorRect(cardRef.current.getBoundingClientRect())
-      setShowPreview(true)
+    if (disablePopover) return
+    clearTimeout(leaveTimeout.current)
+    enterTimeout.current = setTimeout(() => {
+      if (cardRef.current) {
+        const rect = cardRef.current.getBoundingClientRect()
+        setPopoverSide(window.innerWidth - rect.right < 350 ? 'left' : 'right')
+        setCoords(rect)
+      }
+      setHovered(true)
     }, 320)
-  }, [])
+  }, [disablePopover])
 
   const handleMouseLeave = useCallback(() => {
-    clearTimeout(hoverTimer.current)
-    setShowPreview(false)
-    setAnchorRect(null)
+    clearTimeout(enterTimeout.current)
+    leaveTimeout.current = setTimeout(() => setHovered(false), 120)
   }, [])
 
-  useEffect(() => () => clearTimeout(hoverTimer.current), [])
+  const handleScroll = useCallback(() => {
+    setHovered(false)
+  }, [])
 
-  const goToContent = useCallback(() => {
-    navigate(`/app/content/${item.id}`)
-  }, [navigate, item.id])
+  // Hide popover immediately when scrolling parent or viewport
+  useEffect(() => {
+    if (hovered) {
+      window.addEventListener('scroll', handleScroll, true)
+      return () => {
+        window.removeEventListener('scroll', handleScroll, true)
+      }
+    }
+  }, [hovered, handleScroll])
+
+  const handleNavigate = () => navigate(`/app/content/${item.id}`)
+
+  const resourceGradient = {
+    video: 'from-blue-600 to-indigo-850',
+    pdf: 'from-teal-600 to-green-850',
+    '3d': 'from-purple-600 to-indigo-950',
+    game: 'from-rose-600 to-pink-850',
+  }[item.type] || 'from-slate-600 to-slate-850'
+
+  const isPlayableResource = !item.courseKey && item.type !== 'pdf'
 
   return (
     <div
       ref={cardRef}
+      className={`relative w-64 sm:w-72 shrink-0 transition-[z-index] ${hovered ? 'z-10' : 'z-0'}`}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
-      className="relative"
-      style={{ width: '13rem' }} /* 208px — matches w-52 */
     >
-      <button
-        onClick={goToContent}
+      {/* Card */}
+      <div
+        onClick={handleNavigate}
         className={[
-          'w-full text-left rounded-lg border overflow-hidden transition-all duration-150',
-          showPreview
-            ? isDark
-              ? 'border-vigno-accent2/50 shadow-lg shadow-vigno-accent2/10 -translate-y-0.5'
-              : 'border-vigno-accent2/40 shadow-lg shadow-vigno-accent2/10 -translate-y-0.5'
-            : isDark
-              ? 'bg-vigno-card border-vigno-line hover:border-vigno-line/80'
-              : 'bg-white border-vigno-line hover:border-vigno-line/80 shadow-sm',
-          isDark ? 'bg-vigno-card' : 'bg-white',
+          'group cursor-pointer rounded-2xl border transition-all duration-300 overflow-hidden flex flex-col h-full bg-vigno-card shadow-sm',
+          isDark
+            ? 'border-vigno-line/50 hover:border-vigno-accent/40'
+            : 'bg-white border-vigno-line/70 hover:border-vigno-accent/40',
         ].join(' ')}
       >
-        {/* Thumbnail */}
-        <div className={[
-          'h-28 flex items-center justify-center relative overflow-hidden',
-          isDark ? 'bg-vigno-bg3/50' : 'bg-vigno-bg3/20',
-        ].join(' ')}>
-          <span className={`text-xl font-bold tracking-widest select-none opacity-[0.12] ${isDark ? 'text-vigno-txt' : 'text-vigno-txt'}`}>
-            {(item.type || '').toUpperCase()}
-          </span>
+        {/* Thumbnail zone */}
+        <div className="w-full aspect-video relative flex items-center justify-center overflow-hidden border-b border-vigno-line/20 bg-slate-900">
+          {item.thumbnailUrl || item.thumbnail ? (
+            <img src={item.thumbnailUrl || item.thumbnail} alt={item.title} className="absolute inset-0 w-full h-full object-cover transition-transform duration-300" />
+          ) : (
+            <div className={`absolute inset-0 bg-gradient-to-br ${resourceGradient}`} />
+          )}
+
+          {/* Darkening overlay for playable resources on hover */}
+          {isPlayableResource ? (
+            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/45 transition-colors duration-300 z-10" />
+          ) : (
+            <div className="absolute inset-0 bg-black/15 transition-colors" />
+          )}
+
+          {/* Icon overlay for playable resources on hover, or static placeholder if no thumbnail */}
+          {isPlayableResource ? (
+            <span className="select-none filter drop-shadow-lg text-white z-20 opacity-0 group-hover:opacity-100 transition-all duration-300 transform scale-90 group-hover:scale-100">
+              <LessonIcon type={item.type} className="w-12 h-12" />
+            </span>
+          ) : (
+            !(item.thumbnailUrl || item.thumbnail) && (
+              <span className="select-none filter drop-shadow-lg text-white z-10">
+                <LessonIcon type={item.type} className="w-12 h-12" />
+              </span>
+            )
+          )}
+
           {pct > 0 && (
-            <div className="absolute bottom-0 inset-x-0 h-[3px] bg-black/20">
+            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-black/20 z-20">
               <div className="h-full bg-vigno-accent" style={{ width: `${pct}%` }} />
             </div>
           )}
         </div>
 
-        {/* Body */}
-        <div className="p-3">
-          <div className="flex items-center justify-between mb-1.5">
-            <span className={`text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded border ${badge}`}>
-              {TYPE_LABEL[item.type] || item.type || 'Content'}
-            </span>
-            {/* stop propagation so click on star doesn't navigate */}
-            <span onClick={(e) => e.stopPropagation()}>
-              <FavoriteButton contentId={item.id} className="text-base" />
-            </span>
+        {/* Info */}
+        <div className="p-4 flex-1 flex flex-col justify-between space-y-3">
+          <div className="space-y-3">
+            <h3 className="font-bold text-sm text-vigno-txt line-clamp-2 leading-snug group-hover:text-vigno-accent transition-colors min-h-[2.5rem]">
+              {item.title}
+            </h3>
+            <div className="flex items-center justify-between pt-1">
+              {!item.courseKey ? (
+                <span className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full border transition-colors ${
+                  {
+                    video: 'bg-blue-50 text-blue-600 border-blue-200/60 dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/20',
+                    pdf: 'bg-emerald-50 text-emerald-600 border-emerald-200/60 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20',
+                    '3d': 'bg-purple-50 text-purple-600 border-purple-200/60 dark:bg-purple-500/10 dark:text-purple-400 dark:border-purple-500/20',
+                    game: 'bg-rose-50 text-rose-600 border-rose-200/60 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/20'
+                  }[item.type] || 'bg-slate-50 text-slate-600 border-slate-200/60 dark:bg-slate-500/10 dark:text-slate-400 dark:border-slate-500/20'
+                }`}>
+                  {TYPE_LABEL[item.type] || item.type}
+                </span>
+              ) : (
+                <span className="text-[10px] text-vigno-muted">{TYPE_LABEL[item.type] || item.type}</span>
+              )}
+              {disablePopover ? (
+                // In continue learning, hide premium/unlocked labels but keep the price/free label if it's a standalone resource
+                !item.courseKey && (
+                  item.paid ? (
+                    <span className="text-xs font-bold text-vigno-txt">₹{item.price}</span>
+                  ) : (
+                    <span className={`text-[10px] font-semibold ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}>Free</span>
+                  )
+                )
+              ) : (
+                item.courseKey ? (
+                  isEnrolled ? (
+                    <span className={`text-[10px] font-semibold ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}>Unlocked</span>
+                  ) : (
+                    <span className="text-[10px] font-bold text-vigno-accent2">Premium</span>
+                  )
+                ) : item.paid ? (
+                  <span className="text-xs font-bold text-vigno-txt">₹{item.price}</span>
+                ) : (
+                  <span className={`text-[10px] font-semibold ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}>Free</span>
+                )
+              )}
+            </div>
           </div>
-
-          <p className={`font-semibold text-[13px] leading-snug line-clamp-2 min-h-[2.4rem] ${isDark ? 'text-vigno-txt' : 'text-vigno-txt'}`}>
-            {item.title}
-          </p>
-
-          <div className="mt-2 flex items-center justify-between">
-            {item.paid ? (
-              <span className={`text-xs font-bold ${isDark ? 'text-vigno-txt' : 'text-vigno-txt'}`}>
-                ₹{item.price?.toLocaleString('en-IN')}
-              </span>
-            ) : (
-              <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border ${isDark ? 'bg-green-500/15 text-green-300 border-green-500/20' : 'bg-green-50 text-green-700 border-green-200'}`}>
-                Free
-              </span>
-            )}
-            {pct > 0 && (
-              <span className={`text-[10px] ${isDark ? 'text-vigno-muted' : 'text-vigno-muted'}`}>
-                {item.completed ? 'Done' : `${pct}%`}
-              </span>
-            )}
-          </div>
+          {pct > 0 && (
+            <div className="mt-2">
+              <div className={`h-1 rounded-full overflow-hidden ${isDark ? 'bg-vigno-line/50' : 'bg-vigno-line'}`}>
+                <div className="h-full bg-vigno-accent rounded-full" style={{ width: `${pct}%` }} />
+              </div>
+              <div className="text-[9px] text-vigno-muted mt-0.5">
+                {`${pct}%`}
+              </div>
+            </div>
+          )}
         </div>
-      </button>
+      </div>
 
-      {/* Portal preview — never clipped */}
-      {showPreview && anchorRect && (
-        <PreviewPortal
-          item={item}
-          isDark={isDark}
-          anchorRect={anchorRect}
-          onNavigate={goToContent}
+      {/* Popover */}
+      {hovered && (
+        <UdemyHoverPopover
+          title={item.title}
+          isCourse={false}
+          isPaid={item.paid}
+          price={item.price}
+          instructor={item.courseKey ? item.courseKey.replace(/_/g, ' ') + ' Instructor' : 'AeroLearn Resource'}
+          description={item.description}
+          previewText={item.previewText}
+          isEnrolled={isEnrolled}
+          type={item.type}
+          onActionClick={handleNavigate}
+          contentId={item.id}
+          side={popoverSide}
+          coords={coords}
+          thumbnail={item.thumbnailUrl || item.thumbnail || ''}
+          rating="4.8"
+          ratingCount="8,200"
         />
       )}
     </div>

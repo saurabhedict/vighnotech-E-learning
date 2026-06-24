@@ -29,7 +29,7 @@ export default function CountrySelect({ value, onChange }) {
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="w-full flex items-center justify-between gap-1 px-2.5 py-2.5 rounded-lg bg-vigno-bg2 border border-vigno-line text-sm outline-none focus:border-vigno-accent"
+        className="w-full flex items-center justify-between gap-1 px-2.5 py-2.5 rounded-lg bg-vigno-bg2 border border-vigno-line text-sm outline-none"
       >
         <span className="truncate"><span className="text-vigno-muted text-xs mr-1">{sel?.iso}</span>{sel?.dial}</span>
         <span className="text-vigno-muted text-[10px]">▼</span>
@@ -43,7 +43,7 @@ export default function CountrySelect({ value, onChange }) {
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder="Search country…"
-              className="w-full px-2.5 py-2 rounded-lg bg-vigno-bg2 border border-vigno-line text-sm outline-none focus:border-vigno-accent"
+              className="w-full px-2.5 py-2 rounded-lg bg-vigno-bg2 border border-vigno-line text-sm outline-none"
             />
           </div>
           <ul className="max-h-60 overflow-auto py-1">

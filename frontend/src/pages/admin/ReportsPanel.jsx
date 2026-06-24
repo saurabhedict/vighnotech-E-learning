@@ -19,7 +19,7 @@ export default function ReportsPanel() {
   }
 
   const tabBtn = (active) =>
-    'px-3 py-1.5 rounded-lg text-sm ' + (active ? 'bg-vigno-accent text-[#1a0d0f] font-bold' : 'bg-white/10 hover:bg-white/20')
+    'px-3 py-1.5 rounded-lg text-sm ' + (active ? 'bg-vigno-accent text-vigno-accent-txt font-bold' : 'bg-white/10 hover:bg-white/20')
 
   return (
     <div>

@@ -9,5 +9,6 @@ const router = Router()
 router.get('/wallet', requireAuth, c.getWallet)
 router.post('/wallet/topup', requireAuth, validate({ body: c.topupSchema }), c.topupWallet)
 router.post('/coupons/validate', requireAuth, validate({ body: c.validateCouponSchema }), c.validateCoupon)
+router.post('/coupons/validate-course', requireAuth, validate({ body: c.validateCourseCouponSchema }), c.validateCourseCoupon)
 
 export default router

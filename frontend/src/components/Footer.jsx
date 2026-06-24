@@ -1,116 +1,317 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useSiteSettings } from '../hooks/useSiteSettings'
 import { safeHref } from '../lib/safeUrl'
 
-// Inline SVG social icons (no extra deps). Keyed by platform slug.
+// Inline SVG social icons (matching Relume styling)
 const ICONS = {
-  facebook: 'M22 12.06C22 6.48 17.52 2 11.94 2 6.36 2 1.88 6.48 1.88 12.06c0 5.02 3.68 9.18 8.49 9.94v-7.03H7.83v-2.91h2.54V9.85c0-2.5 1.49-3.89 3.78-3.89 1.09 0 2.24.2 2.24.2v2.46h-1.26c-1.24 0-1.63.77-1.63 1.56v1.88h2.78l-.44 2.91h-2.34V22c4.8-.76 8.48-4.92 8.48-9.94Z',
-  twitter: 'M18.244 2.25h3.308l-7.227 8.26 8.502 11.24h-6.66l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231 5.45-6.231Zm-1.161 17.52h1.833L7.084 4.126H5.117L17.083 19.77Z',
-  linkedin: 'M20.45 20.45h-3.56v-5.57c0-1.33-.02-3.04-1.85-3.04-1.85 0-2.14 1.45-2.14 2.94v5.67H9.35V9h3.41v1.56h.05c.48-.9 1.64-1.85 3.37-1.85 3.6 0 4.27 2.37 4.27 5.46v6.28ZM5.34 7.43a2.07 2.07 0 1 1 0-4.14 2.07 2.07 0 0 1 0 4.14ZM7.12 20.45H3.56V9h3.56v11.45ZM22.22 0H1.77C.79 0 0 .77 0 1.73v20.54C0 23.22.79 24 1.77 24h20.45c.98 0 1.78-.78 1.78-1.73V1.73C24 .77 23.2 0 22.22 0Z',
-  instagram: 'M12 2.16c3.2 0 3.58.01 4.85.07 1.17.05 1.8.25 2.23.41.56.22.96.48 1.38.9.42.42.68.82.9 1.38.16.42.36 1.06.41 2.23.06 1.27.07 1.65.07 4.85s-.01 3.58-.07 4.85c-.05 1.17-.25 1.8-.41 2.23-.22.56-.48.96-.9 1.38-.42.42-.82.68-1.38.9-.42.16-1.06.36-2.23.41-1.27.06-1.65.07-4.85.07s-3.58-.01-4.85-.07c-1.17-.05-1.8-.25-2.23-.41a3.7 3.7 0 0 1-1.38-.9 3.7 3.7 0 0 1-.9-1.38c-.16-.42-.36-1.06-.41-2.23C2.17 15.58 2.16 15.2 2.16 12s.01-3.58.07-4.85c.05-1.17.25-1.8.41-2.23.22-.56.48-.96.9-1.38.42-.42.82-.68 1.38-.9.42-.16 1.06-.36 2.23-.41C8.42 2.17 8.8 2.16 12 2.16Zm0 1.94c-3.14 0-3.51.01-4.75.07-1.15.05-1.77.24-2.18.4-.55.22-.94.47-1.35.88-.41.41-.66.8-.88 1.35-.16.41-.35 1.03-.4 2.18-.06 1.24-.07 1.61-.07 4.75s.01 3.51.07 4.75c.05 1.15.24 1.77.4 2.18.22.55.47.94.88 1.35.41.41.8.66 1.35.88.41.16 1.03.35 2.18.4 1.24.06 1.61.07 4.75.07s3.51-.01 4.75-.07c1.15-.05 1.77-.24 2.18-.4.55-.22.94-.47 1.35-.88.41-.41.66-.8.88-1.35.16-.41.35-1.03.4-2.18.06-1.24.07-1.61.07-4.75s-.01-3.51-.07-4.75c-.05-1.15-.24-1.77-.4-2.18a3.6 3.6 0 0 0-.88-1.35 3.6 3.6 0 0 0-1.35-.88c-.41-.16-1.03-.35-2.18-.4-1.24-.06-1.61-.07-4.75-.07Zm0 3.3a4.6 4.6 0 1 1 0 9.2 4.6 4.6 0 0 1 0-9.2Zm0 7.59a2.99 2.99 0 1 0 0-5.98 2.99 2.99 0 0 0 0 5.98Zm5.86-7.81a1.08 1.08 0 1 1-2.15 0 1.08 1.08 0 0 1 2.15 0Z',
-  youtube: 'M23.5 6.2a3.02 3.02 0 0 0-2.12-2.14C19.5 3.55 12 3.55 12 3.55s-7.5 0-9.38.51A3.02 3.02 0 0 0 .5 6.2 31.5 31.5 0 0 0 0 12a31.5 31.5 0 0 0 .5 5.8 3.02 3.02 0 0 0 2.12 2.14C4.5 20.45 12 20.45 12 20.45s7.5 0 9.38-.51a3.02 3.02 0 0 0 2.12-2.14A31.5 31.5 0 0 0 24 12a31.5 31.5 0 0 0-.5-5.8ZM9.55 15.57V8.43L15.82 12l-6.27 3.57Z',
-}
-
-const linkCls = 'text-vigno-muted hover:text-vigno-accent2 transition text-sm'
-
-function SocialIcon({ platform, url }) {
-  const path = ICONS[platform?.toLowerCase()] || ICONS.facebook
-  return (
-    <a href={safeHref(url)} target="_blank" rel="noreferrer" title={platform} aria-label={platform}
-      className="grid place-items-center w-9 h-9 rounded-full bg-white/10 hover:bg-vigno-accent hover:text-[#1a0d0f] text-vigno-txt transition">
-      <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><path d={path} /></svg>
-    </a>
+  facebook: (
+    <svg viewBox="0 0 24 24" className="w-5 h-5 fill-black shrink-0" aria-hidden="true">
+      <path d="M22 12.06C22 6.48 17.52 2 11.94 2 6.36 2 1.88 6.48 1.88 12.06c0 5.02 3.68 9.18 8.49 9.94v-7.03H7.83v-2.91h2.54V9.85c0-2.5 1.49-3.89 3.78-3.89 1.09 0 2.24.2 2.24.2v2.46h-1.26c-1.24 0-1.63.77-1.63 1.56v1.88h2.78l-.44 2.91h-2.34V22c4.8-.76 8.48-4.92 8.48-9.94Z" />
+    </svg>
+  ),
+  instagram: (
+    <svg viewBox="0 0 24 24" className="w-5 h-5 fill-none stroke-black shrink-0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
+      <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+      <line x1="17.5" y1="6.5" x2="17.51" y2="6.5" />
+    </svg>
+  ),
+  x: (
+    <svg viewBox="0 0 24 24" className="w-5 h-5 fill-black shrink-0" aria-hidden="true">
+      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24h-6.66l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231 5.45-6.231Zm-1.161 17.52h1.833L7.084 4.126H5.117L17.083 19.77Z" />
+    </svg>
+  ),
+  linkedin: (
+    <svg viewBox="0 0 24 24" className="w-5 h-5 fill-black shrink-0" aria-hidden="true">
+      <path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.779-1.75-1.75s.784-1.75 1.75-1.75 1.75.779 1.75 1.75-.784 1.75-1.75 1.75zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z" />
+    </svg>
+  ),
+  youtube: (
+    <svg viewBox="0 0 24 24" className="w-5 h-5 fill-black shrink-0" aria-hidden="true">
+      <path d="M23.498 6.163a3.003 3.003 0 0 0-2.11-2.107C19.5 3.5 12 3.5 12 3.5s-7.5 0-9.388.556a3.003 3.003 0 0 0-2.11 2.107C0 8.053 0 12 0 12s0 3.948.502 5.837a3.003 3.003 0 0 0 2.11 2.107C4.5 20.5 12 20.5 12 20.5s7.5 0 9.388-.556a3.003 3.003 0 0 0 2.11-2.107C24 15.948 24 12 24 12s0-3.947-.502-5.837zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
+    </svg>
   )
 }
 
-// Internal route (/app/...) → <Link>; everything else (http/mailto/tel/#) → <a>.
-function FooterLink({ to, children }) {
-  if (to && to.startsWith('/') && !to.startsWith('//')) return <Link to={to} className={linkCls}>{children}</Link>
-  return <a href={safeHref(to)} className={linkCls}>{children}</a>
-}
-
-// Render one modular footer column based on its type.
-function Section({ section: s }) {
+function PhoneIcon({ className = 'w-4 h-4' }) {
   return (
-    <div className="min-w-[150px] max-w-xs">
-      {(s.title || s.icon) && (
-        <h4 className="text-vigno-txt font-bold text-sm mb-3">
-          {s.icon && <span className="mr-1.5">{s.icon}</span>}{s.title}
-        </h4>
-      )}
-
-      {s.type === 'links' && (
-        <ul className="space-y-2">
-          {(s.links || []).map((l, i) => <li key={i}><FooterLink to={l.url}>{l.label}</FooterLink></li>)}
-        </ul>
-      )}
-
-      {s.type === 'contact' && (
-        <ul className="space-y-2">
-          {(s.phones || []).map((p, i) => (
-            <li key={`p${i}`}><a href={`tel:${p.replace(/\s+/g, '')}`} className={linkCls}>📞 {p}</a></li>
-          ))}
-          {(s.emails || []).map((e, i) => (
-            <li key={`e${i}`}><a href={`mailto:${e}`} className={linkCls + ' break-all'}>✉ {e}</a></li>
-          ))}
-          {s.address && <li className="text-vigno-muted text-sm flex gap-1.5"><span>📍</span><span>{s.address}</span></li>}
-          {s.hours && <li className="text-vigno-muted text-sm flex gap-1.5"><span>🕒</span><span>{s.hours}</span></li>}
-        </ul>
-      )}
-
-      {s.type === 'social' && (
-        <div className="flex flex-wrap gap-2">
-          {(s.items || []).map((it, i) => <SocialIcon key={i} platform={it.platform} url={it.url} />)}
-        </div>
-      )}
-
-      {s.type === 'text' && s.body && (
-        <p className="text-vigno-muted text-sm leading-relaxed whitespace-pre-line">{s.body}</p>
-      )}
-
-      {s.type === 'custom' && (
-        <ul className="space-y-2">
-          {(s.rows || []).map((r, i) => (
-            <li key={i} className="text-sm">
-              {r.url ? (
-                <FooterLink to={r.url}>{r.icon && <span className="mr-1.5">{r.icon}</span>}{r.text}</FooterLink>
-              ) : (
-                <span className="text-vigno-muted">{r.icon && <span className="mr-1.5">{r.icon}</span>}{r.text}</span>
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-2.824-1.638-5.161-3.976-6.797-6.797l1.293-.97c.362-.271.527-.733.417-1.173L5.879 4.88c-.125-.501-.575-.852-1.091-.852H3.75A2.25 2.25 0 001.5 6.75v.003z" />
+    </svg>
   )
 }
+
+function MailIcon({ className = 'w-4 h-4' }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91A2.25 2.25 0 012.25 6.994V6.75" />
+    </svg>
+  )
+}
+
+function LocationIcon({ className = 'w-4 h-4' }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
+    </svg>
+  )
+}
+
+function ClockIcon({ className = 'w-4 h-4' }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  )
+}
+
+// Fallback Relume mockup sections if the admin has not configured any sections yet
+const DEFAULT_SECTIONS = [
+  {
+    type: 'contact',
+    title: 'Contact us',
+    links: [
+      { label: 'Link One', url: '#' },
+      { label: 'Link Two', url: '#' },
+      { label: 'Link Three', url: '#' },
+      { label: 'Link Four', url: '#' },
+      { label: 'Link Five', url: '#' },
+    ],
+    phones: ['+91 77200 25900'],
+    emails: ['contact@aerolearn.in'],
+  },
+  {
+    type: 'links',
+    title: 'about us',
+    links: [
+      { label: 'Link Six', url: '#' },
+      { label: 'Link Seven', url: '#' },
+      { label: 'Link Eight', url: '#' },
+      { label: 'Link Nine', url: '#' },
+      { label: 'Link Ten', url: '#' },
+    ]
+  },
+  {
+    type: 'social',
+    title: 'Follow Us',
+    items: [
+      { platform: 'facebook', url: '#' },
+      { platform: 'instagram', url: '#' },
+      { platform: 'x', url: '#' },
+      { platform: 'linkedin', url: '#' },
+      { platform: 'youtube', url: '#' },
+    ]
+  }
+]
 
 export default function Footer() {
   const { data } = useSiteSettings()
   const brand = data?.brand || {}
   const f = data?.footer || {}
-  const sections = f.sections || []
-  const copyright = (f.copyright || '').replace('{year}', new Date().getFullYear())
+  
+  // Use user-configured sections if they exist, otherwise fall back to the default Relume template
+  const sections = f.sections && f.sections.length > 0 ? f.sections : DEFAULT_SECTIONS
+
+  const [email, setEmail] = useState('')
+  const [subscribed, setSubscribed] = useState(false)
+
+  const handleSubscribe = (e) => {
+    e.preventDefault()
+    if (email.trim()) {
+      setSubscribed(true)
+      setEmail('')
+      setTimeout(() => setSubscribed(false), 5000)
+    }
+  }
+
+  // Format dynamic copyright line
+  const copyright = (f.copyright || '© {year} {brandName}. All rights reserved.')
+    .replace('{year}', new Date().getFullYear().toString())
+    .replace('{brandName}', brand.name || 'Aerolearn')
 
   return (
-    <footer className="bg-vigno-card border-t border-vigno-line mt-12">
-      <div className="max-w-7xl mx-auto px-6 py-10">
-        <div className="flex flex-wrap gap-x-12 gap-y-8">
-          {/* Brand identity (always present) */}
-          <div className="min-w-[220px] max-w-sm flex-1">
-            <div className="font-extrabold text-lg mb-2">
-              <span className="text-vigno-accent2">{brand.logoEmoji ?? '✈'}</span> {brand.name || 'AeroLearn'}
+    <footer className="bg-[#e6f2ff] text-black border-t border-black/10 pt-16 pb-12 mt-16">
+      <div className="max-w-7xl mx-auto px-8">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 pb-12">
+          {/* Brand Identity & Newsletter */}
+          <div className="lg:col-span-6 flex flex-col space-y-6">
+            <div>
+              <span style={{ fontFamily: "'Caveat', cursive" }} className="text-4xl font-bold text-black select-none">
+                {brand.name || 'Aerolearn'}
+              </span>
             </div>
-            {f.blurb && <p className="text-vigno-muted text-sm leading-relaxed">{f.blurb}</p>}
+            <p className="text-base text-black max-w-md">
+              {f.blurb || 'Join our newsletter to stay up to date on features and releases.'}
+            </p>
+            <form onSubmit={handleSubscribe} className="flex flex-col sm:flex-row gap-3 max-w-md w-full">
+              <input
+                type="email"
+                placeholder="Enter your email"
+                className="px-3 py-3 border border-black bg-white text-black placeholder:text-gray-500 text-sm outline-none flex-grow"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+              <button
+                type="submit"
+                className="px-6 py-3 border border-black bg-white text-black font-semibold text-sm hover:bg-black hover:text-white transition-colors duration-200 whitespace-nowrap"
+              >
+                Subscribe
+              </button>
+            </form>
+            {subscribed && (
+              <p className="text-sm text-green-600 font-medium">Thank you for subscribing!</p>
+            )}
+            <p className="text-xs text-black leading-relaxed max-w-md">
+              By subscribing you agree to with our <a href="#" className="underline hover:text-gray-700">Privacy Policy</a> and provide consent to receive updates from our company.
+            </p>
           </div>
 
-          {/* Modular columns */}
-          {sections.map((s, i) => <Section key={i} section={s} />)}
+          {/* Dynamic Columns of Links */}
+          <div className="lg:col-span-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8">
+            {sections.map((s, idx) => {
+              const columnHeader = (
+                <h4 className="font-bold text-black text-sm flex items-center gap-2">
+                  <span>{s.title || 'Untitled Column'}</span>
+                </h4>
+              )
+
+              return (
+                <div key={idx} className="flex flex-col space-y-4">
+                  {columnHeader}
+
+                  {s.type === 'links' && (
+                    <ul className="flex flex-col space-y-3">
+                      {(s.links || []).map((link, lIdx) => (
+                        <li key={lIdx}>
+                          {link.url.startsWith('/') && !link.url.startsWith('//') ? (
+                            <Link to={link.url} className="text-sm text-black hover:underline">
+                              {link.label || 'Link'}
+                            </Link>
+                          ) : (
+                            <a href={safeHref(link.url)} className="text-sm text-black hover:underline">
+                              {link.label || 'Link'}
+                            </a>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+
+                  {s.type === 'social' && (
+                    <ul className="flex flex-col space-y-3">
+                      {(s.items || []).map((it, sIdx) => {
+                        const platform = it.platform || 'facebook'
+                        const platformKey = platform.toLowerCase() === 'twitter' ? 'x' : platform.toLowerCase()
+                        const icon = ICONS[platformKey] || ICONS.facebook
+                        const platformLabel = platform.toLowerCase() === 'x' || platform.toLowerCase() === 'twitter' 
+                          ? 'X' 
+                          : platform.charAt(0).toUpperCase() + platform.slice(1)
+
+                        return (
+                          <li key={sIdx}>
+                            <a href={safeHref(it.url)} target="_blank" rel="noreferrer" className="text-sm text-black hover:underline flex items-center gap-3">
+                              {icon}
+                              <span className={platformKey === 'instagram' ? 'ml-[1px]' : ''}>{platformLabel}</span>
+                            </a>
+                          </li>
+                        )
+                      })}
+                    </ul>
+                  )}
+
+                  {s.type === 'contact' && (
+                    <ul className="flex flex-col space-y-3 text-sm text-black">
+                      {(s.links || []).map((link, lIdx) => (
+                        <li key={`l${lIdx}`}>
+                          {link.url.startsWith('/') && !link.url.startsWith('//') ? (
+                            <Link to={link.url} className="text-sm text-black hover:underline">
+                              {link.label || 'Link'}
+                            </Link>
+                          ) : (
+                            <a href={safeHref(link.url)} className="text-sm text-black hover:underline">
+                              {link.label || 'Link'}
+                            </a>
+                          )}
+                        </li>
+                      ))}
+                      {(s.phones || []).map((p, pIdx) => (
+                        <li key={`p${pIdx}`}>
+                          <a href={`tel:${p.replace(/\s+/g, '')}`} className="hover:underline flex items-center gap-3">
+                            <PhoneIcon className="w-5 h-5 text-black shrink-0" />
+                            <span>{p}</span>
+                          </a>
+                        </li>
+                      ))}
+                      {(s.emails || []).map((e, eIdx) => (
+                        <li key={`e${eIdx}`}>
+                          <a href={`mailto:${e}`} className="hover:underline flex items-center gap-3 break-all">
+                            <MailIcon className="w-5 h-5 text-black shrink-0" />
+                            <span>{e}</span>
+                          </a>
+                        </li>
+                      ))}
+                      {s.address && (
+                        <li className="flex items-start gap-3">
+                          <LocationIcon className="w-5 h-5 text-black shrink-0 mt-0.5" />
+                          <span>{s.address}</span>
+                        </li>
+                      )}
+                      {s.hours && (
+                        <li className="flex items-start gap-3">
+                          <ClockIcon className="w-5 h-5 text-black shrink-0 mt-0.5" />
+                          <span>{s.hours}</span>
+                        </li>
+                      )}
+                    </ul>
+                  )}
+
+                  {s.type === 'text' && (
+                    <p className="text-sm text-black leading-relaxed whitespace-pre-line">
+                      {s.body}
+                    </p>
+                  )}
+
+                  {s.type === 'custom' && (
+                    <ul className="flex flex-col space-y-3 text-sm text-black">
+                      {(s.rows || []).map((row, rIdx) => (
+                        <li key={rIdx} className="flex items-start gap-3">
+                          {row.url ? (
+                            row.url.startsWith('/') && !row.url.startsWith('//') ? (
+                              <Link to={row.url} className="hover:underline">
+                                {row.text}
+                              </Link>
+                            ) : (
+                              <a href={safeHref(row.url)} className="hover:underline">
+                                {row.text}
+                              </a>
+                            )
+                          ) : (
+                            <span>{row.text}</span>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )
+            })}
+          </div>
         </div>
 
-        {copyright && (
-          <div className="border-t border-vigno-line/60 mt-8 pt-5 text-center text-xs text-vigno-muted">{copyright}</div>
-        )}
+        {/* Divider and Copyright */}
+        <div className="border-t border-black/20 pt-8 mt-4 flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="text-sm text-black">
+            {copyright}
+          </div>
+          <div className="flex gap-6 text-sm text-black font-normal">
+            <a href="#" className="hover:underline">Privacy Policy</a>
+            <a href="#" className="hover:underline">Terms of Service</a>
+            <a href="#" className="hover:underline">Cookies Settings</a>
+          </div>
+        </div>
       </div>
     </footer>
   )

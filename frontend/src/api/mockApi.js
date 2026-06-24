@@ -80,7 +80,24 @@ export async function fetchClasses() {
 
 export async function fetchClassTree(className) {
   try { return (await api.get(`/courses/${className}/tree`)).data }
-  catch (err) { if (!isNetworkError(err)) throw err; await wait(300); return TREE[className] ?? [] }
+  catch (err) {
+    if (!isNetworkError(err)) throw err
+    await wait(300)
+    return {
+      course: {
+        name: className?.replace(/_/g, ' '),
+        slug: className,
+        meta: {
+          subtitle: `Master ${className?.replace(/_/g, ' ')} with our expert-led curriculum.`,
+          description: `This comprehensive course will take you from zero to expert in ${className?.replace(/_/g, ' ')}. You will gain real-world practical experience and theory knowledge.`,
+          learningOutcomes: ['Gain deep theoretical understanding', 'Apply practical techniques in real scenarios', 'Prepare for certifications and examinations'],
+          requirements: 'Basic understanding of aviation principles recommended.',
+          targetAudience: 'Aspiring aviators, flight students, and aviation enthusiasts.',
+        }
+      },
+      tree: TREE[className] ?? []
+    }
+  }
 }
 
 export async function fetchModule(className, moduleId) {

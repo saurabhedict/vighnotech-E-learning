@@ -134,5 +134,5 @@ export async function hasActiveLicense(userId, contentId) {
 }
 
 export async function listUserLicenses(userId) {
-  return License.find({ userId }).sort({ createdAt: -1 }).populate('contentId', 'title type lane')
+  return License.find({ userId }).sort({ createdAt: -1 }).populate('contentId', 'title type lane courseKey')
 }

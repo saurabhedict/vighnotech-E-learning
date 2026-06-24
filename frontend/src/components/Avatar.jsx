@@ -15,7 +15,8 @@ export default function Avatar({ user, size = 40, verified = false, className = 
     </div>
   )
 
-  if (!verified) return inner
+  const showTick = verified && user?.role !== 'admin'
+  if (!showTick) return inner
   return (
     <span className="relative inline-block">
       {inner}

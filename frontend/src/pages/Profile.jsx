@@ -13,17 +13,20 @@ import CountrySelect from '../components/CountrySelect'
 import Breadcrumb from '../components/Breadcrumb'
 import { DIAL_CODES } from '../lib/countryCodes'
 
-function Card({ title, children }) {
+function Card({ title, icon, children }) {
   return (
     <section className="max-w-2xl bg-vigno-card border border-vigno-line rounded-2xl p-5 mb-6">
-      <h2 className="text-base font-bold mb-3 pl-2.5 border-l-4 border-vigno-accent">{title}</h2>
+      <div className="flex items-center gap-2 mb-3.5 pb-2 border-b border-vigno-line/30">
+        {icon && <span className="text-vigno-accent shrink-0">{icon}</span>}
+        <h2 className="text-sm font-bold text-vigno-txt">{title}</h2>
+      </div>
       {children}
     </section>
   )
 }
 
-const input = 'w-full mb-3 px-3 py-2.5 rounded-lg bg-vigno-bg2 border border-vigno-line text-sm outline-none focus:border-vigno-accent'
-const btn = 'bg-vigno-accent text-[#1a0d0f] font-bold px-4 py-2 rounded-lg hover:brightness-110 disabled:opacity-60'
+const input = 'w-full mb-3 px-3 py-2.5 rounded-lg bg-vigno-bg2 border border-vigno-line text-sm outline-none'
+const btn = 'bg-vigno-accent text-vigno-accent-txt font-bold px-4 py-2 rounded-lg hover:brightness-110 disabled:opacity-60'
 const btnGhost = 'bg-white/10 hover:bg-white/20 border border-vigno-line rounded-lg px-3 py-2 text-sm disabled:opacity-60'
 
 // Split a stored E.164 number into { cc, national(last 10 digits) }.
@@ -107,7 +110,7 @@ function AddPhone() {
     finally { setLoading(false) }
   }
 
-  const numCls = 'flex-1 px-3 py-2.5 rounded-lg bg-vigno-bg2 border border-vigno-line text-sm outline-none focus:border-vigno-accent tracking-wider'
+  const numCls = 'flex-1 px-3 py-2.5 rounded-lg bg-vigno-bg2 border border-vigno-line text-sm outline-none tracking-wider'
   return (
     <form onSubmit={submit}>
       <Msg msg={msg} />
@@ -280,7 +283,13 @@ function Devices() {
       <ul className="flex flex-col gap-2">
         {devices.data?.map((d) => (
           <li key={d.id} className="flex items-center justify-between bg-black/20 rounded-lg px-3 py-2 text-sm">
-            <span>💻 {d.name || 'Device'}</span>
+            <span className="flex items-center gap-2">
+              <svg className="w-4 h-4 text-vigno-muted" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <rect x="2" y="3" width="20" height="13" rx="2" />
+                <path d="M2 16h20M12 16v4M8 20h8" />
+              </svg>
+              <span>{d.name || 'Device'}</span>
+            </span>
             <span className="text-xs text-vigno-muted">last seen {new Date(d.lastSeenAt).toLocaleString()}</span>
           </li>
         ))}
@@ -336,7 +345,7 @@ function ActionTile({ icon, label, sub, onClick, danger }) {
         (danger
           ? 'border-red-500/40 bg-red-500/5 hover:bg-red-500/10'
           : 'border-vigno-line bg-vigno-bg2 hover:bg-vigno-bg3/50')}>
-      <span className="text-xl w-7 text-center">{icon}</span>
+      <span className="w-7 flex items-center justify-center shrink-0">{icon}</span>
       <span className="flex-1 min-w-0">
         <span className={'block font-semibold text-sm ' + (danger ? 'text-red-300' : '')}>{label}</span>
         <span className="block text-xs text-vigno-muted truncate">{sub}</span>
@@ -355,62 +364,160 @@ export default function Profile() {
   return (
     <div className="max-w-3xl">
       <Breadcrumb trail="Profile" />
-      <h1 className="text-2xl mb-5">👤 Profile</h1>
+      <h1 className="text-2xl mb-5 flex items-center gap-2">
+        <svg className="w-6 h-6 text-vigno-txt shrink-0" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+        </svg>
+        <span>Profile</span>
+      </h1>
 
       {/* Account */}
-      <Card title="Account">
-        <div className="flex items-start gap-5">
-          <div className="pt-1 text-center">
+      <Card title="Account" icon={
+        <svg className="w-5 h-5" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+        </svg>
+      }>
+        <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
+          <div className="text-center">
             <AvatarUploader size={84} />
-            <p className="text-[11px] text-vigno-muted mt-2">Click 📷 to change</p>
+            <div className="mt-2.5">
+              <span className="text-[10px] uppercase font-bold tracking-wider text-vigno-muted/80 bg-white/5 border border-vigno-line/45 rounded-full px-3 py-1 inline-block select-none">
+                Click photo to edit
+              </span>
+            </div>
           </div>
-          <div className="grid grid-cols-[90px_1fr] gap-y-2 text-sm flex-1">
-            <span className="text-vigno-muted">Name</span><span>{user?.name || '—'}</span>
-            <span className="text-vigno-muted">Email</span>
-            <span className="flex items-center gap-2 flex-wrap">
-              {user?.email}
-              {verified
-                ? <span className="text-[11px] font-semibold text-[#1da1f2] inline-flex items-center gap-1">✓ verified</span>
-                : <button onClick={() => setModal('verify')} className="text-[11px] text-vigno-accent2 underline">verify now</button>}
-            </span>
-            <span className="text-vigno-muted">Phone</span>
-            <span className="flex items-center gap-2 flex-wrap">
-              {user?.phone || <span className="text-vigno-muted">Not added</span>}
-              {user?.phoneVerified ? (
-                <span className="text-[11px] font-semibold text-[#1da1f2] inline-flex items-center gap-1">✓ verified</span>
+          <div className="grid grid-cols-[100px_1fr] gap-y-3.5 gap-x-4 text-sm flex-1 w-full">
+            <span className="text-vigno-muted flex items-center">Name</span>
+            <span className="font-semibold text-vigno-txt flex items-center">{user?.name || '—'}</span>
+            
+            <span className="text-vigno-muted flex items-center">Email</span>
+            <span className="flex items-center gap-2.5 flex-wrap">
+              <span className="font-semibold text-vigno-txt">{user?.email}</span>
+              {verified ? (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-green-500/12 text-green-400 border border-green-500/25 select-none">
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.043 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0112 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 01-3.296-1.043 3.746 3.746 0 01-1.043-3.296A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 011.043-3.296 3.746 3.746 0 013.296-1.043A3.746 3.746 0 0112 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 013.296 1.043 3.746 3.746 0 011.043 3.296A3.745 3.745 0 0121 12z" />
+                  </svg>
+                  <span>Verified</span>
+                </span>
               ) : (
                 <>
-                  <button onClick={() => setModal('addPhone')}
-                    className="text-[11px] font-semibold bg-white/10 hover:bg-white/20 border border-vigno-line rounded-md px-2 py-0.5">
-                    {user?.phone ? '✏ Edit' : '➕ Add Number'}
-                  </button>
-                  <button onClick={() => setModal('verifyPhone')}
-                    className="text-[11px] font-semibold bg-vigno-accent text-[#1a0d0f] rounded-md px-2 py-0.5 hover:brightness-110">
-                    📱 Verify
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-500/12 text-amber-400 border border-amber-500/25 select-none">
+                    Unverified
+                  </span>
+                  <button onClick={() => setModal('verify')} className="text-xs font-bold text-vigno-accent2 hover:underline transition-colors">
+                    Verify now →
                   </button>
                 </>
               )}
             </span>
-            <span className="text-vigno-muted">Role</span><span className="capitalize">{user?.role}</span>
+            
+            <span className="text-vigno-muted flex items-center">Phone</span>
+            <span className="flex items-center gap-2.5 flex-wrap">
+              {user?.phone ? (
+                <>
+                  <span className="font-semibold text-vigno-txt">{user.phone}</span>
+                  {user.phoneVerified ? (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-green-500/12 text-green-400 border border-green-500/25 select-none">
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.043 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0112 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 01-3.296-1.043 3.746 3.746 0 01-1.043-3.296A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 011.043-3.296 3.746 3.746 0 013.296-1.043A3.746 3.746 0 0112 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 013.296 1.043 3.746 3.746 0 011.043 3.296A3.745 3.745 0 0121 12z" />
+                      </svg>
+                      <span>Verified</span>
+                    </span>
+                  ) : (
+                    <>
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-500/12 text-amber-400 border border-amber-500/25 select-none">
+                        Unverified
+                      </span>
+                      <button onClick={() => setModal('addPhone')}
+                        className="text-[11px] font-semibold bg-white/10 hover:bg-white/20 border border-vigno-line rounded-md px-2 py-0.5 transition-colors">
+                        Edit
+                      </button>
+                      <button onClick={() => setModal('verifyPhone')}
+                        className="text-[11px] font-semibold bg-vigno-accent text-vigno-accent-txt rounded-md px-2.5 py-0.5 hover:brightness-110 transition-all">
+                        Verify
+                      </button>
+                    </>
+                  )}
+                </>
+              ) : (
+                <>
+                  <span className="text-vigno-muted">Not added</span>
+                  <button onClick={() => setModal('addPhone')}
+                    className="text-[11px] font-semibold bg-white/10 hover:bg-white/20 border border-vigno-line rounded-md px-2.5 py-0.5 transition-colors">
+                    Add Number
+                  </button>
+                </>
+              )}
+            </span>
+            
+            <span className="text-vigno-muted flex items-center">Role</span>
+            <span className="capitalize font-semibold text-vigno-txt flex items-center">{user?.role}</span>
           </div>
         </div>
       </Card>
 
       {/* Security */}
-      <Card title="Security">
+      <Card title="Security" icon={
+        <svg className="w-5 h-5" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.57-.598-3.75h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
+        </svg>
+      }>
         <div className="grid sm:grid-cols-2 gap-3">
-          <ActionTile icon="🔑" label="Change Password" sub="Update your password" onClick={() => setModal('password')} />
-          <ActionTile icon="🔐" label="Two-Factor Authentication"
+          <ActionTile
+            icon={
+              <svg className="w-5 h-5 text-amber-400 mx-auto shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 7a2 2 0 012 2m-3.414 5.414L9 18H6v-3l4.586-4.586a5 5 0 111.414 1.414z" />
+              </svg>
+            }
+            label="Change Password"
+            sub="Update your password"
+            onClick={() => setModal('password')}
+          />
+          <ActionTile
+            icon={
+              <svg className="w-5 h-5 text-orange-400 mx-auto shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.57-.598-3.75h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
+              </svg>
+            }
+            label="Two-Factor Authentication"
             sub={user?.twoFAEnabled ? `On · ${user.twoFAMethod === 'totp' ? 'authenticator app' : 'email codes'}` : 'Off — add a second step'}
-            onClick={() => setModal('2fa')} />
-          <ActionTile icon="💻" label="My Devices" sub="Devices bound for downloads" onClick={() => setModal('devices')} />
-          {!verified && <ActionTile icon="✅" label="Verify Account" sub="Email / SMS / WhatsApp" onClick={() => setModal('verify')} />}
+            onClick={() => setModal('2fa')}
+          />
+          <ActionTile
+            icon={
+              <svg className="w-5 h-5 text-blue-400 mx-auto shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <rect x="2" y="3" width="20" height="13" rx="2" />
+                <path d="M2 16h20M12 16v4M8 20h8" />
+              </svg>
+            }
+            label="My Devices"
+            sub="Devices bound for downloads"
+            onClick={() => setModal('devices')}
+          />
+          {!verified && (
+            <ActionTile
+              icon={
+                <svg className="w-5 h-5 text-green-400 mx-auto shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.043 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0112 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 01-3.296-1.043 3.746 3.746 0 01-1.043-3.296A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 011.043-3.296 3.746 3.746 0 013.296-1.043A3.746 3.746 0 0112 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 013.296 1.043 3.746 3.746 0 011.043 3.296A3.745 3.745 0 0121 12z" />
+                </svg>
+              }
+              label="Verify Account"
+              sub="Email / SMS / WhatsApp"
+              onClick={() => setModal('verify')}
+            />
+          )}
         </div>
       </Card>
 
       {/* Danger zone */}
       <section className="max-w-2xl border border-red-500/40 bg-red-500/5 rounded-2xl p-5 mb-6">
-        <h2 className="text-base font-bold mb-1 text-red-300">⚠ Danger Zone</h2>
+        <h2 className="text-base font-bold mb-1 text-red-300 flex items-center gap-1.5">
+          <svg className="w-5 h-5 text-red-300 shrink-0" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+          <span>Danger Zone</span>
+        </h2>
         <p className="text-xs text-vigno-muted mb-3">Permanently delete your account and all associated data.</p>
         <button onClick={() => setModal('delete')}
           className="bg-red-500/80 hover:bg-red-500 text-white font-bold px-4 py-2 rounded-lg text-sm">Delete Account</button>

@@ -9,7 +9,8 @@ import { PURCHASE_STATUS } from '@vigno/shared'
 const purchaseSchema = new mongoose.Schema(
   {
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
-    contentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Content', required: true, index: true },
+    contentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Content', required: false, index: true },
+    courseSlug: { type: String, index: true },
 
     amount: { type: Number, required: true }, // INR (final, after discount)
     listPrice: { type: Number }, // pre-discount price

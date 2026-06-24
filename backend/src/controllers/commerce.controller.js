@@ -6,6 +6,7 @@ import { User } from '../models/User.js'
 import { WalletTxn } from '../models/WalletTxn.js'
 import { Coupon } from '../models/Coupon.js'
 import { Content } from '../models/Content.js'
+import { TreeNode } from '../models/TreeNode.js'
 import { creditWallet } from '../services/commerce.js'
 import { isMock } from '../services/payments.js'
 
@@ -47,4 +48,28 @@ export const validateCoupon = asyncHandler(async (req, res) => {
   const result = coupon.evaluate(content.price)
   if (!result.usable) throw badRequest(`Coupon ${result.reason}`)
   res.json({ valid: true, code: coupon.code, discount: result.discount, finalAmount: result.finalAmount, listPrice: content.price })
+})
+
+export const validateCourseCouponSchema = z.object({
+  code: z.string().trim().min(1),
+  courseSlug: z.string().trim().min(1),
+})
+
+export const validateCourseCoupon = asyncHandler(async (req, res) => {
+  const { code, courseSlug } = req.body
+  const course = await TreeNode.findOne({ kind: 'course', slug: courseSlug }).lean()
+  if (!course) throw notFound('Course not found')
+
+  const coursePrice = Number(course.meta?.price) || 659
+  const coupon = await Coupon.findOne({ code: code.toUpperCase() })
+  if (!coupon) throw notFound('Invalid coupon code')
+  const result = coupon.evaluate(coursePrice)
+  if (!result.usable) throw badRequest(`Coupon ${result.reason}`)
+  res.json({
+    valid: true,
+    code: coupon.code,
+    discount: result.discount,
+    finalAmount: result.finalAmount,
+    listPrice: coursePrice
+  })
 })

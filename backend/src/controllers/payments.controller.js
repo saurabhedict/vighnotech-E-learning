@@ -4,6 +4,7 @@ import { audit } from '../utils/audit.js'
 import { badRequest, notFound, conflict, paymentRequired } from '../utils/ApiError.js'
 import { env } from '../config/env.js'
 import { Content } from '../models/Content.js'
+import { TreeNode } from '../models/TreeNode.js'
 import { Purchase } from '../models/Purchase.js'
 import { WalletTopup } from '../models/WalletTopup.js'
 import { Coupon } from '../models/Coupon.js'
@@ -275,8 +276,28 @@ export const webhook = asyncHandler(async (req, res) => {
       { new: true }
     )
     if (claimed) {
-      const content = await Content.findById(claimed.contentId)
-      if (content) await finalizePurchase(claimed, content)
+      if (claimed.courseSlug) {
+        const course = await TreeNode.findOne({ kind: 'course', slug: claimed.courseSlug })
+        const lessons = await Content.find({ courseKey: claimed.courseSlug, published: true })
+        for (const lesson of lessons) {
+          await issueLicense({ userId: claimed.userId, content: lesson })
+        }
+        if (claimed.couponCode) {
+          await Coupon.updateOne(
+            { code: claimed.couponCode, $or: [{ maxRedemptions: 0 }, { $expr: { $lt: ['$redeemed', '$maxRedemptions'] } }] },
+            { $inc: { redeemed: 1 } }
+          )
+        }
+        const user = await User.findById(claimed.userId)
+        if (user && course) {
+          sendMail(receiptEmail(user.email, {
+            title: course.name, amount: claimed.amount, licenseId: `course_${claimed.courseSlug}`, when: new Date().toUTCString(),
+          })).catch(() => {})
+        }
+      } else {
+        const content = await Content.findById(claimed.contentId)
+        if (content) await finalizePurchase(claimed, content)
+      }
     } else {
       // Not a content purchase — maybe a wallet top-up. Claim + credit once.
       const topup = await WalletTopup.findOneAndUpdate(
@@ -313,4 +334,202 @@ export const invoice = asyncHandler(async (req, res) => {
   res.set('Content-Type', 'application/pdf')
   res.set('Content-Disposition', `attachment; filename="invoice-${purchase._id}.pdf"`)
   res.send(buffer)
+})
+
+// ── Course Payments ─────────────────────────────────────────────────────────
+
+async function resolveCoursePricing(course, couponCode) {
+  const listPrice = Number(course.meta?.price) || 659
+  if (!couponCode) return { listPrice, discount: 0, finalAmount: listPrice, coupon: null }
+  const coupon = await Coupon.findOne({ code: String(couponCode).toUpperCase() })
+  if (!coupon) throw badRequest('Invalid coupon code')
+  const r = coupon.evaluate(listPrice)
+  if (!r.usable) throw badRequest(`Coupon ${r.reason}`)
+  return { listPrice, discount: r.discount, finalAmount: r.finalAmount, coupon }
+}
+
+export const courseOrderSchema = z.object({
+  courseSlug: z.string().trim().min(1),
+  couponCode: z.string().trim().optional(),
+})
+
+export const createCourseOrder = asyncHandler(async (req, res) => {
+  const { courseSlug, couponCode } = req.body
+  const course = await TreeNode.findOne({ kind: 'course', slug: courseSlug })
+  if (!course) throw notFound('Course not found')
+
+  const pricing = await resolveCoursePricing(course, couponCode)
+
+  if (pricing.finalAmount <= 0) {
+    const purchase = await Purchase.create({
+      userId: req.user.id,
+      courseSlug,
+      listPrice: pricing.listPrice,
+      discount: pricing.discount,
+      couponCode: pricing.coupon?.code,
+      amount: 0,
+      provider: 'free',
+      status: 'paid',
+      paidAt: new Date(),
+    })
+
+    const lessons = await Content.find({ courseKey: courseSlug, published: true })
+    for (const lesson of lessons) {
+      await issueLicense({ userId: req.user.id, content: lesson })
+    }
+
+    if (purchase.couponCode) {
+      await Coupon.updateOne(
+        { code: purchase.couponCode, $or: [{ maxRedemptions: 0 }, { $expr: { $lt: ['$redeemed', '$maxRedemptions'] } }] },
+        { $inc: { redeemed: 1 } }
+      )
+    }
+
+    const user = await User.findById(req.user.id)
+    if (user) {
+      sendMail(receiptEmail(user.email, {
+        title: course.name, amount: 0, licenseId: `course_${courseSlug}`, when: new Date().toUTCString(),
+      })).catch(() => {})
+    }
+
+    audit(req, 'payment.course.free', { targetType: 'TreeNode', targetId: course._id })
+    return res.status(201).json({ free: true, finalAmount: 0, discount: pricing.discount })
+  }
+
+  const order = await createOrder({ amountInr: pricing.finalAmount, receipt: `rcpt_course_${courseSlug}_${req.user.id}` })
+
+  await Purchase.create({
+    userId: req.user.id,
+    courseSlug,
+    listPrice: pricing.listPrice,
+    discount: pricing.discount,
+    couponCode: pricing.coupon?.code,
+    amount: pricing.finalAmount,
+    provider: isMock() ? 'mock' : 'razorpay',
+    razorpayOrderId: order.id,
+    status: 'created',
+  })
+
+  audit(req, 'payment.course.order', { targetType: 'TreeNode', targetId: course._id, meta: { orderId: order.id } })
+  res.status(201).json({
+    orderId: order.id,
+    amount: order.amount,
+    currency: order.currency,
+    discount: pricing.discount,
+    finalAmount: pricing.finalAmount,
+    keyId: env.razorpay.keyId || null,
+    mock: isMock(),
+    ...(isMock()
+      ? (() => {
+          const paymentId = `pay_mock_${order.id.slice(-8)}`
+          return { mockPaymentId: paymentId, mockSignature: mockSignature(order.id, paymentId) }
+        })()
+      : {}),
+  })
+})
+
+export const walletPayCourseSchema = z.object({
+  courseSlug: z.string().trim().min(1),
+  couponCode: z.string().trim().optional(),
+})
+
+export const walletPayCourse = asyncHandler(async (req, res) => {
+  const { courseSlug, couponCode } = req.body
+  const course = await TreeNode.findOne({ kind: 'course', slug: courseSlug })
+  if (!course) throw notFound('Course not found')
+
+  const existing = await Purchase.findOne({ userId: req.user.id, courseSlug, status: 'paid' })
+  if (existing) throw conflict('You already own this course')
+
+  const pricing = await resolveCoursePricing(course, couponCode)
+  const user = await User.findById(req.user.id)
+
+  try {
+    await debitWallet(user, pricing.finalAmount, { note: `Course: ${course.name}` })
+  } catch (e) {
+    if (e.code === 'INSUFFICIENT') throw paymentRequired('Insufficient wallet balance')
+    throw e
+  }
+
+  const purchase = await Purchase.create({
+    userId: user._id,
+    courseSlug,
+    listPrice: pricing.listPrice,
+    discount: pricing.discount,
+    couponCode: pricing.coupon?.code,
+    amount: pricing.finalAmount,
+    provider: 'wallet',
+    status: 'paid',
+    paidAt: new Date(),
+  })
+
+  const lessons = await Content.find({ courseKey: courseSlug, published: true })
+  for (const lesson of lessons) {
+    await issueLicense({ userId: purchase.userId, content: lesson })
+  }
+
+  if (purchase.couponCode) {
+    await Coupon.updateOne(
+      { code: purchase.couponCode, $or: [{ maxRedemptions: 0 }, { $expr: { $lt: ['$redeemed', '$maxRedemptions'] } }] },
+      { $inc: { redeemed: 1 } }
+    )
+  }
+
+  if (user) {
+    sendMail(receiptEmail(user.email, {
+      title: course.name, amount: purchase.amount, licenseId: `course_${courseSlug}`, when: new Date().toUTCString(),
+    })).catch(() => {})
+  }
+
+  audit(req, 'payment.course.wallet', { targetType: 'Purchase', targetId: purchase._id })
+  res.json({ ok: true, balance: user.walletBalance })
+})
+
+export const verifyCoursePayment = asyncHandler(async (req, res) => {
+  const { razorpay_order_id: orderId, razorpay_payment_id: paymentId, razorpay_signature: signature } = req.body
+
+  if (!verifyPaymentSignature({ orderId, paymentId, signature })) {
+    audit(req, 'payment.course.verify.fail', { meta: { orderId } })
+    throw badRequest('Payment signature verification failed')
+  }
+
+  const purchase = await Purchase.findOne({ razorpayOrderId: orderId, userId: req.user.id })
+  if (!purchase) throw notFound('Order not found')
+  if (purchase.status === 'paid') {
+    return res.json({ ok: true, alreadyProcessed: true })
+  }
+
+  const course = await TreeNode.findOne({ kind: 'course', slug: purchase.courseSlug })
+  if (!course) throw notFound('Course not found')
+
+  const claimed = await Purchase.findOneAndUpdate(
+    { _id: purchase._id, status: { $ne: 'paid' } },
+    { $set: { status: 'paid', razorpayPaymentId: paymentId, razorpaySignature: signature, paidAt: new Date() } },
+    { new: true }
+  )
+  if (!claimed) {
+    return res.json({ ok: true, alreadyProcessed: true })
+  }
+
+  const lessons = await Content.find({ courseKey: purchase.courseSlug, published: true })
+  for (const lesson of lessons) {
+    await issueLicense({ userId: purchase.userId, content: lesson })
+  }
+
+  if (purchase.couponCode) {
+    await Coupon.updateOne(
+      { code: purchase.couponCode, $or: [{ maxRedemptions: 0 }, { $expr: { $lt: ['$redeemed', '$maxRedemptions'] } }] },
+      { $inc: { redeemed: 1 } }
+    )
+  }
+
+  const user = await User.findById(purchase.userId)
+  if (user) {
+    sendMail(receiptEmail(user.email, {
+      title: course.name, amount: purchase.amount, licenseId: `course_${purchase.courseSlug}`, when: new Date().toUTCString(),
+    })).catch(() => {})
+  }
+
+  audit(req, 'payment.course.verify', { targetType: 'Purchase', targetId: claimed._id })
+  res.json({ ok: true })
 })

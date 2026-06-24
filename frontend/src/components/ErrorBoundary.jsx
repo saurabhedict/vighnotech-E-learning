@@ -29,7 +29,7 @@ export default class ErrorBoundary extends Component {
             <button onClick={() => this.setState({ error: null })}
               className="bg-white/10 hover:bg-white/20 border border-vigno-line rounded-lg px-4 py-2 text-sm">Dismiss</button>
             <button onClick={() => window.location.reload()}
-              className="bg-vigno-accent text-[#1a0d0f] font-bold rounded-lg px-4 py-2 text-sm">Reload</button>
+              className="bg-vigno-accent text-vigno-accent-txt font-bold rounded-lg px-4 py-2 text-sm">Reload</button>
           </div>
         </div>
       </div>
