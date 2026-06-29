@@ -5,25 +5,80 @@ import { useSiteSettings, SITE_SETTINGS_KEY } from '../../hooks/useSiteSettings'
 import { apiErrorMessage } from '../../api/authApi'
 import EmojiPicker from '../../components/EmojiPicker'
 
-const input = 'px-3 py-2 rounded-lg bg-vigno-bg2 border border-vigno-line text-sm outline-none focus:border-vigno-accent w-full'
+function PaletteIcon() {
+  return (
+    <svg className="w-6 h-6 text-vigno-accent" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 14.7255 3.09032 17.1962 4.85857 19C5.35843 19.5104 5.37895 20.3204 4.9312 20.8524C4.54227 21.3145 3.96803 21.5 3.4 21.5C2.6 21.5 2 20.9 2 20.1C2 18 2.5 16 2.5 14" />
+      <circle cx="7.5" cy="10.5" r="1" fill="currentColor"/>
+      <circle cx="11.5" cy="7.5" r="1" fill="currentColor"/>
+      <circle cx="16.5" cy="9.5" r="1" fill="currentColor"/>
+    </svg>
+  )
+}
+
+function CompassIcon() {
+  return (
+    <svg className="w-6 h-6 text-vigno-accent" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10"/>
+      <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/>
+    </svg>
+  )
+}
+
+function HomeIcon() {
+  return (
+    <svg className="w-6 h-6 text-vigno-accent" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round">
+      <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+      <polyline points="9 22 9 12 15 12 15 22"/>
+    </svg>
+  )
+}
+
+function FooterIcon() {
+  return (
+    <svg className="w-6 h-6 text-vigno-accent" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+      <line x1="3" y1="15" x2="21" y2="15"/>
+      <line x1="9" y1="15" x2="9" y2="21"/>
+      <line x1="15" y1="15" x2="15" y2="21"/>
+    </svg>
+  )
+}
+
+function KeyIcon() {
+  return (
+    <svg className="w-6 h-6 text-vigno-accent" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round">
+      <path d="m21 2-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0 1.5 1.5M15.5 7.5 14 6"/>
+    </svg>
+  )
+}
+function LauncherIcon() {
+  return (
+    <svg className="w-6 h-6 text-vigno-accent" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/>
+    </svg>
+  )
+}
+
+const input = 'px-3 py-2 rounded-lg bg-vigno-bg2 border border-vigno-line text-sm outline-none w-full'
 const SOCIALS = ['facebook', 'twitter', 'linkedin', 'instagram', 'youtube']
-const TYPE_LABEL = { links: '🔗 Links', contact: '📇 Contact', social: '📣 Social', text: '📝 Text', custom: '✨ Custom' }
+const TYPE_LABEL = { links: 'Links', contact: 'Contact', social: 'Social', text: 'Text', custom: 'Custom' }
 const SECTION_TYPES = [
   { type: 'links', label: '+ Links', hint: 'Nav / legal / resources' },
   { type: 'contact', label: '+ Contact', hint: 'Phone, email, address, hours' },
   { type: 'social', label: '+ Social', hint: 'Social media icons' },
   { type: 'text', label: '+ Text', hint: 'About / mission blurb' },
-  { type: 'custom', label: '+ Custom', hint: 'Anything: emoji + text + link' },
+  { type: 'custom', label: '+ Custom', hint: 'Anything: text + link' },
 ]
 
 // The modular hub: each card opens an editor for that part of the site.
 const HUB = [
-  { key: 'branding', icon: '🎨', title: 'Branding', desc: 'Name, tagline & logo icon' },
-  { key: 'header', icon: '🧭', title: 'Header / Navbar', desc: 'Search, announcement bar, extra links' },
-  { key: 'home', icon: '🏠', title: 'Home Page', desc: 'Hero heading & subtitle' },
-  { key: 'footer', icon: '📑', title: 'Footer', desc: 'Columns, links, contact, social' },
-  { key: 'auth', icon: '🔑', title: 'Login & Signup', desc: 'Greeting & subtitles' },
-  { key: 'launcher', icon: '🖥️', title: 'Desktop Launcher', desc: 'Installer link for games / software' },
+  { key: 'branding', icon: <PaletteIcon />, title: 'Branding', desc: 'Name, tagline & logo icon' },
+  { key: 'header', icon: <CompassIcon />, title: 'Header / Navbar', desc: 'Search, announcement bar, extra links' },
+  { key: 'home', icon: <HomeIcon />, title: 'Home Page', desc: 'Hero heading & subtitle' },
+  { key: 'footer', icon: <FooterIcon />, title: 'Footer', desc: 'Columns, links, contact, social' },
+  { key: 'auth', icon: <KeyIcon />, title: 'Login & Signup', desc: 'Greeting & subtitles' },
+  { key: 'launcher', icon: <LauncherIcon />, title: 'Desktop Launcher', desc: 'Installer link for games / software' },
 ]
 
 function RemoveBtn({ onClick, title = 'Remove' }) {
@@ -109,7 +164,6 @@ function CustomRows({ items, onChange }) {
     <>
       {items.map((it, i) => (
         <div key={i} className="flex gap-2 items-start">
-          <EmojiPicker value={it.icon || ''} onChange={(v) => upd(i, 'icon', v)} />
           <div className="flex-1 space-y-1.5">
             <input className={input} placeholder="Text (e.g. Mon–Fri: 9am–6pm)" value={it.text || ''} onChange={(e) => upd(i, 'text', e.target.value)} />
             <input className={input} placeholder="Optional link — /route or https://…" value={it.url || ''} onChange={(e) => upd(i, 'url', e.target.value)} />
@@ -117,7 +171,7 @@ function CustomRows({ items, onChange }) {
           <RemoveBtn onClick={() => rm(i)} />
         </div>
       ))}
-      <AddRowBtn onClick={() => onChange([...items, { icon: '', text: '', url: '' }])}>Row</AddRowBtn>
+      <AddRowBtn onClick={() => onChange([...items, { text: '', url: '' }])}>Row</AddRowBtn>
     </>
   )
 }
@@ -129,17 +183,17 @@ function SectionCard({ section, index, count, onChange, onMove, onRemove }) {
         <span className="text-[10px] uppercase tracking-wide bg-white/10 border border-vigno-line rounded px-1.5 py-0.5 text-vigno-muted shrink-0">{TYPE_LABEL[section.type] || section.type}</span>
         <button onClick={() => onMove(index, -1)} disabled={index === 0} title="Move up" className="ml-auto w-8 h-8 grid place-items-center rounded-lg bg-white/10 hover:bg-white/20 disabled:opacity-30">↑</button>
         <button onClick={() => onMove(index, 1)} disabled={index === count - 1} title="Move down" className="w-8 h-8 grid place-items-center rounded-lg bg-white/10 hover:bg-white/20 disabled:opacity-30">↓</button>
-        <RemoveBtn onClick={() => onRemove(index)} title="Remove section" />
       </div>
       <div className="flex gap-2 mb-3">
-        <EmojiPicker value={section.icon || ''} onChange={(v) => set('icon', v)} />
         <input className={input + ' flex-1'} placeholder="Column title (e.g. Quick Links)" value={section.title || ''} onChange={(e) => set('title', e.target.value)} />
       </div>
       <div className="space-y-2">
         {section.type === 'links' && <LinkRows items={section.links || []} onChange={(v) => set('links', v)} />}
         {section.type === 'contact' && (
           <>
-            <div className="text-xs text-vigno-muted">Phone numbers</div>
+            <div className="text-xs text-vigno-muted">Links</div>
+            <LinkRows items={section.links || []} onChange={(v) => set('links', v)} />
+            <div className="text-xs text-vigno-muted pt-2">Phone numbers</div>
             <StringRows items={section.phones || []} onChange={(v) => set('phones', v)} placeholder="+91 77200 25900" addLabel="Phone" />
             <div className="text-xs text-vigno-muted pt-1">Emails</div>
             <StringRows items={section.emails || []} onChange={(v) => set('emails', v)} placeholder="contact@example.org" addLabel="Email" />
@@ -196,13 +250,12 @@ function toForm(d) {
   }
 }
 
-const TITLE_BY_TYPE = { contact: 'Contact', social: 'Follow Us', text: 'About', custom: 'New Column' }
-const ICON_BY_TYPE = { links: '🔗', contact: '📇', social: '📣', text: '📝', custom: '✨' }
+const TITLE_BY_TYPE = { links: 'about us', contact: 'Contact us', social: 'Follow Us', text: 'About', custom: 'New Column' }
 const blankSection = (type) => ({
-  type, title: TITLE_BY_TYPE[type] || 'Quick Links', icon: ICON_BY_TYPE[type] || '',
-  links: type === 'links' ? [{ label: '', url: '' }] : [], phones: [], emails: [], address: '', hours: '',
+  type, title: TITLE_BY_TYPE[type] || 'Quick Links', icon: '',
+  links: type === 'links' || type === 'contact' ? [{ label: '', url: '' }] : [], phones: [], emails: [], address: '', hours: '',
   items: type === 'social' ? [{ platform: 'facebook', url: '' }] : [], body: '',
-  rows: type === 'custom' ? [{ icon: '', text: '', url: '' }] : [],
+  rows: type === 'custom' ? [{ text: '', url: '' }] : [],
 })
 
 export default function SettingsPanel() {
@@ -327,11 +380,6 @@ export default function SettingsPanel() {
         <Field label="Footer blurb (under the logo)"><textarea className={input + ' h-20 resize-none'} value={form.footer.blurb} onChange={(e) => setFooter('blurb', e.target.value)} placeholder="Practice mock tests for competitive exams…" /></Field>
         <div className="flex items-center justify-between flex-wrap gap-2">
           <span className="text-sm font-bold">Footer columns</span>
-          <div className="flex gap-2 flex-wrap">
-            {SECTION_TYPES.map((t) => (
-              <button key={t.type} onClick={() => addSection(t.type)} title={t.hint} className="text-xs bg-vigno-accent/90 text-[#1a0d0f] font-bold rounded-lg px-2.5 py-1.5">{t.label}</button>
-            ))}
-          </div>
         </div>
         <div className="grid lg:grid-cols-2 gap-4">
           {sections.map((s, i) => (
@@ -354,8 +402,8 @@ export default function SettingsPanel() {
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {HUB.map((h) => (
               <button key={h.key} onClick={() => { setSection(h.key); setMsg(null) }}
-                className="text-left bg-vigno-bg2/40 hover:bg-vigno-bg3/40 border border-vigno-line rounded-xl p-4 transition">
-                <div className="text-2xl mb-1.5">{h.icon}</div>
+                className="text-left bg-vigno-bg2/40 hover:bg-vigno-bg3/40 border border-vigno-line rounded-xl p-4 transition flex flex-col gap-1.5">
+                <div>{h.icon}</div>
                 <div className="font-bold text-sm">{h.title}</div>
                 <div className="text-xs text-vigno-muted mt-0.5">{h.desc}</div>
               </button>
@@ -366,16 +414,16 @@ export default function SettingsPanel() {
         <>
           <div className="flex items-center gap-3">
             <button onClick={() => setSection(null)} className="text-sm bg-white/10 hover:bg-white/20 border border-vigno-line rounded-lg px-3 py-1.5">← All settings</button>
-            <h3 className="font-bold">{current?.icon} {current?.title}</h3>
+            <h3 className="font-bold flex items-center gap-2">{current?.icon} {current?.title}</h3>
           </div>
           {editors[section]}
         </>
       )}
 
       {/* Save bar (always available) */}
-      <div className="flex items-center gap-3 sticky bottom-0 bg-vigno-card/95 backdrop-blur py-3 -mx-5 px-5 border-t border-vigno-line">
-        <button onClick={save} disabled={saving || dirty.size === 0} className="bg-vigno-accent text-[#1a0d0f] font-bold px-5 py-2 rounded-lg text-sm disabled:opacity-50">
-          {saving ? 'Saving…' : '💾 Save changes'}
+      <div className="flex items-center gap-3 sticky bottom-0 bg-vigno-card/95 backdrop-blur py-3 -mx-5 px-5 border-t border-t-vigno-line">
+        <button onClick={save} disabled={saving || dirty.size === 0} className="bg-vigno-accent text-vigno-accent-txt font-bold px-5 py-2 rounded-lg text-sm disabled:opacity-50">
+          {saving ? 'Saving…' : 'Save changes'}
         </button>
         <button onClick={reset} disabled={saving} className="bg-white/10 hover:bg-white/20 border border-vigno-line px-4 py-2 rounded-lg text-sm disabled:opacity-50">Reset</button>
         {dirty.size > 0 && <span className="text-xs text-vigno-accent2">● Unsaved changes in: {[...dirty].join(', ')}</span>}

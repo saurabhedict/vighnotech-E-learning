@@ -139,7 +139,7 @@ export default function AvatarEditorModal({ file, onCancel, onApply }) {
             Cancel
           </button>
           <button onClick={apply} disabled={!ready}
-            className="flex-1 bg-vigno-accent text-[#1a0d0f] font-bold rounded-xl py-2.5 text-sm shadow-lg shadow-vigno-accent/20 hover:brightness-110 disabled:opacity-60">
+            className="flex-1 bg-vigno-accent text-vigno-accent-txt font-bold rounded-xl py-2.5 text-sm shadow-lg shadow-vigno-accent/20 hover:brightness-110 disabled:opacity-60">
             ✓ Apply &amp; Upload
           </button>
         </div>

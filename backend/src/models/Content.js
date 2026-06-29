@@ -60,6 +60,8 @@ const contentSchema = new mongoose.Schema(
     sizeBytes: { type: Number },
     tags: { type: [String], default: [] },
     thumbnail: { type: String, default: '' },
+    thumbnailStorageKey: { type: String, default: '' },
+    previewText: { type: String, default: '' },
     order: { type: Number, default: 0 },
     published: { type: Boolean, default: true, index: true },
   },
@@ -83,8 +85,10 @@ contentSchema.methods.toCatalogJSON = function toCatalogJSON() {
     lane: this.lane,
     paid: this.isPaid,
     price: this.price,
+    courseKey: this.courseKey || '',
     durationSec: this.durationSec,
-    thumbnail: this.thumbnail,
+    thumbnailUrl: this.thumbnail,
+    previewText: this.previewText,
   }
 }
 

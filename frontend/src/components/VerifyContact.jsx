@@ -9,8 +9,8 @@ const CHANNELS = [
   { key: 'whatsapp', label: '🟢 WhatsApp', hint: 'Message on WhatsApp' },
 ]
 
-const input = 'w-full mb-3 px-3 py-2.5 rounded-lg bg-vigno-bg2 border border-vigno-line text-sm outline-none focus:border-vigno-accent'
-const btn = 'bg-vigno-accent text-[#1a0d0f] font-bold px-4 py-2 rounded-lg hover:brightness-110 disabled:opacity-60'
+const input = 'w-full mb-3 px-3 py-2.5 rounded-lg bg-vigno-bg2 border border-vigno-line text-sm outline-none'
+const btn = 'bg-vigno-accent text-vigno-accent-txt font-bold px-4 py-2 rounded-lg hover:brightness-110 disabled:opacity-60'
 
 /**
  * Multi-channel account verification: pick Email / SMS / WhatsApp, get an OTP,
@@ -75,7 +75,7 @@ export default function VerifyContact({ defaultPhone = '', onVerified, phoneOnly
         {channels.map((c) => (
           <button key={c.key} type="button" onClick={() => { setChannel(c.key); setSent(false); setMsg(null) }}
             className={'px-3 py-1.5 rounded-lg text-sm border ' +
-              (channel === c.key ? 'bg-vigno-accent text-[#1a0d0f] font-bold border-vigno-accent' : 'bg-white/10 border-vigno-line hover:bg-white/20')}>
+              (channel === c.key ? 'bg-vigno-accent text-vigno-accent-txt font-bold border-vigno-accent' : 'bg-white/10 border-vigno-line hover:bg-white/20')}>
             {c.label}
           </button>
         ))}

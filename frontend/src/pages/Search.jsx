@@ -29,7 +29,7 @@ export default function Search() {
     enabled: q.length > 0 || type.length > 0,
   })
 
-  const input = 'px-3 py-2.5 rounded-lg bg-vigno-bg2 border border-vigno-line text-sm outline-none focus:border-vigno-accent'
+  const input = 'px-3 py-2.5 rounded-lg bg-vigno-bg2 border border-vigno-line text-sm outline-none'
   return (
     <div>
       <Breadcrumb trail="Search" />

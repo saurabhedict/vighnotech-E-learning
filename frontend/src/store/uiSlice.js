@@ -3,7 +3,7 @@ import { createSlice } from '@reduxjs/toolkit'
 // Global UI state: theme + currently selected class + sidebar collapse.
 const uiSlice = createSlice({
   name: 'ui',
-  initialState: { theme: 'dark', selectedClass: 'PPL_Ground', sidebarCollapsed: false },
+  initialState: { theme: 'light', selectedClass: 'PPL_Ground', sidebarCollapsed: false },
   reducers: {
     setTheme: (state, action) => { state.theme = action.payload },
     toggleTheme: (state) => { state.theme = state.theme === 'dark' ? 'light' : 'dark' },

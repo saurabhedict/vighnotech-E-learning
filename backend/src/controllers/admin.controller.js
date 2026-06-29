@@ -15,7 +15,9 @@ import { License } from '../models/License.js'
 import { Purchase } from '../models/Purchase.js'
 import { User } from '../models/User.js'
 import { AuditLog } from '../models/AuditLog.js'
-import { saveBuffer, saveEncryptedBuffer, saveEncryptedFromObject, removeObject, statObject, directUploadSupported, createDirectUpload } from '../services/storage.js'
+import { Favorite } from '../models/Favorite.js'
+import { Progress } from '../models/Progress.js'
+import { saveBuffer, saveEncryptedBuffer, saveEncryptedFromObject, removeObject, statObject, directUploadSupported, createDirectUpload, createMediaUrl } from '../services/storage.js'
 import { submitHlsJob, mediaConvertEnabled } from '../services/mediaconvert.js'
 import { deriveContentKey, newSalt } from '../services/contentCrypto.js'
 
@@ -28,6 +30,7 @@ export const createNodeSchema = z.object({
   parentId: z.string().length(24).nullable().optional(),
   slug: z.string().trim().optional(),
   order: z.number().int().optional(),
+  meta: z.object({}).passthrough().optional(),
 })
 
 async function resolveCourseKey(parentId, kind, slug) {
@@ -38,7 +41,7 @@ async function resolveCourseKey(parentId, kind, slug) {
 }
 
 export const createNode = asyncHandler(async (req, res) => {
-  const { kind, name, parentId = null, order } = req.body
+  const { kind, name, parentId = null, order, meta } = req.body
   let { slug } = req.body
   if (kind === 'course') slug = slug || slugify(name)
   if (parentId) {
@@ -46,7 +49,7 @@ export const createNode = asyncHandler(async (req, res) => {
     if (!parent) throw badRequest('Parent node not found')
   }
   const courseKey = await resolveCourseKey(parentId, kind, slug)
-  const node = await TreeNode.create({ kind, name, parentId, slug, courseKey, order: order ?? 0 })
+  const node = await TreeNode.create({ kind, name, parentId, slug, courseKey, order: order ?? 0, meta: meta || {} })
   if (kind === 'course') cache.del('courses:slugs')
   audit(req, 'cms.node.create', { targetType: 'TreeNode', targetId: node._id, meta: { kind, name } })
   res.status(201).json(node)
@@ -55,14 +58,92 @@ export const createNode = asyncHandler(async (req, res) => {
 export const updateNode = asyncHandler(async (req, res) => {
   const node = await TreeNode.findById(req.params.id)
   if (!node) throw notFound('Node not found')
-  const { name, slug, order } = req.body
+  const { name, slug, order, meta } = req.body
   if (name !== undefined) node.name = name
   if (slug !== undefined) node.slug = slug
   if (order !== undefined) node.order = order
+  if (meta !== undefined) {
+    if (node.kind === 'course') {
+      const newThumbnail = meta.thumbnail || ''
+      const oldStorageKey = node.meta?.thumbnailStorageKey
+      let newStorageKey = null
+      const match = newThumbnail.match(/(obj_[a-z0-9]{20}(?:\.[a-z0-9]+)?)/i)
+      if (match) {
+        newStorageKey = match[1]
+      }
+      if (oldStorageKey && oldStorageKey !== newStorageKey) {
+        try {
+          await removeObject(oldStorageKey)
+        } catch (e) {
+          // ignore deletion errors
+        }
+      }
+      meta.thumbnailStorageKey = newStorageKey
+    }
+    node.meta = meta
+    node.markModified('meta')
+  }
   await node.save()
   if (node.kind === 'course') cache.del('courses:slugs') // renamed slug must refresh the catalog list
   audit(req, 'cms.node.update', { targetType: 'TreeNode', targetId: node._id })
   res.json(node)
+})
+
+export const uploadCourseThumbnail = asyncHandler(async (req, res) => {
+  if (!req.file) throw badRequest('No file uploaded (field name: "file")')
+  const node = await TreeNode.findById(req.params.id)
+  if (!node || node.kind !== 'course') throw notFound('Course not found')
+
+  const previousKey = node.meta?.thumbnailStorageKey
+
+  const { storageKey } = await saveBuffer(req.file.buffer, req.file.originalname)
+  const resolvedUrl = await createMediaUrl(storageKey)
+
+  node.meta = {
+    ...(node.meta || {}),
+    thumbnail: resolvedUrl,
+    thumbnailStorageKey: storageKey,
+  }
+  node.markModified('meta')
+  await node.save()
+  cache.del('courses:slugs')
+
+  if (previousKey && previousKey !== storageKey) {
+    try {
+      await removeObject(previousKey)
+    } catch (e) {
+      // ignore deletion errors
+    }
+  }
+
+  audit(req, 'cms.course.upload-thumbnail', { targetType: 'TreeNode', targetId: node._id })
+  res.json({ ok: true, thumbnail: resolvedUrl })
+})
+
+export const uploadContentThumbnail = asyncHandler(async (req, res) => {
+  if (!req.file) throw badRequest('No file uploaded (field name: "file")')
+  const content = await Content.findById(req.params.id)
+  if (!content) throw notFound('Content not found')
+
+  const previousKey = content.thumbnailStorageKey
+
+  const { storageKey } = await saveBuffer(req.file.buffer, req.file.originalname)
+  const resolvedUrl = await createMediaUrl(storageKey)
+
+  content.thumbnail = resolvedUrl
+  content.thumbnailStorageKey = storageKey
+  await content.save()
+
+  if (previousKey && previousKey !== storageKey) {
+    try {
+      await removeObject(previousKey)
+    } catch (e) {
+      // ignore deletion errors
+    }
+  }
+
+  audit(req, 'cms.content.upload-thumbnail', { targetType: 'Content', targetId: content._id })
+  res.json({ ok: true, thumbnail: resolvedUrl })
 })
 
 // Recursive delete: node + descendants + their content.
@@ -79,9 +160,39 @@ export const deleteNode = asyncHandler(async (req, res) => {
     toDelete.push(...ids)
     frontier = ids
   }
+
+  // Find all course slugs that are about to be deleted
+  const courseNodes = await TreeNode.find({ _id: { $in: toDelete }, kind: 'course' }).select('slug').lean()
+  const courseSlugs = courseNodes.map((c) => c.slug).filter(Boolean)
+
+  // Find all content items that are about to be deleted
+  const contents = await Content.find({ chapterId: { $in: toDelete } }).select('_id').lean()
+  const contentIds = contents.map((c) => c._id)
+
+  // Perform deletions on main items
   await Content.deleteMany({ chapterId: { $in: toDelete } })
   await TreeNode.deleteMany({ _id: { $in: toDelete } })
+
+  // Clean up references in other collections
+  const idsToClean = [...contentIds, ...toDelete]
+
+  await License.deleteMany({ contentId: { $in: idsToClean } })
+  await Favorite.deleteMany({ contentId: { $in: idsToClean } })
+  await Progress.deleteMany({ contentId: { $in: contentIds } }) // progress is only for Content items
+
+  const purchaseQuery = {
+    $or: [
+      { contentId: { $in: idsToClean } }
+    ]
+  }
+  if (courseSlugs.length > 0) {
+    purchaseQuery.$or.push({ courseSlug: { $in: courseSlugs } })
+  }
+  await Purchase.deleteMany(purchaseQuery)
+
   cache.del('courses:slugs')
+  cache.del('admin:stats')
+
   audit(req, 'cms.node.delete', { targetType: 'TreeNode', targetId: root._id, meta: { removed: toDelete.length } })
   res.json({ ok: true, removed: toDelete.length })
 })
@@ -112,8 +223,13 @@ export const createContent = asyncHandler(async (req, res) => {
   const body = req.body
   const chapter = await TreeNode.findOne({ _id: body.chapterId, kind: 'chapter' })
   if (!chapter) throw badRequest('chapterId must reference a chapter node')
+
+  // If chapter is part of a course, force isPaid: true, price: 0
+  const isCourseContent = !!chapter.courseKey
   const content = await Content.create({
     ...body,
+    isPaid: isCourseContent ? true : body.isPaid,
+    price: isCourseContent ? 0 : body.price,
     courseKey: chapter.courseKey,
     lane: body.lane || defaultLaneForType(body.type),
   })
@@ -124,16 +240,51 @@ export const createContent = asyncHandler(async (req, res) => {
 export const updateContent = asyncHandler(async (req, res) => {
   const content = await Content.findById(req.params.id)
   if (!content) throw notFound('Content not found')
-  const allowed = ['title', 'description', 'type', 'lane', 'isPaid', 'price', 'externalUrl', 'order', 'published', 'tags', 'thumbnail']
+  const allowed = ['title', 'description', 'type', 'lane', 'isPaid', 'price', 'externalUrl', 'order', 'published', 'tags', 'thumbnail', 'previewText']
   for (const k of allowed) if (req.body[k] !== undefined) content[k] = req.body[k]
+  // Frontend sends thumbnailUrl; map it to the model field `thumbnail`
+  if (req.body.thumbnailUrl !== undefined) {
+    const newThumbnail = req.body.thumbnailUrl || ''
+    const storageKey = content.thumbnailStorageKey
+    if (storageKey && (!newThumbnail || !newThumbnail.includes(storageKey))) {
+      content.thumbnailStorageKey = ''
+      try {
+        await removeObject(storageKey)
+      } catch (e) {
+        // ignore deletion errors
+      }
+    }
+    content.thumbnail = newThumbnail
+  }
+
+  // Force isPaid: true and price: 0 if it's course content
+  if (content.courseKey) {
+    content.isPaid = true
+    content.price = 0
+  } else if (req.body.price !== undefined) {
+    // For standalone resources, update isPaid based on the updated price
+    content.isPaid = Number(req.body.price) > 0
+  }
+
   await content.save()
   audit(req, 'cms.content.update', { targetType: 'Content', targetId: content._id })
-  res.json(content)
+  const obj = content.toObject()
+  obj.thumbnailUrl = obj.thumbnail || ''
+  res.json(obj)
 })
 
 export const deleteContent = asyncHandler(async (req, res) => {
   const content = await Content.findByIdAndDelete(req.params.id)
   if (!content) throw notFound('Content not found')
+
+  const contentId = content._id
+  await License.deleteMany({ contentId })
+  await Favorite.deleteMany({ contentId })
+  await Progress.deleteMany({ contentId })
+  await Purchase.deleteMany({ contentId })
+
+  cache.del('admin:stats')
+
   audit(req, 'cms.content.delete', { targetType: 'Content', targetId: req.params.id })
   res.json({ ok: true })
 })
@@ -298,18 +449,63 @@ export const recentAudit = asyncHandler(async (req, res) => {
   res.json({ logs, page, limit, total })
 })
 
+export const clearAuditLog = asyncHandler(async (req, res) => {
+  await AuditLog.deleteMany({})
+  audit(req, 'admin.audit.clear')
+  res.json({ success: true })
+})
+
 // ── Tree / content browse (for the CMS UI) ───────────────────────────────────
 export const listNodes = asyncHandler(async (req, res) => {
   const filter = {}
   if (req.query.parentId) filter.parentId = req.query.parentId
   else if (req.query.parentId === 'null' || req.query.root === 'true') filter.parentId = null
   if (req.query.kind) filter.kind = req.query.kind
+  filter.slug = { $ne: 'Individual_Resources' }
   const nodes = await TreeNode.find(filter).sort({ order: 1, name: 1 }).lean()
+  for (const node of nodes) {
+    if (node.kind === 'course' && node.meta) {
+      if (!node.meta.thumbnailStorageKey && node.meta.thumbnail) {
+        const match = node.meta.thumbnail.match(/(obj_[a-z0-9]{20}(?:\.[a-z0-9]+)?)/i)
+        if (match) {
+          const key = match[1]
+          node.meta.thumbnailStorageKey = key
+          await TreeNode.updateOne({ _id: node._id }, { $set: { 'meta.thumbnailStorageKey': key } })
+        }
+      }
+      if (node.meta.thumbnailStorageKey) {
+        node.meta.thumbnail = await createMediaUrl(node.meta.thumbnailStorageKey)
+      }
+    }
+  }
   res.json({ nodes })
 })
 
 export const listContentByChapter = asyncHandler(async (req, res) => {
-  const items = await Content.find({ chapterId: req.params.chapterId }).sort({ order: 1 }).lean()
+  const raw = await Content.find({ chapterId: req.params.chapterId }).sort({ order: 1 }).lean()
+  // Normalize field names to match the frontend convention
+  const items = await Promise.all(raw.map(async (content) => {
+    let thumbnailStorageKey = content.thumbnailStorageKey || ''
+    let thumbnail = content.thumbnail || ''
+
+    if (!thumbnailStorageKey && thumbnail) {
+      const match = thumbnail.match(/(obj_[a-z0-9]{20}(?:\.[a-z0-9]+)?)/i)
+      if (match) {
+        thumbnailStorageKey = match[1]
+        await Content.updateOne({ _id: content._id }, { $set: { thumbnailStorageKey } })
+      }
+    }
+
+    if (thumbnailStorageKey) {
+      thumbnail = await createMediaUrl(thumbnailStorageKey)
+    }
+
+    return {
+      ...content,
+      thumbnailUrl: thumbnail,
+      thumbnailStorageKey,
+    }
+  }))
   res.json({ items })
 })
 
@@ -444,4 +640,101 @@ export const refundPurchase = asyncHandler(async (req, res) => {
 
   audit(req, 'admin.refund', { targetType: 'Purchase', targetId: claimed._id, meta: { amount: claimed.amount } })
   res.json({ ok: true, refunded: claimed.amount, licenseRevoked: !!claimed.licenseId })
+})
+
+// ── Standalone Resources ─────────────────────────────────────────────────────
+
+async function getOrCreateStandaloneChapterId() {
+  let course = await TreeNode.findOne({ kind: 'course', slug: 'Individual_Resources' })
+  if (!course) {
+    course = await TreeNode.create({
+      kind: 'course',
+      name: 'Individual Resources',
+      slug: 'Individual_Resources',
+      courseKey: 'Individual_Resources',
+      order: 9999,
+    })
+  }
+  let subject = await TreeNode.findOne({ parentId: course._id, kind: 'subject' })
+  if (!subject) {
+    subject = await TreeNode.create({
+      kind: 'subject',
+      name: 'Standalone Subject',
+      parentId: course._id,
+      courseKey: 'Individual_Resources',
+    })
+  }
+  let moduleNode = await TreeNode.findOne({ parentId: subject._id, kind: 'module' })
+  if (!moduleNode) {
+    moduleNode = await TreeNode.create({
+      kind: 'module',
+      name: 'Standalone Module',
+      parentId: subject._id,
+      courseKey: 'Individual_Resources',
+    })
+  }
+  let chapter = await TreeNode.findOne({ parentId: moduleNode._id, kind: 'chapter' })
+  if (!chapter) {
+    chapter = await TreeNode.create({
+      kind: 'chapter',
+      name: 'Standalone Chapter',
+      parentId: moduleNode._id,
+      courseKey: 'Individual_Resources',
+    })
+  }
+  return chapter._id
+}
+
+export const createStandaloneResource = asyncHandler(async (req, res) => {
+  const { title, type, price } = req.body
+  const chapterId = await getOrCreateStandaloneChapterId()
+  const content = await Content.create({
+    chapterId,
+    title: title.trim(),
+    type,
+    isPaid: Number(price) > 0,
+    price: Number(price) || 0,
+    courseKey: '', // empty courseKey makes it standalone!
+    lane: defaultLaneForType(type),
+  })
+  audit(req, 'cms.resource.create', { targetType: 'Content', targetId: content._id })
+  res.status(201).json(content)
+})
+
+export const listStandaloneResources = asyncHandler(async (req, res) => {
+  const { type } = req.query
+  const chapterId = await getOrCreateStandaloneChapterId()
+  const filter = { chapterId }
+  if (type) filter.type = type
+  const raw = await Content.find(filter).sort({ createdAt: -1 }).lean()
+  const items = await Promise.all(raw.map(async (content) => {
+    let thumbnailStorageKey = content.thumbnailStorageKey || ''
+    let thumbnail = content.thumbnail || ''
+
+    if (!thumbnailStorageKey && thumbnail) {
+      const match = thumbnail.match(/(obj_[a-z0-9]{20}(?:\.[a-z0-9]+)?)/i)
+      if (match) {
+        thumbnailStorageKey = match[1]
+        await Content.updateOne({ _id: content._id }, { $set: { thumbnailStorageKey } })
+      }
+    }
+
+    if (thumbnailStorageKey) {
+      thumbnail = await createMediaUrl(thumbnailStorageKey)
+    }
+
+    return {
+      ...content,
+      thumbnailUrl: thumbnail,
+      thumbnailStorageKey,
+    }
+  }))
+  res.json(items)
+})
+
+export const deleteStandaloneResource = asyncHandler(async (req, res) => {
+  const content = await Content.findByIdAndDelete(req.params.id)
+  if (!content) throw notFound('Resource not found')
+  audit(req, 'cms.resource.delete', { targetType: 'Content', targetId: req.params.id })
+  res.json({ ok: true })
 })

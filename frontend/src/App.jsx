@@ -18,7 +18,9 @@ const Search = lazy(() => import('./pages/Search'))
 const Wallet = lazy(() => import('./pages/Wallet'))
 const Profile = lazy(() => import('./pages/Profile'))
 const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'))
+const Dashboard = lazy(() => import('./pages/Dashboard'))
 const NotFound = lazy(() => import('./pages/NotFound'))
+const Cart = lazy(() => import('./pages/Cart'))
 
 export default function App() {
   return (
@@ -28,12 +30,13 @@ export default function App() {
         <Route path="/signup" element={<Signup />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/app" element={<AppLayout />}>
-          <Route index element={<Navigate to="PPL_Ground" replace />} />
+          <Route index element={<Dashboard />} />
           <Route path="library" element={<Library />} />
           <Route path="favorites" element={<Favorites />} />
           <Route path="search" element={<Search />} />
           <Route path="wallet" element={<Wallet />} />
           <Route path="profile" element={<Profile />} />
+          <Route path="cart" element={<Cart />} />
           <Route path="admin" element={<RequireAdmin><AdminDashboard /></RequireAdmin>} />
           <Route path="content/:contentId" element={<ContentViewer />} />
           <Route path=":className" element={<Home />} />

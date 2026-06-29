@@ -5,20 +5,43 @@ import { Progress } from '../models/Progress.js'
 import { Content } from '../models/Content.js'
 import { License } from '../models/License.js'
 import { cache } from '../services/cache.js'
+import { TreeNode } from '../models/TreeNode.js'
+import { createMediaUrl } from '../services/storage.js'
 
-// Only the fields card() needs — keeps list payloads small and avoids pulling
-// heavy/secret-ish content fields (hls, drm, storageKey, description, tags…).
-const CARD_FIELDS = 'title type lane isPaid price courseKey'
+// Only the fields resolveCard() needs — keeps list payloads small and avoids
+// pulling heavy/secret-ish content fields (hls, drm, storageKey, tags…). Includes
+// thumbnail + preview fields so the redesigned cards still render their imagery.
+const CARD_FIELDS = 'title type lane isPaid price courseKey thumbnail thumbnailStorageKey previewText description'
 
-const card = (c) => ({
-  id: c._id.toString(),
-  title: c.title,
-  type: c.type,
-  lane: c.lane,
-  paid: c.isPaid,
-  price: c.price,
-  courseKey: c.courseKey,
-})
+const resolveCard = async (c) => {
+  let thumbnailStorageKey = c.thumbnailStorageKey || ''
+  let thumbnail = c.thumbnail || ''
+
+  if (!thumbnailStorageKey && thumbnail) {
+    const match = thumbnail.match(/(obj_[a-z0-9]{20}(?:\.[a-z0-9]+)?)/i)
+    if (match) {
+      thumbnailStorageKey = match[1]
+      await Content.updateOne({ _id: c._id }, { $set: { thumbnailStorageKey } })
+    }
+  }
+
+  if (thumbnailStorageKey) {
+    thumbnail = await createMediaUrl(thumbnailStorageKey)
+  }
+
+  return {
+    id: c._id.toString(),
+    title: c.title,
+    type: c.type,
+    lane: c.lane,
+    paid: c.isPaid,
+    price: c.price,
+    courseKey: c.courseKey,
+    thumbnailUrl: thumbnail || '',
+    previewText: c.previewText || '',
+    description: c.description || '',
+  }
+}
 
 // ── Favorites ────────────────────────────────────────────────────────────────
 export const addFavorite = asyncHandler(async (req, res) => {
@@ -42,8 +65,37 @@ export const myFavoriteIds = asyncHandler(async (req, res) => {
 })
 
 export const myFavorites = asyncHandler(async (req, res) => {
-  const favs = await Favorite.find({ userId: req.user.id }).sort({ createdAt: -1 }).populate('contentId', CARD_FIELDS).lean()
-  res.json({ items: favs.filter((f) => f.contentId).map((f) => card(f.contentId)) })
+  const favs = await Favorite.find({ userId: req.user.id }).sort({ createdAt: -1 }).lean()
+  const items = []
+  for (const f of favs) {
+    let item = await Content.findById(f.contentId).select(CARD_FIELDS).lean()
+    if (item) {
+      const resolved = await resolveCard(item)
+      items.push({ ...resolved, type: item.type || 'resource' })
+    } else {
+      let course = await TreeNode.findOne({ _id: f.contentId, kind: 'course' }).lean()
+      if (course) {
+        let thumbnailStorageKey = course.meta?.thumbnailStorageKey || ''
+        let thumbnail = course.meta?.thumbnail || ''
+        if (thumbnailStorageKey) {
+          thumbnail = await createMediaUrl(thumbnailStorageKey)
+        }
+        items.push({
+          id: course.slug,
+          _id: course._id.toString(),
+          slug: course.slug,
+          title: course.name,
+          instructor: course.meta?.instructor || 'AeroLearn Expert',
+          price: course.meta?.price || '499',
+          oldPrice: course.meta?.oldPrice || '999',
+          thumbnail,
+          isCourse: true,
+          type: 'course'
+        })
+      }
+    }
+  }
+  res.json({ items })
 })
 
 // ── Search ───────────────────────────────────────────────────────────────────
@@ -63,7 +115,8 @@ export const search = asyncHandler(async (req, res) => {
     filter.$or = [{ title: rx }, { description: rx }, { tags: rx }]
   }
   const items = await Content.find(filter).sort({ createdAt: -1 }).limit(60).select(CARD_FIELDS).lean()
-  res.json({ items: items.map(card), count: items.length })
+  const resolvedItems = await Promise.all(items.map(resolveCard))
+  res.json({ items: resolvedItems, count: items.length })
 })
 
 // ── Progress (recently viewed / continue watching) ───────────────────────────
@@ -76,8 +129,11 @@ export const progressSchema = z.object({
 export const upsertProgress = asyncHandler(async (req, res) => {
   const { position = 0, duration = 0, completed } = req.body
   const update = { lastViewedAt: new Date(), position, duration }
-  // Only ever PROMOTE completion — never auto-demote a finished item.
-  if (completed === true || (duration > 0 && position / duration > 0.95)) update.completed = true
+  if (duration > 0) {
+    update.completed = position / duration >= 0.95
+  } else if (completed !== undefined) {
+    update.completed = completed
+  }
   await Progress.updateOne(
     { userId: req.user.id, contentId: req.params.contentId },
     { $set: update, $setOnInsert: { userId: req.user.id, contentId: req.params.contentId } },
@@ -89,9 +145,17 @@ export const upsertProgress = asyncHandler(async (req, res) => {
 export const myProgress = asyncHandler(async (req, res) => {
   const limit = Math.min(Number(req.query.limit) || 12, 50)
   const rows = await Progress.find({ userId: req.user.id }).sort({ lastViewedAt: -1 }).limit(limit).populate('contentId', CARD_FIELDS).lean()
-  const items = rows
-    .filter((r) => r.contentId)
-    .map((r) => ({ ...card(r.contentId), position: r.position, duration: r.duration, completed: r.completed, lastViewedAt: r.lastViewedAt }))
+  const validRows = rows.filter((r) => r.contentId)
+  const items = await Promise.all(validRows.map(async (r) => {
+    const resolved = await resolveCard(r.contentId)
+    return {
+      ...resolved,
+      position: r.position,
+      duration: r.duration,
+      completed: r.completed,
+      lastViewedAt: r.lastViewedAt
+    }
+  }))
   res.json({ items })
 })
 
@@ -123,5 +187,18 @@ export const recommended = asyncHandler(async (req, res) => {
       .lean()
     items = [...items, ...more]
   }
-  res.json({ items: items.slice(0, 8).map(card) })
+  const sliced = items.slice(0, 8)
+  const resolvedItems = await Promise.all(sliced.map(resolveCard))
+  res.json({ items: resolvedItems })
+})
+
+export const listStandaloneResources = asyncHandler(async (req, res) => {
+  const chapters = await TreeNode.find({ kind: 'chapter', courseKey: 'Individual_Resources' }).select('_id').lean()
+  if (!chapters.length) {
+    return res.json({ items: [] })
+  }
+  const chapterIds = chapters.map((c) => c._id)
+  const items = await Content.find({ chapterId: { $in: chapterIds }, published: true }).sort({ order: 1, createdAt: -1 }).lean()
+  const resolvedItems = await Promise.all(items.map(resolveCard))
+  res.json({ items: resolvedItems })
 })

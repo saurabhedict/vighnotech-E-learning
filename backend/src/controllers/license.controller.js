@@ -19,7 +19,7 @@ export const mine = asyncHandler(async (req, res) => {
   res.json({
     licenses: licenses.map((l) => ({
       jti: l._id,
-      content: l.contentId && { id: l.contentId._id, title: l.contentId.title, type: l.contentId.type },
+      content: l.contentId && { id: l.contentId._id, title: l.contentId.title, type: l.contentId.type, courseKey: l.contentId.courseKey },
       type: l.type,
       // Effective status: time-expired licenses keep status='active' in the DB,
       // so derive 'expired' for display.

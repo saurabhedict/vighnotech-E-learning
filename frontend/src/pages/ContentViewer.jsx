@@ -1,4 +1,4 @@
-import { useEffect, useCallback, lazy, Suspense } from 'react'
+import { useState, useEffect, useCallback, lazy, Suspense } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useSelector } from 'react-redux'
 import { useContentItem } from '../hooks/useContent'
@@ -19,6 +19,8 @@ const Model3DViewer = lazy(() => import('../components/Model3DViewer'))
 export default function ContentViewer() {
   const { className, moduleId, contentId } = useParams()
   const user = useSelector((s) => s.auth.user)
+  const isDark = useSelector((s) => s.ui.theme) === 'dark'
+  const [showViewer, setShowViewer] = useState(false)
   const { data: item, isLoading, isError, refetch } = useContentItem(contentId)
   const { data: settings } = useSiteSettings()
   const launcher = settings?.launcher || {}
@@ -28,6 +30,8 @@ export default function ContentViewer() {
   const launcherDownloadUrl = launcher.url || (launcher.hasInstaller ? `${apiBase}/settings/launcher-download` : '')
 
   const accessible = !!item && !item.locked && !item.requiresLauncher
+  const isStandalone = !!item && !item.courseKey
+  const showLanding = isStandalone && !showViewer
 
   // Record a view (recently-viewed / continue-watching) when accessible content opens.
   useEffect(() => {
@@ -44,14 +48,145 @@ export default function ContentViewer() {
   if (isError || !item) return <p className="text-red-300">Content not found.</p>
 
   const watermark = user?.email || 'aerolearn'
-  const backTo = className && moduleId ? `/app/${className}/module/${moduleId}` : '/app/library'
-  const backLabel = className && moduleId ? 'Back to module' : 'Back to library'
+  const isAdmin = user?.role === 'admin'
+  const backTo = isAdmin ? '/app/admin' : (className && moduleId ? `/app/${className}/module/${moduleId}` : '/app/library')
+  const backLabel = isAdmin ? 'Back to Admin Dashboard' : (className && moduleId ? 'Back to module' : 'Back to library')
+
+  if (showLanding) {
+    const displayName = item.title
+    const resourceTypeLabel = { pdf: 'PDF', video: 'Video', game: 'Simulator', '3d': '3D Model' }[item.type] || item.type
+
+    return (
+      <div className="space-y-8 pb-16">
+        <div className="text-sm text-vigno-muted">
+          <Link to="/app" className="text-vigno-accent2 hover:underline">Dashboard</Link> › {displayName}
+        </div>
+
+        {/* Udemy-style Hero Banner */}
+        <div className={`-mx-6 px-6 py-10 border-y ${isDark ? 'bg-gradient-to-r from-[#0d1627] to-[#12233f] border-vigno-line/30' : 'bg-gradient-to-r from-slate-100 via-slate-50 to-white border-vigno-line/50'} text-vigno-txt`}>
+          <div className="max-w-4xl space-y-4">
+            <div className="flex gap-2 flex-wrap">
+              <span className="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-md bg-vigno-accent/20 text-vigno-accent border border-vigno-accent/25">
+                Resource
+              </span>
+              <span className="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-md bg-vigno-accent2/20 text-vigno-accent2 border border-vigno-accent2/25">
+                {resourceTypeLabel}
+              </span>
+            </div>
+
+            <h1 className="text-3xl md:text-4xl font-black tracking-tight leading-none text-vigno-txt">
+              {displayName}
+            </h1>
+
+            {item.previewText && (
+              <p className="text-base font-medium text-vigno-muted max-w-3xl leading-relaxed">
+                {item.previewText}
+              </p>
+            )}
+
+            <div className="text-xs text-vigno-muted flex flex-wrap gap-x-4 gap-y-1 pt-1.5 font-medium">
+              <p>Created by <span className="text-vigno-accent2 font-bold hover:underline cursor-pointer">AeroLearn Experts</span></p>
+              <p>·</p>
+              <p>Last updated June 2026</p>
+              <p>·</p>
+              <p>English</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Main Content & Sidebar */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+          {/* Details */}
+          <div className="lg:col-span-2 space-y-8">
+            <div className={`border p-6 rounded-2xl ${isDark ? 'bg-vigno-card/30 border-vigno-line/50' : 'bg-white border-vigno-line/60 shadow-sm'}`}>
+              <h3 className="text-lg font-extrabold text-vigno-txt mb-4 tracking-tight">About this resource</h3>
+              <div className="text-sm md:text-[15px] text-vigno-txt/85 leading-relaxed space-y-4">
+                {item.description ? (
+                  item.description.split(/\r?\n/).map(p => p.trim()).filter(Boolean).map((para, idx) => (
+                    <p key={idx}>{para}</p>
+                  ))
+                ) : (
+                  <p>No description available for this resource.</p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Checkout card */}
+          <div className="lg:col-span-1">
+            <div className={`sticky top-6 border rounded-2xl overflow-hidden ${isDark ? 'bg-vigno-card/75 border-vigno-line/50' : 'bg-white border-vigno-line/60 shadow-md'}`}>
+              {/* Thumbnail */}
+              <div className={`aspect-video w-full relative flex items-center justify-center border-b ${isDark ? 'border-vigno-line/30' : 'border-vigno-line/40'} overflow-hidden bg-slate-900`}>
+                {item.thumbnailUrl ? (
+                  <img src={item.thumbnailUrl} alt={displayName} className="absolute inset-0 w-full h-full object-cover" />
+                ) : (
+                  <div className="absolute inset-0 bg-gradient-to-br from-indigo-900 to-indigo-950" />
+                )}
+                <div className="absolute inset-0 bg-black/20" />
+                <div className="relative w-14 h-14 rounded-full bg-white/10 hover:bg-white/20 border border-white/25 flex items-center justify-center cursor-pointer transition-colors shadow-lg z-10">
+                  <span className="text-white text-xl pl-1">▶</span>
+                </div>
+              </div>
+
+              <div className="p-6 space-y-5">
+                {!item.locked ? (
+                  <div className="space-y-3">
+                    <div className="text-xs text-center text-green-400 font-bold bg-green-500/10 border border-green-500/20 py-2 rounded-lg">
+                      ✓ You own this resource
+                    </div>
+                    <button
+                      onClick={() => setShowViewer(true)}
+                      className="w-full bg-vigno-accent hover:brightness-115 text-vigno-accent-txt font-black py-3 rounded-xl text-sm transition-all focus:outline-none"
+                    >
+                      View Resource
+                    </button>
+                  </div>
+                ) : (
+                  <BuyButton content={item} onUnlocked={refetch} />
+                )}
+
+                {/* Inclusions */}
+                <div className="space-y-2 pt-2 border-t border-vigno-line/20">
+                  <p className="text-xs font-bold text-vigno-txt">This resource includes:</p>
+                  <ul className="space-y-2 text-[11px] text-vigno-muted font-medium">
+                    <li className="flex items-center gap-2">
+                      <span className="text-vigno-accent font-bold text-xs select-none">✓</span>
+                      <span>Lifetime study access</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <span className="text-vigno-accent font-bold text-xs select-none">✓</span>
+                      <span>Access on mobile and desktop</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <span className="text-vigno-accent font-bold text-xs select-none">✓</span>
+                      <span>Secure offline player license</span>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div>
-      <div className="text-sm text-vigno-muted mb-1">
-        <Link to={backTo} className="text-vigno-accent2 hover:underline">{backLabel}</Link> › Viewer
-      </div>
+      {isStandalone ? (
+        <div className="text-sm text-vigno-muted mb-1">
+          <span
+            onClick={() => setShowViewer(false)}
+            className="text-vigno-accent2 hover:underline cursor-pointer"
+          >
+            ← Back to Details
+          </span>
+        </div>
+      ) : (
+        <div className="text-sm text-vigno-muted mb-1">
+          <Link to={backTo} className="text-vigno-accent2 hover:underline">{backLabel}</Link> › Viewer
+        </div>
+      )}
       <h1 className="text-2xl mb-1 flex items-center gap-2">
         {item.title}
         <FavoriteButton contentId={item.id} className="text-2xl" />
@@ -69,11 +204,28 @@ export default function ContentViewer() {
         {item.locked && (
           <div className="py-10 flex flex-col items-center gap-4 text-center">
             <div className="text-5xl leading-none">🔒</div>
-            <div className="text-vigno-muted max-w-md">
-              This is premium content. Purchase a license to unlock secure access — you
-              buy a <span className="text-vigno-txt font-semibold">license tied to your account</span>, not the file.
-            </div>
-            <BuyButton content={item} onUnlocked={refetch} />
+            {item.courseKey ? (
+              <div className="space-y-4 max-w-md mx-auto">
+                <div className="text-vigno-muted">
+                  This lesson is part of the course <span className="text-vigno-txt font-extrabold">{item.courseKey.replace(/_/g, ' ')}</span>.
+                  Individual purchases are disabled for course curriculum items. To access this lesson, please purchase the full course.
+                </div>
+                <Link
+                  to={`/app/${item.courseKey}`}
+                  className="inline-block bg-vigno-accent hover:brightness-110 text-vigno-accent-txt font-black px-6 py-2.5 rounded-xl text-sm transition-all focus:outline-none"
+                >
+                  Go to Course Page
+                </Link>
+              </div>
+            ) : (
+              <>
+                <div className="text-vigno-muted max-w-md">
+                  This is premium content. Purchase a license to unlock secure access — you
+                  buy a <span className="text-vigno-txt font-semibold">license tied to your account</span>, not the file.
+                </div>
+                <BuyButton content={item} onUnlocked={refetch} />
+              </>
+            )}
           </div>
         )}
 

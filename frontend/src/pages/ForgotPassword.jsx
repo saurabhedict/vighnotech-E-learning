@@ -7,7 +7,7 @@ import { useSiteSettings } from '../hooks/useSiteSettings'
 export default function ForgotPassword() {
   const navigate = useNavigate()
   const { data: settings } = useSiteSettings()
-  const brandName = settings?.brand?.name || 'AeroLearn'
+  const brandName = settings?.brand?.name || 'Aerolearn'
   const logoEmoji = settings?.brand?.logoEmoji ?? '✈'
   const [step, setStep] = useState(1)
   const [email, setEmail] = useState('')
@@ -16,7 +16,7 @@ export default function ForgotPassword() {
   const [msg, setMsg] = useState(null)
   const [loading, setLoading] = useState(false)
 
-  const input = 'w-full mb-3.5 px-3 py-2.5 rounded-lg bg-vigno-bg2 border border-vigno-line text-sm outline-none focus:border-vigno-accent'
+  const input = 'w-full mb-3.5 px-3 py-2.5 rounded-lg bg-vigno-bg2 border border-vigno-line text-sm outline-none'
 
   const request = async (e) => {
     e.preventDefault()
@@ -45,7 +45,7 @@ export default function ForgotPassword() {
   return (
     <div className="min-h-screen flex items-center justify-center p-5">
       <div className="bg-vigno-panel border border-vigno-line rounded-2xl p-8 w-[380px] shadow-2xl">
-        <h2 className="text-xl font-bold mb-1"><span className="text-vigno-accent2">{logoEmoji}</span> {brandName}</h2>
+        <h2 style={{ fontFamily: "'Caveat', cursive" }} className="text-3xl font-bold mb-1 select-none text-vigno-txt">{brandName}</h2>
         <p className="text-vigno-muted text-sm mb-5">Reset your password</p>
 
         {msg && (
@@ -59,7 +59,7 @@ export default function ForgotPassword() {
           <form onSubmit={request}>
             <label className="text-xs text-vigno-muted block mb-1.5">Email</label>
             <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required className={input} />
-            <button disabled={loading} className="w-full bg-vigno-accent text-[#1a0d0f] font-extrabold py-3 rounded-xl hover:brightness-110 disabled:opacity-60">
+            <button disabled={loading} className="w-full bg-vigno-accent text-vigno-accent-txt font-extrabold py-3 rounded-xl hover:brightness-110 disabled:opacity-60">
               {loading ? 'Sending…' : 'Send reset code'}
             </button>
           </form>
@@ -69,7 +69,7 @@ export default function ForgotPassword() {
             <input value={code} onChange={(e) => setCode(e.target.value)} required className={input + ' tracking-widest'} placeholder="123456" />
             <label className="text-xs text-vigno-muted block mb-1.5">New password (min 8)</label>
             <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required className={input} />
-            <button disabled={loading} className="w-full bg-vigno-accent text-[#1a0d0f] font-extrabold py-3 rounded-xl hover:brightness-110 disabled:opacity-60">
+            <button disabled={loading} className="w-full bg-vigno-accent text-vigno-accent-txt font-extrabold py-3 rounded-xl hover:brightness-110 disabled:opacity-60">
               {loading ? 'Resetting…' : 'Reset password'}
             </button>
             <button type="button" onClick={() => setStep(1)} className="w-full mt-2 text-xs text-vigno-muted hover:text-vigno-txt">← Use a different email</button>

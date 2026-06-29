@@ -3,9 +3,39 @@ import api from './axiosClient'
 
 const onProg = (cb) => (e) => { if (cb && e.total) cb(Math.round((e.loaded / e.total) * 100)) }
 
+// ── Helper: prepare a resource before sending to the API ─────────────────────
+// Uploads the file first (using the existing S3 presigned flow), then returns
+// a plain metadata object ready to POST.
+async function prepareResource(resourceData, onProgress) {
+  const { type, title, file, url, quizJson, opts, price } = resourceData
+  let fileUrl = url || null
+
+  if (file) {
+    // Reuse the existing S3 presigned upload flow via a temporary content shell
+    const { data: tempContent } = await api.post('/admin/content/temp', { filename: file.name })
+    const result = await adminApi.uploadContentFile(tempContent, file, onProgress)
+    fileUrl = result.url
+  }
+
+  return {
+    type,
+    title,
+    price,
+    url: fileUrl,
+    quizJson: quizJson || undefined,
+    freePreview:  opts?.freePreview  ?? false,
+    downloadable: opts?.downloadable ?? false,
+    description:  opts?.description  || '',
+    duration:     opts?.duration     || '',
+    order:        parseInt(opts?.order ?? 0, 10),
+  }
+}
+
 // Admin CMS + dashboard. All routes require an admin session (RBAC enforced
 // server-side; the UI also hides them from non-admins).
 export const adminApi = {
+
+  // ── Stats & Audit ───────────────────────────────────────────────────────────
   async stats() {
     const { data } = await api.get('/admin/stats')
     return data
@@ -14,7 +44,12 @@ export const adminApi = {
     const { data } = await api.get('/admin/audit', { params: { limit } })
     return data.logs
   },
-  // Reports
+  async clearAudit() {
+    const { data } = await api.delete('/admin/audit')
+    return data
+  },
+
+  // ── Reports ─────────────────────────────────────────────────────────────────
   report(type) {
     return api.get(`/admin/reports/${type}`).then((r) => r.data)
   },
@@ -27,7 +62,8 @@ export const adminApi = {
     a.click()
     URL.revokeObjectURL(url)
   },
-  // Users
+
+  // ── Users ───────────────────────────────────────────────────────────────────
   listUsers(q = '') {
     return api.get('/admin/users', { params: q ? { q } : {} }).then((r) => r.data.users)
   },
@@ -37,19 +73,41 @@ export const adminApi = {
   deleteUser(id) {
     return api.delete(`/admin/users/${id}`).then((r) => r.data)
   },
-  // Tree / content browse
+
+  // ── Tree / content browse ───────────────────────────────────────────────────
   listNodes(params = {}) {
     return api.get('/admin/nodes', { params }).then((r) => r.data.nodes)
   },
   listChapterContent(chapterId) {
     return api.get(`/admin/chapters/${chapterId}/content`).then((r) => r.data.items)
   },
-  // Content tree
+
+  // ── Content tree ────────────────────────────────────────────────────────────
   createNode(payload) {
     return api.post('/admin/nodes', payload).then((r) => r.data)
   },
   updateNode(id, payload) {
     return api.patch(`/admin/nodes/${id}`, payload).then((r) => r.data)
+  },
+  async uploadCourseThumbnail(courseId, file, onProgress) {
+    const form = new FormData()
+    form.append('file', file)
+    const { data } = await api.post(`/admin/nodes/${courseId}/upload-thumbnail`, form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 0,
+      onUploadProgress: onProg(onProgress),
+    })
+    return data
+  },
+  async uploadContentThumbnail(contentId, file, onProgress) {
+    const form = new FormData()
+    form.append('file', file)
+    const { data } = await api.post(`/admin/content/${contentId}/upload-thumbnail`, form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 0,
+      onUploadProgress: onProg(onProgress),
+    })
+    return data
   },
   deleteNode(id) {
     return api.delete(`/admin/nodes/${id}`).then((r) => r.data)
@@ -57,7 +115,8 @@ export const adminApi = {
   reorderNodes(ids) {
     return api.post('/admin/nodes/reorder', { ids }).then((r) => r.data)
   },
-  // Content files
+
+  // ── Content files ────────────────────────────────────────────────────────────
   createContent(payload) {
     return api.post('/admin/content', payload).then((r) => r.data)
   },
@@ -67,6 +126,7 @@ export const adminApi = {
   deleteContent(id) {
     return api.delete(`/admin/content/${id}`).then((r) => r.data)
   },
+
   // Uploads a media file. `content` may be the content object (preferred — its
   // `lane` decides the path) or just an id. `onProgress(percent 0..100)` fires as
   // bytes leave the browser. timeout:0 disables the default 12s cap (videos are big).
@@ -105,14 +165,16 @@ export const adminApi = {
     })
     return data
   },
-  // License administration
+
+  // ── License administration ──────────────────────────────────────────────────
   issueLicense(payload) {
     return api.post('/admin/licenses/issue', payload).then((r) => r.data)
   },
   revokeLicense(jti, reason) {
     return api.post(`/admin/licenses/${jti}/revoke`, { reason }).then((r) => r.data)
   },
-  // Coupons
+
+  // ── Coupons ─────────────────────────────────────────────────────────────────
   listCoupons() {
     return api.get('/admin/coupons').then((r) => r.data.coupons)
   },
@@ -122,8 +184,83 @@ export const adminApi = {
   deleteCoupon(id) {
     return api.delete(`/admin/coupons/${id}`).then((r) => r.data)
   },
+
+  // ── Commerce ────────────────────────────────────────────────────────────────
   // Refund a purchase (revokes license + credits wallet)
   refundPurchase(purchaseId) {
     return api.post(`/admin/purchases/${purchaseId}/refund`).then((r) => r.data)
+  },
+
+  // ── Courses ─────────────────────────────────────────────────────────────────
+
+  /** List all courses — admin view includes drafts */
+  listCourses() {
+    return api.get('/admin/courses').then((r) => r.data)
+  },
+
+  /**
+   * Create a new course.
+   * Uploads thumbnail + all chapter resources before posting metadata.
+   */
+  async createCourse({ title, description, category, price, thumbnail, tags, published, chapters }) {
+    // 1. Upload thumbnail if provided
+    let thumbnailUrl = null
+    if (thumbnail) {
+      const { data: tempContent } = await api.post('/admin/content/temp', { filename: thumbnail.name })
+      const result = await adminApi.uploadContentFile(tempContent, thumbnail)
+      thumbnailUrl = result.url
+    }
+
+    // 2. Upload all chapter resources
+    const resolvedChapters = await Promise.all(
+      chapters.map(async (chapter) => ({
+        title: chapter.title,
+        resources: await Promise.all(
+          (chapter.resources || []).map((r) => prepareResource(r))
+        ),
+      }))
+    )
+
+    // 3. POST course metadata
+    return api.post('/admin/courses', {
+      title,
+      description,
+      category,
+      price,
+      thumbnailUrl,
+      tags,
+      published,
+      chapters: resolvedChapters,
+    }).then((r) => r.data)
+  },
+
+  /** Partial update — title, published, price, etc. */
+  updateCourse(id, patch) {
+    return api.patch(`/admin/courses/${id}`, patch).then((r) => r.data)
+  },
+
+  /** Permanently delete a course and all its resources */
+  deleteCourse(id) {
+    return api.delete(`/admin/courses/${id}`).then((r) => r.data)
+  },
+
+  // ── Standalone resources ────────────────────────────────────────────────────
+  // A resource NOT tied to a course chapter — mirrors adding a file to a CMS
+  // folder. Supports: video, pdf, animation, image, audio, subtitle, quiz, link.
+
+  /** Upload and create a standalone resource */
+  async createStandaloneResource(resourceData, onProgress) {
+    const payload = await prepareResource(resourceData, onProgress)
+    return api.post('/admin/resources', payload).then((r) => r.data)
+  },
+
+  /** List standalone resources, optionally filtered by type */
+  listResources(type) {
+    return api.get('/admin/resources', { params: type ? { type } : {} }).then((r) => r.data)
+  },
+
+  /** Delete a standalone resource */
+  deleteResource(id) {
+    return api.delete(`/admin/resources/${id}`).then((r) => r.data)
   },
 }

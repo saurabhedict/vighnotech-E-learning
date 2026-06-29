@@ -11,6 +11,10 @@ export const paymentsApi = {
     const { data } = await api.post('/payments/order', { contentId, ...(couponCode ? { couponCode } : {}) })
     return data
   },
+  async createCourseOrder(courseSlug, couponCode) {
+    const { data } = await api.post('/payments/order-course', { courseSlug, ...(couponCode ? { couponCode } : {}) })
+    return data
+  },
   async verify({ orderId, paymentId, signature }) {
     const { data } = await api.post('/payments/verify', {
       razorpay_order_id: orderId,
@@ -19,8 +23,20 @@ export const paymentsApi = {
     })
     return data
   },
+  async verifyCourse({ orderId, paymentId, signature }) {
+    const { data } = await api.post('/payments/verify-course', {
+      razorpay_order_id: orderId,
+      razorpay_payment_id: paymentId,
+      razorpay_signature: signature,
+    })
+    return data
+  },
   async walletPay(contentId, couponCode) {
     const { data } = await api.post('/payments/wallet', { contentId, ...(couponCode ? { couponCode } : {}) })
+    return data
+  },
+  async walletPayCourse(courseSlug, couponCode) {
+    const { data } = await api.post('/payments/wallet-course', { courseSlug, ...(couponCode ? { couponCode } : {}) })
     return data
   },
   // Wallet top-up: order → (checkout) → verify → balance credited.

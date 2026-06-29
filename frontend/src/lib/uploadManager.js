@@ -38,11 +38,11 @@ export function getActiveUploadCount() {
  * caller's UI — failures surface via the 'error' status on the row.
  */
 export async function startUpload(content, file) {
-  const id = content._id
+  const id = content?._id || content?.id || content
   const existing = uploads.get(id)
   if (existing && (existing.status === 'uploading' || existing.status === 'processing')) return
 
-  uploads.set(id, { pct: 0, status: 'uploading', error: '', title: content.title })
+  uploads.set(id, { pct: 0, status: 'uploading', error: '', title: content?.title || '' })
   emit()
   try {
     await adminApi.uploadContentFile(content, file, (pct) => {
@@ -55,6 +55,8 @@ export async function startUpload(content, file) {
     emit()
     // Refresh the CMS lists wherever they're mounted so the row shows "file ✓".
     queryClient.invalidateQueries({ queryKey: ['admin', 'children'] })
+    queryClient.invalidateQueries({ queryKey: ['admin', 'resources'] })
+    queryClient.invalidateQueries({ queryKey: ['admin', 'chapter'] })
     queryClient.invalidateQueries({ queryKey: ['admin', 'stats'] })
     setTimeout(() => { uploads.delete(id); emit() }, 1500)
   } catch (e) {

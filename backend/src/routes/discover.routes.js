@@ -22,4 +22,7 @@ router.post('/progress/:contentId', requireAuth, validate({ body: d.progressSche
 // Recommended
 router.get('/recommended', requireAuth, d.recommended)
 
+// Standalone Resources
+router.get('/resources/standalone', requireAuth, d.listStandaloneResources)
+
 export default router

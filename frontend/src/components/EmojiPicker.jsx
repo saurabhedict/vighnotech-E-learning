@@ -54,9 +54,9 @@ export default function EmojiPicker({ value, onChange }) {
               value={typed}
               onChange={(e) => setTyped(e.target.value)}
               placeholder="Paste any emoji…"
-              className="flex-1 min-w-0 px-2 py-1.5 rounded-lg bg-vigno-bg2 border border-vigno-line text-sm outline-none focus:border-vigno-accent"
+              className="flex-1 min-w-0 px-2 py-1.5 rounded-lg bg-vigno-bg2 border border-vigno-line text-sm outline-none"
             />
-            <button type="button" onClick={() => typed.trim() && pick(typed.trim())} className="text-xs bg-vigno-accent text-[#1a0d0f] font-bold rounded-lg px-2.5">Use</button>
+            <button type="button" onClick={() => typed.trim() && pick(typed.trim())} className="text-xs bg-vigno-accent text-vigno-accent-txt font-bold rounded-lg px-2.5">Use</button>
           </div>
           <button type="button" onClick={() => pick('')} className="mt-1.5 w-full text-xs text-vigno-muted hover:text-vigno-txt">Clear icon</button>
         </div>

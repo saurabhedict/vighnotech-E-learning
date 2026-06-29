@@ -1,5 +1,6 @@
 import { TreeNode } from '../models/TreeNode.js'
 import { Content } from '../models/Content.js'
+import { createMediaUrl } from './storage.js'
 
 // Assemble the nested tree the frontend expects from the flat TreeNode/Content
 // collections. Shape mirrors src/api/mockApi.js: course → subjects → modules →
@@ -28,17 +29,46 @@ const itemCard = (it) => ({
   title: it.title,
   type: it.type,
   paid: it.isPaid,
-  ...(it.isPaid ? { price: it.price } : {}),
+  price: it.price || 0,
+  courseKey: it.courseKey || '',
 })
 
 export async function listCourseSlugs() {
-  const courses = await TreeNode.find({ kind: 'course' }).sort({ order: 1, name: 1 }).lean()
-  return courses.map((c) => c.slug)
+  const courses = await TreeNode.find({ kind: 'course', slug: { $ne: 'Individual_Resources' } }).sort({ order: 1, name: 1 }).lean()
+  for (const course of courses) {
+    if (course.meta) {
+      if (!course.meta.thumbnailStorageKey && course.meta.thumbnail) {
+        const match = course.meta.thumbnail.match(/(obj_[a-z0-9]{20}(?:\.[a-z0-9]+)?)/i)
+        if (match) {
+          const key = match[1]
+          course.meta.thumbnailStorageKey = key
+          await TreeNode.updateOne({ _id: course._id }, { $set: { 'meta.thumbnailStorageKey': key } })
+        }
+      }
+      if (course.meta.thumbnailStorageKey) {
+        course.meta.thumbnail = await createMediaUrl(course.meta.thumbnailStorageKey)
+      }
+    }
+  }
+  return courses
 }
 
 export async function getCourseTree(slug) {
   const course = await TreeNode.findOne({ kind: 'course', slug }).lean()
   if (!course) return null
+  if (course.meta) {
+    if (!course.meta.thumbnailStorageKey && course.meta.thumbnail) {
+      const match = course.meta.thumbnail.match(/(obj_[a-z0-9]{20}(?:\.[a-z0-9]+)?)/i)
+      if (match) {
+        const key = match[1]
+        course.meta.thumbnailStorageKey = key
+        await TreeNode.updateOne({ _id: course._id }, { $set: { 'meta.thumbnailStorageKey': key } })
+      }
+    }
+    if (course.meta.thumbnailStorageKey) {
+      course.meta.thumbnail = await createMediaUrl(course.meta.thumbnailStorageKey)
+    }
+  }
 
   // One query per level (not per node). Each $in query is sorted by `order`, so
   // grouping by parent preserves the same per-parent ordering as the old loops.
@@ -63,7 +93,9 @@ export async function getCourseTree(slug) {
   const chaptersByModule = groupBy(chapters, 'parentId')
   const contentByChapter = groupBy(content, 'chapterId')
 
-  return subjects.map((subject) => ({
+  // Keep the batched/groupBy build (fixed 5 queries), but return the { course, tree }
+  // shape the redesigned frontend reads (Home.jsx → treeData.tree, course meta header).
+  const tree = subjects.map((subject) => ({
     subject: subject.name,
     modules: (modulesBySubject.get(String(subject._id)) || []).map((mod) => ({
       id: mod._id.toString(),
@@ -74,6 +106,8 @@ export async function getCourseTree(slug) {
       })),
     })),
   }))
+
+  return { course, tree }
 }
 
 export async function getModule(courseSlug, moduleId) {

@@ -2,33 +2,25 @@ import { useEffect } from 'react'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { useSelector, useDispatch } from 'react-redux'
 import Navbar from './Navbar'
-import Sidebar from './Sidebar'
 import Footer from './Footer'
 import AnnouncementBar from './AnnouncementBar'
 import { authApi } from '../api/authApi'
 import { setUser, logout } from '../store/authSlice'
 
-// Auth-guarded shell. Validates the persisted session against the backend on
-// mount (refreshes profile, or logs out if the token is no longer valid).
 export default function AppLayout() {
   const navigate = useNavigate()
   const location = useLocation()
   const dispatch = useDispatch()
   const isLoggedIn = useSelector((s) => s.auth.isLoggedIn)
+  const user = useSelector((s) => s.auth.user)
   const theme = useSelector((s) => s.ui.theme)
+  const isDark = theme === 'dark'
 
-  // Show Back only on drilled-in pages (module/content) — not on top-level
-  // pages reached from the nav/sidebar (home, profile, library, …).
   const segs = location.pathname.replace(/^\/app\/?/, '').split('/').filter(Boolean)
   const showBack = segs.length >= 2
 
   useEffect(() => {
-    if (!isLoggedIn) {
-      navigate('/')
-      return
-    }
-    // Revalidate the session. Only log out on a real auth failure (401/403) —
-    // a transient network error must NOT destroy a valid persisted session.
+    if (!isLoggedIn) { navigate('/'); return }
     authApi
       .me()
       .then((user) => dispatch(setUser(user)))
@@ -39,22 +31,45 @@ export default function AppLayout() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoggedIn])
 
+  // Strictly gate admin users to the admin dashboard page, except when previewing content
+  useEffect(() => {
+    if (isLoggedIn && user?.role === 'admin' && location.pathname !== '/app/admin' && !location.pathname.includes('/content/')) {
+      navigate('/app/admin', { replace: true })
+    }
+  }, [isLoggedIn, user, location.pathname, navigate])
+
   if (!isLoggedIn) return null
 
   return (
-    <div className={(theme === 'light' ? 'theme-light ' : '') + 'min-h-screen flex flex-col'}>
+    <div className={(isDark ? '' : 'theme-light ') + 'min-h-screen flex flex-col'}>
+      {/* Background */}
+      <div className={[
+        'fixed inset-0 -z-10 transition-colors duration-200',
+        isDark
+          ? 'bg-gradient-to-br from-[#060c1c] via-[#09122e] to-[#0b1a3e]'
+          : 'bg-white',
+      ].join(' ')} />
+
       <AnnouncementBar />
       <Navbar />
-      <div className="flex flex-1">
-        <Sidebar />
-        <main className="flex-1 overflow-auto flex flex-col">
-          <div className="flex-1 p-7">
+
+      <div className="flex flex-1 overflow-hidden">
+        <main className="flex-1 overflow-auto flex flex-col min-w-0">
+          <div className="flex-1 px-8 py-7 max-w-7xl mx-auto w-full">
             {showBack && (
               <button
                 onClick={() => navigate(-1)}
-                className="mb-4 inline-flex items-center gap-1.5 text-sm bg-white/10 hover:bg-white/20 border border-vigno-line rounded-lg px-3 py-1.5"
+                className={[
+                  'mb-5 inline-flex items-center gap-1.5 text-xs font-medium rounded-md px-3 py-1.5 border transition-all',
+                  isDark
+                    ? 'bg-white/5 hover:bg-white/9 border-vigno-line/40 text-vigno-muted hover:text-vigno-txt'
+                    : 'bg-white hover:bg-vigno-bg2 border-vigno-line/60 text-vigno-muted hover:text-vigno-txt shadow-sm',
+                ].join(' ')}
               >
-                ← Back
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7"/>
+                </svg>
+                Back
               </button>
             )}
             <Outlet />

@@ -21,7 +21,7 @@ import { signGameToken } from '../services/gameLicense.js'
 export const getDrmToken = asyncHandler(async (req, res) => {
   const content = await Content.findById(req.params.id)
   if (!content || !content.published) throw notFound('Content not found')
-  if (content.isPaid && !(await hasActiveLicense(req.user.id, content._id))) throw paymentRequired()
+  if (content.isPaid && req.user.role !== 'admin' && !(await hasActiveLicense(req.user.id, content._id))) throw paymentRequired()
   const playback = await getDrmPlayback(content)
   res.json(playback ? { drm: true, ...playback } : { drm: false })
 })
@@ -96,7 +96,7 @@ export const getStreamUrl = asyncHandler(async (req, res) => {
   if (!content || !content.published) throw notFound('Content not found')
   if (content.lane !== 'stream') throw badRequest('This content uses the download lane')
 
-  if (content.isPaid) {
+  if (content.isPaid && req.user.role !== 'admin') {
     const owns = await hasActiveLicense(req.user.id, content._id)
     if (owns === false) throw paymentRequired()
   }
@@ -405,4 +405,23 @@ export const getDecryptionKey = asyncHandler(async (req, res) => {
   audit(req, 'file.key.grant', { targetType: 'Content', targetId: content._id })
   // graceDays = server-controlled offline window the launcher caches the key for.
   res.json({ key, iv: content.enc.iv, tag: content.enc.tag, alg: 'aes-256-gcm', expiresInSec: 300, graceDays: env.license.graceDays })
+})
+
+// GET /files/local/:storageKey — serves local storage files (like course thumbnails)
+// when S3 is disabled.
+export const streamLocalFile = asyncHandler(async (req, res, next) => {
+  const { storageKey } = req.params
+  // Guard against directory traversal
+  if (!/^[a-zA-Z0-9._-]+$/.test(storageKey || '')) {
+    throw forbidden('Bad storage key')
+  }
+
+  const stat = await statObject(storageKey)
+  if (!stat) throw notFound('File not found')
+
+  const type = mimeFor(storageKey)
+  res.set('Content-Type', type)
+  res.set('Content-Length', String(stat.size))
+
+  pipeWithErrors(await readObjectStream(storageKey), res, next)
 })

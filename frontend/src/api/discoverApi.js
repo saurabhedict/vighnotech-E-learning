@@ -29,4 +29,8 @@ export const discoverApi = {
   recommended() {
     return api.get('/recommended').then((r) => r.data.items)
   },
+  // Standalone resources
+  standaloneResources() {
+    return api.get('/resources/standalone').then((r) => r.data.items)
+  },
 }

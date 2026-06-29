@@ -35,37 +35,38 @@ const section = new mongoose.Schema(
 function defaultSections() {
   return [
     {
-      type: 'links',
-      title: 'Quick Links',
-      links: [
-        { label: 'Home', url: '/app' },
-        { label: 'Library', url: '/app/library' },
-        { label: 'Favorites', url: '/app/favorites' },
-      ],
-    },
-    {
-      type: 'links',
-      title: 'Services',
-      links: [
-        { label: 'Counselling', url: '#' },
-        { label: 'Premium Tests', url: '#' },
-        { label: 'Mentorship', url: '#' },
-      ],
-    },
-    {
       type: 'contact',
-      title: 'Contact',
-      phones: ['+91 77200 25900', '+91 77200 81400'],
-      emails: ['contact@aerolearn.in', 'info@aerolearn.in'],
+      title: 'Contact us',
+      links: [
+        { label: 'Link One', url: '#' },
+        { label: 'Link Two', url: '#' },
+        { label: 'Link Three', url: '#' },
+        { label: 'Link Four', url: '#' },
+        { label: 'Link Five', url: '#' },
+      ],
+      phones: ['+91 77200 25900'],
+      emails: ['contact@aerolearn.in'],
+    },
+    {
+      type: 'links',
+      title: 'about us',
+      links: [
+        { label: 'Link Six', url: '#' },
+        { label: 'Link Seven', url: '#' },
+        { label: 'Link Eight', url: '#' },
+        { label: 'Link Nine', url: '#' },
+        { label: 'Link Ten', url: '#' },
+      ],
     },
     {
       type: 'social',
       title: 'Follow Us',
       items: [
         { platform: 'facebook', url: '#' },
+        { platform: 'instagram', url: '#' },
         { platform: 'twitter', url: '#' },
         { platform: 'linkedin', url: '#' },
-        { platform: 'instagram', url: '#' },
+        { platform: 'youtube', url: '#' },
       ],
     },
   ]
@@ -91,7 +92,7 @@ const schema = new mongoose.Schema(
   {
     singleton: { type: String, default: 'site', unique: true },
     brand: {
-      name: { type: String, default: 'AeroLearn' },
+      name: { type: String, default: 'Aerolearn' },
       tagline: { type: String, default: 'Aviation Training Platform' },
       logoEmoji: { type: String, default: '✈' },
     },
@@ -144,6 +145,17 @@ const schema = new mongoose.Schema(
 schema.statics.getSingleton = async function getSingleton() {
   let doc = await this.findOne({ singleton: 'site' })
   if (!doc) doc = await this.create({ singleton: 'site' })
+  
+  let changed = false
+  if (doc.brand && doc.brand.name === 'AEROLearn') {
+    doc.brand.name = 'AeroLearn'
+    changed = true
+  }
+  if (doc.footer && doc.footer.copyright && doc.footer.copyright.includes('AEROLearn')) {
+    doc.footer.copyright = doc.footer.copyright.replace(/AEROLearn/g, 'AeroLearn')
+    changed = true
+  }
+
   // Migrate / seed sections if empty, and clear legacy fields afterwards.
   if (!doc.footer.sections || doc.footer.sections.length === 0) {
     doc.footer.sections = sectionsFromLegacy(doc.footer)
@@ -152,6 +164,10 @@ schema.statics.getSingleton = async function getSingleton() {
     doc.footer.phones = undefined
     doc.footer.emails = undefined
     doc.footer.socials = undefined
+    changed = true
+  }
+  
+  if (changed) {
     await doc.save()
   }
   return doc
