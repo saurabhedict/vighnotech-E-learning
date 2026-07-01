@@ -93,6 +93,166 @@ function RevokeLicense() {
   )
 }
 
+// ── NotificationsPanel (admin → everyone broadcasts) ──────────────────────────
+function NotificationsPanel() {
+  const qc = useQueryClient()
+  const { data: items, isLoading } = useQuery({ queryKey: ['admin', 'notifications'], queryFn: adminApi.listNotifications })
+  const [title, setTitle] = useState('')
+  const [body, setBody] = useState('')
+  const [link, setLink] = useState('')
+  const [level, setLevel] = useState('info')
+  const [msg, setMsg] = useState(null)
+  const [sending, setSending] = useState(false)
+
+  const send = async (e) => {
+    e.preventDefault()
+    if (!title.trim() || !body.trim()) return
+    setSending(true); setMsg(null)
+    try {
+      await adminApi.createNotification({ title: title.trim(), body: body.trim(), link: link.trim() || undefined, level })
+      setTitle(''); setBody(''); setLink(''); setLevel('info')
+      setMsg({ ok: true, text: 'Notification broadcast to everyone.' })
+      qc.invalidateQueries({ queryKey: ['admin', 'notifications'] })
+    } catch (err) { setMsg({ ok: false, text: apiErrorMessage(err, 'Failed to send') }) }
+    finally { setSending(false) }
+  }
+  const del = async (id) => {
+    try { await adminApi.deleteNotification(id); qc.invalidateQueries({ queryKey: ['admin', 'notifications'] }) } catch { /* ignore */ }
+  }
+  return (
+    <div className="space-y-6">
+      <form onSubmit={send} className="space-y-3 max-w-2xl">
+        <p className="text-sm text-vigno-muted">Broadcast an announcement or instruction — it shows up in every user's notification bell.</p>
+        {msg && <p className={'text-sm px-3 py-2 rounded-lg ' + (msg.ok ? 'text-green-300 bg-green-500/10 border border-green-500/20' : 'text-red-300 bg-red-500/10 border border-red-500/20')}>{msg.text}</p>}
+        <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Title" maxLength={140} className={inp} />
+        <textarea value={body} onChange={(e) => setBody(e.target.value)} placeholder="Message / instruction to all users" rows={4} maxLength={2000} className={inp} />
+        <div className="flex flex-wrap gap-2 items-center">
+          <input value={link} onChange={(e) => setLink(e.target.value)} placeholder="Optional link (e.g. /app/library)" className={inp + ' flex-1 min-w-[220px]'} />
+          <select value={level} onChange={(e) => setLevel(e.target.value)} className={inp + ' w-auto'}>
+            <option value="info">Info</option>
+            <option value="success">Success</option>
+            <option value="warning">Warning</option>
+          </select>
+          <button type="submit" disabled={sending || !title.trim() || !body.trim()} className={btnCls.primary}>{sending ? 'Sending…' : 'Send to Everyone'}</button>
+        </div>
+      </form>
+
+      <div>
+        <h3 className="text-sm font-bold text-vigno-txt mb-2">Sent notifications</h3>
+        {isLoading && <p className="text-sm text-vigno-muted">Loading…</p>}
+        {items?.length === 0 && <p className="text-sm text-vigno-muted">Nothing sent yet.</p>}
+        <ul className="space-y-2">
+          {items?.map((n) => (
+            <li key={n.id} className="flex items-start justify-between gap-3 bg-vigno-bg2 border border-vigno-line/50 rounded-lg px-3 py-2">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-vigno-txt">{n.title} <span className="text-[10px] font-normal text-vigno-muted uppercase">· {n.level}</span></p>
+                <p className="text-xs text-vigno-muted whitespace-pre-line break-words">{n.body}</p>
+                <p className="text-[10px] text-vigno-muted mt-1">{new Date(n.createdAt).toLocaleString()}{n.link ? ` · ${n.link}` : ''}</p>
+              </div>
+              <button onClick={() => del(n.id)} className="text-red-400 hover:text-red-300 text-xs font-semibold shrink-0">Delete</button>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  )
+}
+
+// ── LicensesPanel (all licenses on the platform + actions) ────────────────────
+const LIC_STATUS_CLS = { active: 'bg-green-500/15 text-green-300', revoked: 'bg-red-500/15 text-red-300', expired: 'bg-white/10 text-vigno-muted' }
+function LicensesPanel() {
+  const qc = useQueryClient()
+  const [status, setStatus] = useState('all')
+  const [q, setQ] = useState('')
+  const [search, setSearch] = useState('')
+  const [msg, setMsg] = useState(null)
+  const { data: items, isLoading } = useQuery({
+    queryKey: ['admin', 'licenses', status, search],
+    queryFn: () => adminApi.listLicenses({ ...(status !== 'all' ? { status } : {}), ...(search ? { q: search } : {}) }),
+  })
+  const revoke = async (jti) => {
+    const reason = window.prompt('Reason for revoking this license?', 'admin_revoke')
+    if (reason === null) return
+    setMsg(null)
+    try { await adminApi.revokeLicense(jti, reason || 'admin_revoke'); setMsg({ ok: true, text: `Revoked ${jti}` }); qc.invalidateQueries({ queryKey: ['admin', 'licenses'] }) }
+    catch (e) { setMsg({ ok: false, text: apiErrorMessage(e, 'Revoke failed') }) }
+  }
+  const unflag = async (jti) => {
+    setMsg(null)
+    try { await adminApi.unflagLicense(jti); qc.invalidateQueries({ queryKey: ['admin', 'licenses'] }) }
+    catch (e) { setMsg({ ok: false, text: apiErrorMessage(e, 'Unflag failed') }) }
+  }
+  const FILTERS = ['all', 'active', 'revoked', 'expired', 'flagged']
+  return (
+    <div className="space-y-4">
+      <p className="text-sm text-vigno-muted">Every license issued on the platform. Revoke takes effect on the user's next content access.</p>
+      {msg && <p className={'text-sm px-3 py-2 rounded-lg ' + (msg.ok ? 'text-green-300 bg-green-500/10 border border-green-500/20' : 'text-red-300 bg-red-500/10 border border-red-500/20')}>{msg.text}</p>}
+      <div className="flex flex-wrap gap-2 items-center">
+        <div className="flex gap-1 flex-wrap">
+          {FILTERS.map((s) => (
+            <button key={s} onClick={() => setStatus(s)} className={'px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ' + (status === s ? 'bg-vigno-accent text-vigno-accent-txt' : 'bg-white/10 text-vigno-muted hover:text-vigno-txt')}>
+              {s[0].toUpperCase() + s.slice(1)}
+            </button>
+          ))}
+        </div>
+        <form onSubmit={(e) => { e.preventDefault(); setSearch(q.trim()) }} className="flex gap-2 flex-1 min-w-[220px]">
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search user email / name" className={inp + ' flex-1'} />
+          <button className={btnCls.ghost}>Search</button>
+        </form>
+      </div>
+
+      {isLoading ? <p className="text-sm text-vigno-muted">Loading…</p> : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm border-collapse">
+            <thead>
+              <tr className="text-left text-xs text-vigno-muted border-b border-vigno-line/40">
+                <th className="py-2 pr-3 font-semibold">User</th>
+                <th className="py-2 pr-3 font-semibold">Content</th>
+                <th className="py-2 pr-3 font-semibold">Type</th>
+                <th className="py-2 pr-3 font-semibold">Status</th>
+                <th className="py-2 pr-3 font-semibold">Expires</th>
+                <th className="py-2 pr-3 font-semibold">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {items?.length === 0 && <tr><td colSpan={6} className="py-6 text-center text-vigno-muted">No licenses match.</td></tr>}
+              {items?.map((l) => (
+                <tr key={l.jti} className="border-b border-vigno-line/20 align-top">
+                  <td className="py-2 pr-3">
+                    <div className="text-vigno-txt">{l.user?.name || '—'}{l.user?.role === 'admin' && <span className="ml-1 text-[9px] text-vigno-accent">(admin)</span>}</div>
+                    <div className="text-[11px] text-vigno-muted">{l.user?.email || '—'}</div>
+                  </td>
+                  <td className="py-2 pr-3">
+                    <div className="text-vigno-txt">{l.content?.title || '—'}</div>
+                    <div className="text-[11px] text-vigno-muted">{l.content?.courseKey || ''}</div>
+                  </td>
+                  <td className="py-2 pr-3 text-vigno-muted">{l.type}</td>
+                  <td className="py-2 pr-3">
+                    <span className={'px-2 py-0.5 rounded text-[10px] font-bold ' + (LIC_STATUS_CLS[l.status] || 'bg-white/10 text-vigno-muted')}>{l.status}</span>
+                    {l.flagged && <span className="ml-1 px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/15 text-amber-300" title={l.flaggedReason}>flagged</span>}
+                  </td>
+                  <td className="py-2 pr-3 text-vigno-muted text-xs whitespace-nowrap">{new Date(l.expiresAt).toLocaleDateString()}</td>
+                  <td className="py-2 pr-3">
+                    <div className="flex gap-3">
+                      {l.status !== 'revoked' && <button onClick={() => revoke(l.jti)} className="text-red-400 hover:text-red-300 text-xs font-semibold">Revoke</button>}
+                      {l.flagged && <button onClick={() => unflag(l.jti)} className="text-amber-300 hover:text-amber-200 text-xs font-semibold">Unflag</button>}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <details className="mt-2">
+        <summary className="text-xs text-vigno-muted cursor-pointer hover:text-vigno-txt">Revoke by License ID…</summary>
+        <div className="mt-3"><RevokeLicense /></div>
+      </details>
+    </div>
+  )
+}
+
 // ── AuditLog ──────────────────────────────────────────────────────────────────
 function AuditLog() {
   const queryClient = useQueryClient()
@@ -697,6 +857,12 @@ const GROUPS = [
     ]
   },
   {
+    title: 'Engagement',
+    items: [
+      { key: 'notifications',   label: 'Notifications',   icon: <BellTabIcon /> },
+    ]
+  },
+  {
     title: 'Settings',
     items: [
       { key: 'settings',        label: 'Site Settings',   icon: <SettingsIcon /> },
@@ -782,7 +948,8 @@ export default function AdminDashboard() {
         {tab === 'users'          && <Panel title="Manage Users" icon={<UsersTabIcon />}><UsersPanel /></Panel>}
         {tab === 'reports'        && <Panel title="Reports & Export" icon={<ReportsIcon />}><ReportsPanel /></Panel>}
         {tab === 'commerce'       && <Panel title="Coupons & Refunds" icon={<CommerceIcon />}><CommercePanel /></Panel>}
-        {tab === 'licenses'       && <Panel title="Revoke License" icon={<LicenseTabIcon />}><RevokeLicense /></Panel>}
+        {tab === 'licenses'       && <Panel title="Licenses — All Users & Actions" icon={<LicenseTabIcon />}><LicensesPanel /></Panel>}
+        {tab === 'notifications'  && <Panel title="Notifications — Broadcast to Everyone" icon={<BellTabIcon />}><NotificationsPanel /></Panel>}
         {tab === 'settings'       && <Panel title="Site Settings — Footer & Branding" icon={<SettingsIcon />}><SettingsPanel /></Panel>}
         {tab === 'audit'          && <Panel title="Recent Activity (Audit Log)" icon={<AuditIcon />}><AuditLog /></Panel>}
       </div>
@@ -799,6 +966,7 @@ function CommerceIcon()   { return <svg width="14" height="14" viewBox="0 0 24 2
 function LicenseTabIcon() { return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> }
 function SettingsIcon()   { return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93A10 10 0 1 0 4.93 19.07 10 10 0 0 0 19.07 4.93z"/></svg> }
 function AuditIcon()      { return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg> }
+function BellTabIcon()    { return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg> }
 
 function UsersIcon()   { return <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> }
 function ContentIcon() { return <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg> }

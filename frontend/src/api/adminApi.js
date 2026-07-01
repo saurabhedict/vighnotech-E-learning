@@ -167,11 +167,28 @@ export const adminApi = {
   },
 
   // ── License administration ──────────────────────────────────────────────────
+  listLicenses(params = {}) {
+    return api.get('/admin/licenses', { params }).then((r) => r.data.items)
+  },
   issueLicense(payload) {
     return api.post('/admin/licenses/issue', payload).then((r) => r.data)
   },
   revokeLicense(jti, reason) {
     return api.post(`/admin/licenses/${jti}/revoke`, { reason }).then((r) => r.data)
+  },
+  unflagLicense(jti) {
+    return api.post(`/admin/licenses/${jti}/unflag`).then((r) => r.data)
+  },
+
+  // ── Broadcast notifications (admin → everyone) ────────────────────────────────
+  listNotifications() {
+    return api.get('/admin/notifications').then((r) => r.data.items)
+  },
+  createNotification(payload) {
+    return api.post('/admin/notifications', payload).then((r) => r.data)
+  },
+  deleteNotification(id) {
+    return api.delete(`/admin/notifications/${id}`).then((r) => r.data)
   },
 
   // ── Coupons ─────────────────────────────────────────────────────────────────
