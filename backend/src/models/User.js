@@ -33,6 +33,9 @@ const userSchema = new mongoose.Schema(
     walletBalance: { type: Number, default: 0, min: 0 },
     // Bumped on logout-all / password change to invalidate outstanding refresh tokens.
     tokenVersion: { type: Number, default: 0 },
+    // Last time the user opened their notification bell — anything broadcast
+    // after this is "unread" for them (see Notification model).
+    notificationsSeenAt: { type: Date, default: null },
     lastLoginAt: { type: Date },
     // Known login devices (hash of ip+user-agent) for new-device alerts.
     loginDevices: {

@@ -5,6 +5,7 @@ import { requireAuth, requireRole } from '../middleware/auth.js'
 import * as admin from '../controllers/admin.controller.js'
 import * as lic from '../controllers/license.controller.js'
 import * as settings from '../controllers/settings.controller.js'
+import * as notif from '../controllers/notification.controller.js'
 
 const router = Router()
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 200 * 1024 * 1024 } })
@@ -50,9 +51,16 @@ router.delete('/resources/:id', admin.deleteStandaloneResource)
 router.post('/content/:id/upload-url', admin.getContentUploadUrl)
 router.post('/content/:id/upload-complete', validate({ body: admin.completeContentUploadSchema }), admin.completeContentUpload)
 
-// License administration (issue grant / revoke for refunds & fraud)
+// License administration (list all / issue grant / revoke / unflag)
+router.get('/licenses', lic.adminList)
 router.post('/licenses/issue', validate({ body: lic.adminIssueSchema }), lic.adminIssue)
 router.post('/licenses/:jti/revoke', lic.revoke)
+router.post('/licenses/:jti/unflag', lic.unflag)
+
+// Broadcast notifications (admin → everyone)
+router.get('/notifications', notif.list)
+router.post('/notifications', validate({ body: notif.createSchema }), notif.create)
+router.delete('/notifications/:id', notif.remove)
 
 // Coupons
 router.get('/coupons', admin.listCoupons)

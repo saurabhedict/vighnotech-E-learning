@@ -12,6 +12,7 @@ import {
   reissueToken,
 } from '../services/licenseAuthority.js'
 import { License } from '../models/License.js'
+import { User } from '../models/User.js'
 
 // GET /licenses/mine — the user's library.
 export const mine = asyncHandler(async (req, res) => {
@@ -86,4 +87,61 @@ export const revoke = asyncHandler(async (req, res) => {
   if (!license) throw notFound('License not found')
   audit(req, 'license.revoke', { targetType: 'License', targetId: license._id, meta: { reason } })
   res.json({ ok: true, jti: license._id, status: license.status })
+})
+
+// POST /admin/licenses/:jti/unflag — clear an anti-sharing fraud flag.
+export const unflag = asyncHandler(async (req, res) => {
+  const license = await License.findByIdAndUpdate(
+    req.params.jti,
+    { $set: { flagged: false, flaggedReason: '', deniedDevices: [] } },
+    { new: true }
+  )
+  if (!license) throw notFound('License not found')
+  audit(req, 'license.unflag', { targetType: 'License', targetId: license._id })
+  res.json({ ok: true, jti: license._id })
+})
+
+// GET /admin/licenses — every license on the platform, with the owning user and
+// content resolved, so admins can audit and act on them. Filter by ?status=
+// active|revoked|expired|flagged and search users with ?q=.
+export const adminList = asyncHandler(async (req, res) => {
+  const { status = 'all', q = '', limit } = req.query
+  const cap = Math.min(Number(limit) || 200, 500)
+  const filter = {}
+  if (status === 'active') filter.status = 'active'
+  else if (status === 'revoked') filter.status = 'revoked'
+  else if (status === 'flagged') filter.flagged = true
+
+  if (q.trim()) {
+    const rx = new RegExp(q.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i')
+    const users = await User.find({ $or: [{ email: rx }, { name: rx }] }).select('_id').limit(300).lean()
+    filter.userId = { $in: users.map((u) => u._id) }
+  }
+
+  const rows = await License.find(filter)
+    .sort({ createdAt: -1 })
+    .limit(cap)
+    .populate('userId', 'email name role')
+    .populate('contentId', 'title type courseKey')
+    .lean()
+
+  const now = Date.now()
+  let items = rows.map((l) => {
+    const expired = new Date(l.expiresAt).getTime() <= now
+    return {
+      jti: l._id,
+      status: l.status === 'revoked' ? 'revoked' : expired ? 'expired' : 'active',
+      flagged: !!l.flagged,
+      flaggedReason: l.flaggedReason || '',
+      type: l.type,
+      issuedAt: l.issuedAt,
+      expiresAt: l.expiresAt,
+      revokedReason: l.revokedReason || '',
+      user: l.userId ? { id: l.userId._id, email: l.userId.email, name: l.userId.name, role: l.userId.role } : null,
+      content: l.contentId ? { id: l.contentId._id, title: l.contentId.title, type: l.contentId.type, courseKey: l.contentId.courseKey } : null,
+    }
+  })
+  if (status === 'expired') items = items.filter((i) => i.status === 'expired')
+
+  res.json({ items, count: items.length })
 })
