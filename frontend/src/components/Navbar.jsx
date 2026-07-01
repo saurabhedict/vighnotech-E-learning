@@ -98,12 +98,13 @@ function NavPanel({ open, onClose, user, isAdmin, isDark, settings, onLogout, on
 
         {/* Nav links */}
         <nav className="flex-1 overflow-y-auto px-3 py-1 space-y-0.5">
-          {isAdmin ? (
+          {isAdmin && (
             <>
               <p className={`text-[10px] font-semibold uppercase tracking-widest px-4 py-2 ${isDark ? 'text-vigno-muted/50' : 'text-vigno-muted/60'}`}>Administration</p>
               {navLink('/app/admin?tab=overview', 'Admin Dashboard')}
             </>
-          ) : (
+          )}
+          {(
             <>
               <p className={`text-[10px] font-semibold uppercase tracking-widest px-4 py-2 ${isDark ? 'text-vigno-muted/50' : 'text-vigno-muted/60'}`}>Navigation</p>
               {navLink('/app', 'Home', true)}
@@ -186,14 +187,14 @@ export default function Navbar() {
       ].join(' ')}>
 
         {/* Brand */}
-        <NavLink to={isAdmin ? "/app/admin?tab=overview" : "/app"} className="flex items-center shrink-0">
+        <NavLink to="/app" className="flex items-center shrink-0">
           <span style={{ fontFamily: "'Caveat', cursive" }} className="text-3xl font-bold select-none text-vigno-txt">
             {brandName}
           </span>
         </NavLink>
 
         {/* Search — grows to fill middle */}
-        {showSearch && !isAdmin && (
+        {showSearch && (
           <form onSubmit={doSearch} className="flex-1 max-w-xl mx-4 hidden sm:block">
             <div className="relative">
               <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-vigno-muted pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -216,7 +217,7 @@ export default function Navbar() {
 
         <div className="flex items-center gap-4">
           {/* My learning link */}
-          {!isAdmin && (
+          {(
             <NavLink
               to="/app/library"
               className={({ isActive }) => [
@@ -241,7 +242,7 @@ export default function Navbar() {
           )}
 
           {/* Wishlist Link */}
-          {!isAdmin && (
+          {(
             <NavLink to="/app/favorites" className="text-vigno-muted hover:text-vigno-txt transition-colors p-1" title="Wishlist">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
@@ -250,7 +251,7 @@ export default function Navbar() {
           )}
 
           {/* Wallet Link */}
-          {!isAdmin && (
+          {(
             <NavLink to="/app/wallet" className="text-vigno-muted hover:text-vigno-txt transition-colors p-1 relative" title="Wallet">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                 <rect x="3" y="5" width="18" height="14" rx="2" />
@@ -265,7 +266,7 @@ export default function Navbar() {
           )}
 
           {/* Cart Icon (functional) */}
-          {!isAdmin && (
+          {(
             <button
               onClick={() => navigate('/app/cart')}
               className="text-vigno-muted hover:text-vigno-txt transition-colors p-1 relative cursor-pointer focus:outline-none"
@@ -283,7 +284,7 @@ export default function Navbar() {
           )}
 
           {/* Bell (Notifications Mock) */}
-          {!isAdmin && (
+          {(
             <button className="text-vigno-muted hover:text-vigno-txt transition-colors p-1" title="Notifications">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />

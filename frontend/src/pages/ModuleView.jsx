@@ -1,7 +1,8 @@
 import { useParams, Link } from 'react-router-dom'
+import { useSelector } from 'react-redux'
 import { useQuery } from '@tanstack/react-query'
 import { useModule } from '../hooks/useContent'
-import { authApi } from '../api/authApi'
+import { licenseApi } from '../api/licenseApi'
 
 function LessonIcon({ type, className = "w-5 h-5" }) {
   if (type === 'video') {
@@ -36,8 +37,9 @@ function LessonIcon({ type, className = "w-5 h-5" }) {
 export default function ModuleView() {
   const { className, moduleId } = useParams()
   const { data: mod, isLoading, isError } = useModule(className, moduleId)
-  const { data: licenses } = useQuery({ queryKey: ['licenses', 'mine'], queryFn: authApi.myLicenses })
-  const isEnrolled = licenses?.some((l) => l.contentId?.courseKey === className)
+  const { data: licenses } = useQuery({ queryKey: ['licenses', 'mine'], queryFn: licenseApi.mine })
+  const isAdmin = useSelector((s) => s.auth.user?.role) === 'admin'
+  const isEnrolled = isAdmin || licenses?.some((l) => l.content?.courseKey === className)
   const displayName = className?.replace(/_/g, ' ')
 
   if (isLoading) return <p className="text-vigno-muted">Loading module…</p>

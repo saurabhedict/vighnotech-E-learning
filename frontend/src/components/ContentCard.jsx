@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useSelector } from 'react-redux'
 import { useQuery } from '@tanstack/react-query'
-import { authApi } from '../api/authApi'
+import { licenseApi } from '../api/licenseApi'
 import FavoriteButton from './FavoriteButton'
 import UdemyHoverPopover from './UdemyHoverPopover'
 
@@ -43,9 +43,10 @@ function LessonIcon({ type, className = "w-10 h-10" }) {
 export default function ContentCard({ item, disablePopover = false }) {
   const navigate = useNavigate()
   const theme = useSelector((s) => s.ui.theme)
+  const isAdmin = useSelector((s) => s.auth.user?.role) === 'admin'
   const isDark = theme === 'dark'
-  const { data: licenses } = useQuery({ queryKey: ['licenses', 'mine'], queryFn: authApi.myLicenses })
-  const isEnrolled = !!item.courseKey && licenses?.some((l) => l.contentId?.courseKey === item.courseKey)
+  const { data: licenses } = useQuery({ queryKey: ['licenses', 'mine'], queryFn: licenseApi.mine })
+  const isEnrolled = isAdmin || (!!item.courseKey && licenses?.some((l) => l.content?.courseKey === item.courseKey))
 
   const [hovered, setHovered] = useState(false)
   const [popoverSide, setPopoverSide] = useState('right')

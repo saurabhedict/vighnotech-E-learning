@@ -12,7 +12,6 @@ export default function AppLayout() {
   const location = useLocation()
   const dispatch = useDispatch()
   const isLoggedIn = useSelector((s) => s.auth.isLoggedIn)
-  const user = useSelector((s) => s.auth.user)
   const theme = useSelector((s) => s.ui.theme)
   const isDark = theme === 'dark'
 
@@ -31,12 +30,8 @@ export default function AppLayout() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoggedIn])
 
-  // Strictly gate admin users to the admin dashboard page, except when previewing content
-  useEffect(() => {
-    if (isLoggedIn && user?.role === 'admin' && location.pathname !== '/app/admin' && !location.pathname.includes('/content/')) {
-      navigate('/app/admin', { replace: true })
-    }
-  }, [isLoggedIn, user, location.pathname, navigate])
+  // Admins are free to browse the whole student-facing site (all content is
+  // unlocked for them) as well as the admin panel — no forced redirect.
 
   if (!isLoggedIn) return null
 

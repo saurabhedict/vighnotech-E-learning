@@ -3,7 +3,8 @@ import { useParams, Link } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSelector, useDispatch } from 'react-redux'
 import { useClassTree } from '../hooks/useContent'
-import { authApi, apiErrorMessage } from '../api/authApi'
+import { apiErrorMessage } from '../api/authApi'
+import { licenseApi } from '../api/licenseApi'
 import { purchaseCourse } from '../lib/buy'
 import { commerceApi } from '../api/commerceApi'
 import Breadcrumb from '../components/Breadcrumb'
@@ -239,7 +240,7 @@ export default function Home() {
   const isDark = theme === 'dark'
 
   const { data: treeData, isLoading, isError } = useClassTree(className)
-  const { data: licenses } = useQuery({ queryKey: ['licenses', 'mine'], queryFn: authApi.myLicenses })
+  const { data: licenses } = useQuery({ queryKey: ['licenses', 'mine'], queryFn: licenseApi.mine })
 
   const [couponCode, setCouponCode] = useState('')
   const [appliedCoupon, setAppliedCoupon] = useState(null)
@@ -253,7 +254,8 @@ export default function Home() {
   const displayName = course?.name || className?.replace(/_/g, ' ')
 
   // Check if student has purchased any content in this course
-  const isEnrolled = licenses?.some((l) => l.contentId?.courseKey === className)
+  // Admins see every course as unlocked so they can review the full site.
+  const isEnrolled = user?.role === 'admin' || licenses?.some((l) => l.content?.courseKey === className)
 
   const cartItems = useSelector((s) => s.cart.items)
   const isInCart = cartItems.some((i) => i.id === className)

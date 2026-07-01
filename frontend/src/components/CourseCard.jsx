@@ -106,6 +106,7 @@ const COURSE_META = {
 export default function CourseCard({ course }) {
   const navigate = useNavigate()
   const theme = useSelector((s) => s.ui.theme)
+  const isAdmin = useSelector((s) => s.auth.user?.role) === 'admin'
   const isDark = theme === 'dark'
 
   const courseSlug = typeof course === 'string' ? course : course.slug
@@ -132,7 +133,7 @@ export default function CourseCard({ course }) {
   const IconComponent = meta.icon
 
   const { data: licenses } = useQuery({ queryKey: ['licenses', 'mine'], queryFn: licenseApi.mine })
-  const isEnrolled = licenses?.some((l) => l.usable && l.contentId?.courseKey === courseSlug)
+  const isEnrolled = isAdmin || licenses?.some((l) => l.usable && l.content?.courseKey === courseSlug)
 
   const [hovered, setHovered] = useState(false)
   const [popoverSide, setPopoverSide] = useState('right')
