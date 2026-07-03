@@ -288,9 +288,21 @@ export default function Dashboard() {
     queryFn: licenseApi.mine,
   })
 
+  // Get purchased courseKeys to filter from recommendations
+  const purchasedCourseKeys = new Set(
+    licenses?.filter((l) => l.usable && l.content?.courseKey).map((l) => l.content.courseKey) || []
+  )
+
+  // Get purchased resource IDs to filter from resources
   const purchasedResourceIds = new Set(
     licenses?.filter((l) => l.status !== 'revoked' && l.content?.id).map((l) => l.content.id) || []
   )
+
+  // Filter out already purchased courses
+  const availableCourses = courses?.filter((course) => {
+    const courseSlug = typeof course === 'string' ? course : course.slug
+    return !purchasedCourseKeys.has(courseSlug)
+  }) || []
 
   const filteredResources = standaloneResources?.filter(
     (item) => !purchasedResourceIds.has(item.id)
@@ -339,7 +351,7 @@ export default function Dashboard() {
 
         {!isLoading && courses && (
           <Carousel>
-            {courses.map((course) => {
+            {availableCourses.map((course) => {
               const courseSlug = typeof course === 'string' ? course : course.slug
               return <CourseCard key={courseSlug} course={course} />
             })}

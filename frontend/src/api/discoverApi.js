@@ -25,6 +25,10 @@ export const discoverApi = {
   myProgress(limit = 12) {
     return api.get('/progress/mine', { params: { limit } }).then((r) => r.data.items)
   },
+  // Mark a lesson as complete/incomplete
+  markComplete(contentId, completed) {
+    return api.post(`/progress/${contentId}`, { completed }).then((r) => r.data)
+  },
   // Recommended
   recommended() {
     return api.get('/recommended').then((r) => r.data.items)

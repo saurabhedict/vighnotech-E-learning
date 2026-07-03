@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSelector, useDispatch } from 'react-redux'
 import { useClassTree } from '../hooks/useContent'
@@ -233,6 +233,7 @@ function CourseCurriculumAccordion({ subjects, className, isDark, isEnrolled }) 
 // ── Course Landing Page Component ─────────────────────────────────────────────
 export default function Home() {
   const dispatch = useDispatch()
+  const navigate = useNavigate()
   const { className } = useParams()
   const user = useSelector((s) => s.auth.user)
   const queryClient = useQueryClient()
@@ -248,6 +249,7 @@ export default function Home() {
   const [couponError, setCouponError] = useState('')
   const [paymentLoading, setPaymentLoading] = useState(false)
   const [paymentError, setPaymentError] = useState('')
+  const [purchaseSuccess, setPurchaseSuccess] = useState(false)
 
   const course = treeData?.course
   const subjects = treeData?.tree
@@ -296,6 +298,8 @@ export default function Home() {
       queryClient.invalidateQueries({ queryKey: ['licenses', 'mine'] })
       queryClient.invalidateQueries({ queryKey: ['classTree', className] })
       queryClient.invalidateQueries({ queryKey: ['content'] })
+      setPurchaseSuccess(true)
+      window.setTimeout(() => navigate(`/app/${className}/learn`), 1300)
     } catch (err) {
       setPaymentError(apiErrorMessage(err, 'Purchase failed'))
     } finally {
@@ -489,7 +493,7 @@ export default function Home() {
                     ✓ You own licenses in this course
                   </div>
                   <button
-                    onClick={scrollToCurriculum}
+                    onClick={() => navigate(`/app/${className}/learn`)}
                     className="w-full bg-vigno-accent hover:brightness-115 text-vigno-accent-txt font-black py-3 rounded-xl text-sm transition-all focus:outline-none"
                   >
                     Start Learning
@@ -542,6 +546,11 @@ export default function Home() {
                     </button>
                   </div>
                   {paymentError && <p className="text-xs text-red-400 text-center">{paymentError}</p>}
+                  {purchaseSuccess && (
+                    <div className="text-xs text-center text-green-400 font-bold bg-green-500/10 border border-green-500/20 py-2 rounded-lg">
+                      Success! You bought this course. Enjoy learning - opening your course now...
+                    </div>
+                  )}
                 </div>
               )}
 

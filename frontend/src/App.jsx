@@ -11,6 +11,7 @@ const Signup = lazy(() => import('./pages/Signup'))
 const ForgotPassword = lazy(() => import('./pages/ForgotPassword'))
 const Home = lazy(() => import('./pages/Home'))
 const ModuleView = lazy(() => import('./pages/ModuleView'))
+const CourseLearn = lazy(() => import('./pages/CourseWorkspace'))
 const ContentViewer = lazy(() => import('./pages/ContentViewer'))
 const Library = lazy(() => import('./pages/Library'))
 const Favorites = lazy(() => import('./pages/Favorites'))
@@ -40,6 +41,7 @@ export default function App() {
           <Route path="admin" element={<RequireAdmin><AdminDashboard /></RequireAdmin>} />
           <Route path="content/:contentId" element={<ContentViewer />} />
           <Route path=":className" element={<Home />} />
+          <Route path=":className/learn" element={<CourseLearn />} />
           <Route path=":className/module/:moduleId" element={<ModuleView />} />
           <Route path=":className/module/:moduleId/content/:contentId" element={<ContentViewer />} />
         </Route>

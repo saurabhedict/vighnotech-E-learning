@@ -1,9 +1,12 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueries } from '@tanstack/react-query'
 import { useSelector } from 'react-redux'
 import { licenseApi } from '../api/licenseApi'
 import { paymentsApi } from '../api/paymentsApi'
+import { discoverApi } from '../api/discoverApi'
+import { fetchClassTree } from '../api/mockApi'
+import { useClasses } from '../hooks/useContent'
 import Breadcrumb from '../components/Breadcrumb'
 
 // ── SVG Icons (Formal / Clean) ────────────────────────────────────────────────
@@ -141,6 +144,21 @@ const COURSE_DECOR = {
   ATC_Basics: { gradient: 'from-teal-600 to-green-850', icon: MicSvg },
 }
 
+const COURSE_META = {
+  PPL_Ground: { rating: '4.6', reviews: '91,175', price: '659', oldPrice: '4,229' },
+  PPL_Flight: { rating: '4.7', reviews: '31,131', price: '659', oldPrice: '4,229' },
+  CPL_Ground: { rating: '4.6', reviews: '369', price: '479', oldPrice: '799' },
+  CPL_Flight: { rating: '4.6', reviews: '2,070', price: '539', oldPrice: '799' },
+  ATPL_Ground: { rating: '4.8', reviews: '124,532', price: '659', oldPrice: '4,229' },
+  ATPL_Flight: { rating: '4.7', reviews: '89,410', price: '539', oldPrice: '3,549' },
+  IR_Training: { rating: '4.5', reviews: '14,291', price: '479', oldPrice: '799' },
+  MCC_Course: { rating: '4.7', reviews: '42,109', price: '659', oldPrice: '4,229' },
+  CRM_Training: { rating: '4.6', reviews: '8,419', price: '479', oldPrice: '799' },
+  Dispatch_Ops: { rating: '4.4', reviews: '5,182', price: '539', oldPrice: '799' },
+  Cabin_Crew: { rating: '4.7', reviews: '3,410', price: '539', oldPrice: '799' },
+  ATC_Basics: { rating: '4.9', reviews: '310,299', price: '659', oldPrice: '4,229' },
+}
+
 function fmt(d) {
   return d ? new Date(d).toLocaleDateString() : '—'
 }
@@ -150,7 +168,8 @@ export default function Library() {
   const isDark = theme === 'dark'
   const licenses = useQuery({ queryKey: ['licenses', 'mine'], queryFn: licenseApi.mine })
   const purchases = useQuery({ queryKey: ['purchases', 'mine'], queryFn: paymentsApi.mine })
-  const [tab, setTab] = useState('courses') // 'courses' | 'licenses' | 'purchases'
+  const { data: allCourses, isLoading: coursesLoading } = useClasses()
+  const [tab, setTab] = useState('courses')
 
   // Group active licenses by courseKey, separating standalone resources
   const courseGroups = {}
@@ -169,19 +188,27 @@ export default function Library() {
     }
   })
 
+  // Create a map of courses for easy lookup by slug
+  const courseMap = {}
+  allCourses?.forEach((c) => {
+    const slug = typeof c === 'string' ? c : c.slug
+    courseMap[slug] = typeof c === 'string' ? {} : c
+  })
+
   const courseKeys = Object.keys(courseGroups)
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <Breadcrumb trail="My learning" />
 
-      <div className="flex flex-col gap-2">
-        <h1 className="text-2xl font-extrabold text-vigno-txt tracking-tight">My learning</h1>
-        <p className="text-xs text-vigno-muted font-medium">All your enrolled and purchased courses in one place.</p>
+      {/* Header Section */}
+      <div className="space-y-2">
+        <h1 className="text-3xl font-extrabold text-vigno-txt tracking-tight">My Learning Hub</h1>
+        <p className="text-sm text-vigno-muted font-medium">All your purchased courses and study materials in one organized space</p>
       </div>
 
       {/* Sub-tab navigation */}
-      <div className="flex border-b border-vigno-line/30 gap-6 text-sm font-bold">
+      <div className="flex border-b border-vigno-line/30 gap-6 text-sm font-bold overflow-x-auto">
         {[
           { key: 'courses', label: 'My purchases' },
           { key: 'licenses', label: 'All Licenses' },
@@ -192,7 +219,7 @@ export default function Library() {
             <button
               key={t.key}
               onClick={() => setTab(t.key)}
-              className={`pb-3 border-b-2 transition-all ${isActive ? 'border-vigno-accent text-vigno-accent' : 'border-transparent text-vigno-muted hover:text-vigno-txt'}`}
+              className={`pb-3 border-b-2 transition-all whitespace-nowrap ${isActive ? 'border-vigno-accent text-vigno-accent' : 'border-transparent text-vigno-muted hover:text-vigno-txt'}`}
             >
               {t.label}
             </button>
@@ -203,18 +230,23 @@ export default function Library() {
       {/* Tab: Courses (My Purchases) */}
       {tab === 'courses' && (
         <div className="space-y-6">
-          {licenses.isLoading && <p className="text-vigno-muted text-sm">Loading purchases…</p>}
-          {licenses.isError && <p className="text-red-300 text-sm">Failed to load purchases.</p>}
+          {licenses.isLoading && <p className="text-vigno-muted text-sm py-8 text-center">Loading your courses…</p>}
+          {licenses.isError && <p className="text-red-300 text-sm py-8 text-center">Failed to load purchases.</p>}
           
           {!licenses.isLoading && courseKeys.length === 0 && individualResourceLicenses.length === 0 && (
-            <div className={`text-center py-16 rounded-2xl border ${isDark ? 'border-vigno-line/30' : 'border-vigno-line/60 bg-white/20'}`}>
-              <div className="flex justify-center mb-3">
-                <BookSvg className="w-12 h-12 text-vigno-muted" />
+            <div className={`text-center py-20 rounded-2xl border-2 border-dashed ${isDark ? 'border-vigno-line/40 bg-vigno-bg2/30' : 'border-vigno-line/60 bg-white/10'}`}>
+              <div className="flex justify-center mb-4">
+                <div className="w-16 h-16 rounded-full bg-vigno-accent/10 flex items-center justify-center">
+                  <BookSvg className="w-8 h-8 text-vigno-muted" />
+                </div>
               </div>
-              <p className="text-sm font-semibold text-vigno-txt">No purchases yet</p>
-              <p className="text-xs text-vigno-muted mt-1 max-w-sm mx-auto">Purchase premium courses or standalone topics from the catalog to see them here.</p>
-              <Link to="/app" className="inline-block mt-4 text-xs font-bold bg-vigno-accent text-vigno-accent-txt rounded-lg px-4 py-2 hover:brightness-110">
-                Browse catalog
+              <p className="text-lg font-extrabold text-vigno-txt mb-2">No courses purchased yet</p>
+              <p className="text-sm text-vigno-muted mb-6 max-w-md mx-auto">Start your learning journey by exploring and purchasing premium courses from our extensive catalog.</p>
+              <Link to="/app" className="inline-flex items-center justify-center gap-2 text-sm font-extrabold bg-vigno-accent text-vigno-accent-txt rounded-xl px-6 py-3 hover:brightness-110 transition-all">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+                Browse Courses
               </Link>
             </div>
           )}
@@ -223,38 +255,93 @@ export default function Library() {
             <div className="space-y-8">
               {/* My Courses Section */}
               {courseKeys.length > 0 && (
-                <div className="space-y-4">
-                  <h2 className="text-lg font-extrabold text-vigno-txt tracking-tight">My Courses</h2>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+                <div className="space-y-5">
+                  <div className="flex items-baseline justify-between">
+                    <div>
+                      <h2 className="text-xl font-extrabold text-vigno-txt tracking-tight">My Courses</h2>
+                      <p className="text-xs text-vigno-muted font-medium mt-1.5">Continue your learning journey</p>
+                    </div>
+                    <span className="text-xs font-bold text-vigno-accent/70 bg-vigno-accent/10 px-3 py-1 rounded-full">{courseKeys.length} courses</span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                     {courseKeys.map((key) => {
                       const group = courseGroups[key]
                       const decor = COURSE_DECOR[key] || { gradient: 'from-indigo-600 to-indigo-850', icon: BookSvg }
                       const IconComponent = decor.icon
+                      const courseData = courseMap[key] || {}
+                      const courseMeta = courseData.meta || {}
+                      const courseName = key.replace(/_/g, ' ')
+                      const meta = COURSE_META[key] || { rating: '4.5', reviews: '1,204' }
+                      const instructorName = courseMeta.instructor || 'AeroLearn Experts'
+                      const thumbnail = courseMeta.thumbnail
+                      
                       return (
                         <div
                           key={key}
-                          className="flex flex-col bg-vigno-card border border-vigno-line/50 rounded-2xl overflow-hidden hover:border-vigno-accent/40 hover:-translate-y-0.5 transition-all duration-200 group"
+                          className="flex flex-col bg-vigno-card border border-vigno-line/50 rounded-xl overflow-hidden hover:border-vigno-accent/50 hover:shadow-lg transition-all duration-300 group/card"
                         >
-                          <div className={`w-full aspect-video bg-gradient-to-br ${decor.gradient} relative flex items-center justify-center overflow-hidden border-b border-vigno-line/20`}>
-                            <div className="absolute inset-0 bg-black/10" />
-                            <span className="transform group-hover:scale-105 transition-transform duration-300 select-none filter drop-shadow-lg text-white">
-                              <IconComponent className="w-12 h-12" />
-                            </span>
+                          {/* Thumbnail/Banner with Image Support */}
+                          <div className={`w-full aspect-video bg-gradient-to-br ${decor.gradient} relative flex items-center justify-center overflow-hidden border-b border-vigno-line/20 bg-slate-900`}>
+                            {thumbnail ? (
+                              <img 
+                                src={thumbnail} 
+                                alt={courseName}
+                                className="absolute inset-0 w-full h-full object-cover group-hover/card:scale-105 transition-transform duration-300"
+                              />
+                            ) : (
+                              <div className="absolute inset-0 bg-gradient-to-br opacity-90" style={{ backgroundImage: `linear-gradient(to bottom right, var(--tw-gradient-stops))` }} />
+                            )}
+                            <div className="absolute inset-0 bg-black/10 group-hover/card:bg-black/5 transition-colors" />
+                            {!thumbnail && (
+                              <span className="transform group-hover/card:scale-110 transition-transform duration-300 select-none filter drop-shadow-lg text-white z-10">
+                                <IconComponent className="w-12 h-12" />
+                              </span>
+                            )}
                           </div>
-                          <div className="p-4 flex-1 flex flex-col justify-between space-y-4">
-                            <div>
-                              <h3 className="font-bold text-sm text-vigno-txt leading-snug truncate">
-                                {key.replace(/_/g, ' ')}
+                          
+                          {/* Content */}
+                          <div className="p-3.5 flex-1 flex flex-col justify-between space-y-2">
+                            {/* Title & Instructor */}
+                            <div className="space-y-1">
+                              <h3 className="font-bold text-xs text-vigno-txt leading-snug line-clamp-2 group-hover/card:text-vigno-accent transition-colors" title={courseName}>
+                                {courseName}
                               </h3>
-                              <p className="text-xs text-vigno-muted mt-1 font-medium">
-                                {group.length} lesson{group.length !== 1 ? 's' : ''} unlocked
+                              <p className="text-[10px] text-vigno-muted/80 font-medium truncate">
+                                by <span className="text-vigno-accent font-semibold">{instructorName}</span>
                               </p>
                             </div>
+
+                            {/* Rating & Stats */}
+                            <div className="flex items-center gap-1.5 text-[10px] py-0.5 border-y border-vigno-line/20">
+                              <span className="font-extrabold text-amber-500 text-xs">{meta.rating}</span>
+                              <div className="flex text-amber-400 text-[8px] gap-0.5">
+                                {[...Array(5)].map((_, i) => (
+                                  <span key={i}>★</span>
+                                ))}
+                              </div>
+                              <span className="text-vigno-muted text-[8px]">({meta.reviews})</span>
+                            </div>
+
+                            {/* Progress Bar */}
+                            <div className="space-y-1">
+                              <div className="flex items-center justify-between text-[10px]">
+                                <span className="font-bold text-vigno-txt">{group.length} lessons</span>
+                                <span className="text-vigno-accent text-[8px] font-bold">IN PROGRESS</span>
+                              </div>
+                              <div className="h-1.5 bg-vigno-bg2/80 rounded-full overflow-hidden border border-vigno-line/30">
+                                <div 
+                                  className="h-full bg-gradient-to-r from-vigno-accent via-vigno-accent2 to-vigno-accent transition-all duration-500"
+                                  style={{ width: `${Math.min((group.length / 20) * 100, 90)}%` }}
+                                />
+                              </div>
+                            </div>
+
+                            {/* CTA Button */}
                             <Link
-                              to={`/app/${key}`}
-                              className="w-full text-center text-xs font-extrabold bg-vigno-accent text-vigno-accent-txt rounded-xl py-2.5 hover:brightness-110 transition-all"
+                              to={`/app/${key}/learn`}
+                              className="w-full text-center text-[10px] font-extrabold bg-vigno-accent hover:brightness-115 text-vigno-accent-txt rounded-lg py-1.5 transition-all duration-200 active:scale-95"
                             >
-                              Resume learning
+                              Resume Learning
                             </Link>
                           </div>
                         </div>
@@ -266,8 +353,14 @@ export default function Library() {
 
               {/* My Resources Section */}
               {individualResourceLicenses.length > 0 && (
-                <div className="space-y-4">
-                  <h2 className="text-lg font-extrabold text-vigno-txt tracking-tight pt-2">My Resources</h2>
+                <div className="space-y-5">
+                  <div className="flex items-baseline justify-between">
+                    <div>
+                      <h2 className="text-xl font-extrabold text-vigno-txt tracking-tight pt-2">Study Resources</h2>
+                      <p className="text-xs text-vigno-muted font-medium mt-1.5">Standalone learning materials</p>
+                    </div>
+                    <span className="text-xs font-bold text-vigno-accent2/70 bg-vigno-accent2/10 px-3 py-1 rounded-full">{individualResourceLicenses.length} resources</span>
+                  </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
                     {individualResourceLicenses.map((l) => {
                       const item = l.content
@@ -361,92 +454,107 @@ export default function Library() {
 
       {/* Tab: All Licenses */}
       {tab === 'licenses' && (
-        <div className="space-y-4">
-          {licenses.isLoading && <p className="text-vigno-muted text-sm">Loading licenses…</p>}
-          {licenses.isError && <p className="text-red-300 text-sm">Failed to load licenses.</p>}
+        <div className="space-y-6">
+          {licenses.isLoading && <p className="text-vigno-muted text-sm py-8 text-center">Loading licenses…</p>}
+          {licenses.isError && <p className="text-red-300 text-sm py-8 text-center">Failed to load licenses.</p>}
           {!licenses.isLoading && licenses.data?.length === 0 && (
-            <p className="text-vigno-muted text-sm py-4">No active content licenses held.</p>
+            <div className={`text-center py-12 rounded-2xl border-2 border-dashed ${isDark ? 'border-vigno-line/40 bg-vigno-bg2/30' : 'border-vigno-line/60 bg-white/10'}`}>
+              <p className="text-vigno-muted text-sm font-medium">No active licenses at the moment</p>
+            </div>
           )}
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {licenses.data?.map((l) => (
-              <div key={l.jti} className="bg-vigno-card border border-vigno-line rounded-2xl p-4 flex flex-col justify-between space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="w-8 h-8 rounded-lg bg-vigno-accent/10 flex items-center justify-center text-vigno-accent2">
-                    <LessonIcon type={l.content?.type} className="w-5 h-5" />
+          {licenses.data && licenses.data.length > 0 && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {licenses.data.map((l) => (
+                <div key={l.jti} className="bg-vigno-card border border-vigno-line/50 rounded-2xl p-4 flex flex-col justify-between space-y-3 hover:border-vigno-accent/40 transition-all">
+                  <div className="flex items-center justify-between">
+                    <div className="w-10 h-10 rounded-lg bg-vigno-accent/10 flex items-center justify-center text-vigno-accent2">
+                      <LessonIcon type={l.content?.type} className="w-5 h-5" />
+                    </div>
+                    <span className={'text-[9px] font-bold px-2.5 py-1 rounded-full ' + (STATUS[l.status] || 'bg-white/10')}>
+                      {l.status.toUpperCase()}
+                    </span>
                   </div>
-                  <span className={'text-[9px] font-bold px-2 py-0.5 rounded-full ' + (STATUS[l.status] || 'bg-white/10')}>
-                    {l.status.toUpperCase()}
-                  </span>
+                  <div>
+                    <div className="font-semibold text-xs text-vigno-txt truncate">{l.content?.title || 'Content'}</div>
+                    <p className="text-[10px] text-vigno-muted mt-1 capitalize">{l.type} · expires {fmt(l.expiresAt)}</p>
+                  </div>
+                  <div>
+                    {l.usable && l.content ? (
+                      <Link to={`/app/content/${l.content.id}`}
+                        className="inline-flex items-center justify-center gap-1.5 text-[11px] font-bold bg-vigno-accent/20 text-vigno-accent hover:bg-vigno-accent/30 border border-vigno-line/60 rounded-lg px-2.5 py-1.5 transition-all w-full">
+                        <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M8 5v14l11-7z" />
+                        </svg>
+                        Open
+                      </Link>
+                    ) : (
+                      <span className="text-xs text-vigno-muted font-medium block text-center py-1.5">{l.status === 'revoked' ? 'Access revoked' : 'Expired'}</span>
+                    )}
+                  </div>
                 </div>
-                <div>
-                  <div className="font-semibold text-xs text-vigno-txt truncate">{l.content?.title || 'Content'}</div>
-                  <p className="text-[10px] text-vigno-muted mt-0.5 capitalize">{l.type} lane · expires {fmt(l.expiresAt)}</p>
-                </div>
-                <div>
-                  {l.usable && l.content ? (
-                    <Link to={`/app/content/${l.content.id}`}
-                      className="inline-flex items-center gap-1.5 text-[11px] font-bold bg-white/10 text-vigno-txt border border-vigno-line/60 rounded-lg px-2.5 py-1.5 hover:bg-white/20 transition-all">
-                      <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M8 5v14l11-7z" />
-                      </svg>
-                      Open Content
-                    </Link>
-                  ) : (
-                    <span className="text-xs text-vigno-muted">{l.status === 'revoked' ? 'Access revoked' : 'Expired'}</span>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
       {/* Tab: Purchase History */}
       {tab === 'purchases' && (
-        <div className="space-y-4">
-          {purchases.isLoading && <p className="text-vigno-muted text-sm">Loading purchases…</p>}
-          {purchases.isError && <p className="text-red-300 text-sm">Failed to load purchases.</p>}
-          {!purchases.isLoading && purchases.data?.length === 0 && <p className="text-vigno-muted text-sm py-4">No purchase receipts found.</p>}
+        <div className="space-y-6">
+          {purchases.isLoading && <p className="text-vigno-muted text-sm py-8 text-center">Loading purchase history…</p>}
+          {purchases.isError && <p className="text-red-300 text-sm py-8 text-center">Failed to load purchases.</p>}
+          {!purchases.isLoading && purchases.data?.length === 0 && (
+            <div className={`text-center py-12 rounded-2xl border-2 border-dashed ${isDark ? 'border-vigno-line/40 bg-vigno-bg2/30' : 'border-vigno-line/60 bg-white/10'}`}>
+              <p className="text-vigno-muted text-sm font-medium">No purchase history yet</p>
+            </div>
+          )}
 
           {!purchases.isLoading && purchases.data?.length > 0 && (
-            <div className="bg-vigno-card border border-vigno-line rounded-2xl overflow-hidden shadow-sm">
-              <table className="w-full text-sm">
-                <thead className="bg-black/20 text-vigno-muted text-xs">
-                  <tr>
-                    <th className="text-left px-4 py-3 font-bold">Content</th>
-                    <th className="text-left px-4 py-3 font-bold">Amount</th>
-                    <th className="text-left px-4 py-3 font-bold">Status</th>
-                    <th className="text-left px-4 py-3 font-bold">Date</th>
-                    <th className="text-right px-4 py-3 font-bold">Receipt</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {purchases.data.map((p) => (
-                    <tr key={p._id} className="border-t border-vigno-line/40 hover:bg-white/2 transition-colors">
-                      <td className="px-4 py-3 text-vigno-txt font-medium">{p.contentId?.title || '—'}</td>
-                      <td className="px-4 py-3 text-vigno-txt">
-                        ₹{p.amount}
-                        {p.discount > 0 && <span className="text-green-300 text-xs ml-1">(−₹{p.discount}{p.couponCode ? ` ${p.couponCode}` : ''})</span>}
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className={'text-[9px] font-bold px-2 py-0.5 rounded-full ' +
-                          (p.status === 'paid' ? 'bg-green-500/20 text-green-300'
-                            : p.status === 'refunded' ? 'bg-red-500/20 text-red-300'
-                            : 'bg-white/10 text-vigno-muted')}>
-                          {p.status.toUpperCase()}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-vigno-muted">{fmt(p.paidAt || p.createdAt)}</td>
-                      <td className="px-4 py-3 text-right">
-                        {['paid', 'refunded'].includes(p.status) && (
-                          <button onClick={() => paymentsApi.downloadInvoice(p._id)} className="text-xs text-vigno-accent2 hover:underline font-bold">Download PDF</button>
-                        )}
-                      </td>
+            <div className="bg-vigno-card border border-vigno-line/50 rounded-2xl overflow-hidden shadow-sm">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-vigno-bg2/50 text-vigno-muted text-xs border-b border-vigno-line/40">
+                    <tr>
+                      <th className="text-left px-6 py-4 font-extrabold">Course / Resource</th>
+                      <th className="text-left px-6 py-4 font-extrabold">Amount</th>
+                      <th className="text-left px-6 py-4 font-extrabold">Status</th>
+                      <th className="text-left px-6 py-4 font-extrabold">Date</th>
+                      <th className="text-right px-6 py-4 font-extrabold">Receipt</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {purchases.data.map((p) => (
+                      <tr key={p._id} className="border-t border-vigno-line/20 hover:bg-vigno-bg2/30 transition-colors">
+                        <td className="px-6 py-4 text-vigno-txt font-medium">{p.contentId?.title || '—'}</td>
+                        <td className="px-6 py-4 text-vigno-txt font-semibold">
+                          ₹{p.amount}
+                          {p.discount > 0 && <span className="text-green-400 text-xs ml-2 font-bold">(Saved ₹{p.discount})</span>}
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className={'text-[9px] font-extrabold px-3 py-1.5 rounded-full ' +
+                            (p.status === 'paid' ? 'bg-green-500/20 text-green-300'
+                              : p.status === 'refunded' ? 'bg-red-500/20 text-red-300'
+                              : 'bg-vigno-accent/20 text-vigno-accent')}>
+                            {p.status.toUpperCase()}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-vigno-muted text-sm">{fmt(p.paidAt || p.createdAt)}</td>
+                        <td className="px-6 py-4 text-right">
+                          {['paid', 'refunded'].includes(p.status) && (
+                            <button onClick={() => paymentsApi.downloadInvoice(p._id)} className="text-xs text-vigno-accent2 hover:text-vigno-accent2/80 font-extrabold transition-colors flex items-center gap-1.5 ml-auto">
+                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3v-9" />
+                              </svg>
+                              PDF
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
         </div>
