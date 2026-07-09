@@ -102,24 +102,28 @@ function LauncherHelpModal({ active, onClose, launcherDownloadUrl, launcherVersi
 
 function LauncherPrompt({ active, launcherDownloadUrl, launcherVersion, onHelp }) {
   return (
-    <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-3">
+    <div className="flex flex-col sm:flex-row items-center justify-center gap-4 w-full">
       {launcherDownloadUrl ? (
         <a
           href={launcherDownloadUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center justify-center gap-2 rounded-xl bg-vigno-accent px-5 py-3 text-sm font-black text-vigno-accent-txt hover:brightness-110"
+          className="group relative inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-8 py-3.5 text-sm font-bold text-white overflow-hidden transition-all hover:scale-105 hover:shadow-[0_0_20px_rgba(37,99,235,0.4)] focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-slate-900 w-full sm:w-auto"
         >
-          Install the Launcher{launcherVersion ? ` v${launcherVersion}` : ''}
+          <span className="absolute inset-0 bg-gradient-to-r from-blue-600 via-blue-500 to-blue-600 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+          <span className="relative z-10 flex items-center gap-2">
+            <Icon name="play" className="w-4 h-4 fill-current" />
+            Install Launcher {launcherVersion ? `v${launcherVersion}` : ''}
+          </span>
         </a>
       ) : (
-        <div className="rounded-xl border border-white/15 bg-white/10 px-4 py-3 text-sm font-semibold text-white/80">
-          Launcher download is not configured yet.
+        <div className="rounded-xl border border-white/10 bg-white/5 px-6 py-3.5 text-sm font-medium text-white/70 backdrop-blur-sm w-full sm:w-auto">
+          Launcher download unavailable.
         </div>
       )}
       <button
         onClick={onHelp}
-        className="inline-flex items-center justify-center rounded-xl border border-white/15 bg-white/10 px-5 py-3 text-sm font-bold text-white hover:bg-white/15"
+        className="inline-flex items-center justify-center rounded-xl border border-white/20 bg-white/5 px-8 py-3.5 text-sm font-bold text-white backdrop-blur-sm transition-all hover:bg-white/10 hover:border-white/30 hover:scale-105 focus:outline-none w-full sm:w-auto"
       >
         How to play
       </button>
@@ -163,14 +167,20 @@ function ResourceStage({ item, content, isLoading, watermark, onProgress, launch
       )}
 
       {(active?.type === 'game' || active?.requiresLauncher) && (
-        <div className="aspect-video bg-gradient-to-br from-slate-950 via-[#0b1730] to-black flex flex-col items-center justify-center text-center px-6">
-          <div className="w-20 h-20 rounded-2xl bg-vigno-accent text-vigno-accent-txt flex items-center justify-center shadow-2xl mb-5">
-            <Icon name="play" className="w-10 h-10 fill-current" />
+        <div className="relative aspect-video flex flex-col items-center justify-center text-center px-6 overflow-hidden bg-[#070b14]">
+          {/* Ambient background glow */}
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-blue-900/40 via-[#070b14]/80 to-[#070b14] pointer-events-none" />
+          
+          {/* Glassmorphic card content */}
+          <div className="relative z-10 flex flex-col items-center backdrop-blur-md bg-white/5 p-8 rounded-3xl border border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.36)] transition-all hover:bg-white/10">
+            <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-700 text-white flex items-center justify-center shadow-[0_0_40px_rgba(59,130,246,0.5)] mb-6 transform hover:scale-110 transition-transform duration-300">
+              <Icon name="play" className="w-10 h-10 fill-current ml-1" />
+            </div>
+            <p className="text-[10px] font-black uppercase tracking-[0.3em] text-blue-400 mb-3 drop-shadow-md">Simulator</p>
+            <h2 className="text-4xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white to-white/70 tracking-tight drop-shadow-sm">{active.title}</h2>
+            <p className="text-sm font-medium text-white/60 mt-4 mb-8 max-w-lg leading-relaxed">This immersive simulator runs securely via the AeroLearn desktop launcher. Simply select this module to begin.</p>
+            <LauncherPrompt active={active} launcherDownloadUrl={launcherDownloadUrl} launcherVersion={launcherVersion} onHelp={() => onLauncherHelp(active)} />
           </div>
-          <p className="text-xs font-black uppercase tracking-[0.24em] text-vigno-accent mb-2">Simulator</p>
-          <h2 className="text-3xl md:text-4xl font-black text-white tracking-tight">{active.title}</h2>
-          <p className="text-sm text-white/65 mt-3 max-w-xl">This simulator opens through the secure launcher. The resource is selected directly in your course workspace.</p>
-          <LauncherPrompt active={active} launcherDownloadUrl={launcherDownloadUrl} launcherVersion={launcherVersion} onHelp={() => onLauncherHelp(active)} />
         </div>
       )}
 
@@ -319,14 +329,19 @@ export default function CourseWorkspace() {
     <div className="pb-10 -mx-2 lg:-mx-6">
       <div className="rounded-2xl overflow-hidden border border-vigno-line/50 bg-vigno-card/70 shadow-2xl shadow-black/10">
         <div className="min-h-[calc(100vh-10rem)] grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_430px]">
-          <section className="min-w-0 bg-[#111318]">
-            <div className="h-12 flex items-center gap-3 px-4 border-b border-white/10 text-white">
-              <Link to="/app/library" className="w-8 h-8 rounded-lg hover:bg-white/10 flex items-center justify-center" aria-label="Back to my learning">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
+          <section className="min-w-0 bg-black/95 flex flex-col">
+            <div className="h-14 flex items-center gap-4 px-6 border-b border-white/5 bg-black/40 backdrop-blur-md text-white/90">
+              <Link to="/app/library" className="w-8 h-8 rounded-full hover:bg-white/10 flex items-center justify-center transition-colors" aria-label="Back to my learning">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
               </Link>
-              <div className="min-w-0">
-                <h1 className="text-sm md:text-base font-bold truncate">{displayName}</h1>
-                {activeLesson && <p className="text-[11px] text-white/50 truncate">{activeLesson.sectionName} / {activeLesson.title}</p>}
+              <div className="min-w-0 flex items-center gap-3">
+                <h1 className="text-sm font-bold truncate tracking-wide text-white">{displayName}</h1>
+                {activeLesson && (
+                  <>
+                    <span className="text-white/20">•</span>
+                    <p className="text-xs font-medium text-white/50 truncate tracking-wide">{activeLesson.sectionName} <span className="mx-1">/</span> {activeLesson.title}</p>
+                  </>
+                )}
               </div>
             </div>
 
@@ -341,7 +356,7 @@ export default function CourseWorkspace() {
               onLauncherHelp={setLauncherHelpItem}
             />
 
-            <div className="bg-vigno-panel text-vigno-txt">
+            <div className="bg-vigno-panel text-vigno-txt flex-1">
               <div className="flex items-center gap-6 px-5 border-b border-vigno-line/60 overflow-x-auto scrollbar-none">
                 {['overview', 'q&a', 'notes', 'announcements', 'reviews', 'tools'].map((tab) => (
                   <button
@@ -387,23 +402,23 @@ export default function CourseWorkspace() {
             </div>
           </section>
 
-          <aside className={`${isDark ? 'bg-[#f6f7fb] text-slate-950' : 'bg-white text-slate-950'} border-l border-slate-200 min-h-full`}>
-            <div className="sticky top-0 z-10 bg-inherit border-b border-slate-200">
-              <div className="p-5">
+          <aside className="bg-vigno-panel text-vigno-txt border-l border-vigno-line/60 min-h-full flex flex-col shadow-[-4px_0_24px_rgba(0,0,0,0.1)]">
+            <div className="sticky top-0 z-10 bg-vigno-panel/95 backdrop-blur-xl border-b border-vigno-line/60 shadow-sm">
+              <div className="p-6">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <h2 className="text-lg font-black tracking-tight">Course content</h2>
-                    <p className="text-xs text-slate-500 mt-1">{completedCount} / {lessons.length} lessons complete</p>
+                    <h2 className="text-xl font-black tracking-tight text-vigno-txt">Course content</h2>
+                    <p className="text-xs font-semibold text-vigno-muted mt-1.5">{completedCount} / {lessons.length} lessons complete</p>
                   </div>
-                  <Link to={`/app/${className}`} className="text-xs font-black text-blue-700 hover:underline">Details</Link>
+                  <Link to={`/app/${className}`} className="text-xs font-bold text-vigno-accent hover:text-vigno-accent2 hover:underline transition-colors px-3 py-1.5 rounded-md bg-vigno-accent/10">Details</Link>
                 </div>
-                <div className="mt-4 h-2 rounded-full bg-slate-200 overflow-hidden">
-                  <div className="h-full bg-blue-700 rounded-full" style={{ width: `${progress}%` }} />
+                <div className="mt-5 h-2 rounded-full bg-vigno-line/40 overflow-hidden relative">
+                  <div className="absolute inset-y-0 left-0 bg-gradient-to-r from-vigno-accent to-vigno-accent2 rounded-full transition-all duration-700 ease-out shadow-[0_0_10px_rgba(var(--v-accent),0.5)]" style={{ width: `${progress}%` }} />
                 </div>
               </div>
             </div>
 
-            <div className="divide-y divide-slate-200">
+            <div className="flex-1 overflow-y-auto divide-y divide-vigno-line/40">
               {units.map((unit, unitIndex) => {
                 const unitOpen = !!openUnits[unitIndex]
                 const unitLessons = unit.sections.reduce((sum, section) => sum + section.items.length, 0)
@@ -411,35 +426,37 @@ export default function CourseWorkspace() {
                   <section key={`${unit.moduleId}-${unitIndex}`}>
                     <button
                       onClick={() => setOpenUnits((prev) => ({ ...prev, [unitIndex]: !prev[unitIndex] }))}
-                      className="w-full px-5 py-4 flex items-start gap-3 text-left hover:bg-slate-50"
+                      className="group w-full px-6 py-5 flex items-start gap-4 text-left transition-colors hover:bg-white/5"
                     >
-                      <Icon name="chevron" className={`w-4 h-4 mt-1 text-slate-600 transition-transform ${unitOpen ? 'rotate-90' : ''}`} />
+                      <div className={`mt-0.5 flex items-center justify-center w-6 h-6 rounded-full bg-vigno-line/30 text-vigno-txt transition-all duration-300 ${unitOpen ? 'rotate-90 bg-vigno-accent/20 text-vigno-accent' : 'group-hover:bg-vigno-line/50'}`}>
+                        <Icon name="chevron" className="w-3.5 h-3.5" />
+                      </div>
                       <div className="min-w-0 flex-1">
-                        <h3 className="text-sm font-black leading-snug">Unit {unitIndex + 1}: {unit.title}</h3>
-                        <p className="text-xs text-slate-500 mt-1">{unit.sections.length} section{unit.sections.length !== 1 ? 's' : ''} | {unitLessons} lesson{unitLessons !== 1 ? 's' : ''}</p>
+                        <h3 className="text-[15px] font-bold leading-snug text-vigno-txt group-hover:text-vigno-accent transition-colors">Unit {unitIndex + 1}: {unit.title}</h3>
+                        <p className="text-[11px] font-semibold tracking-wide text-vigno-muted uppercase mt-1.5">{unit.sections.length} section{unit.sections.length !== 1 ? 's' : ''} • {unitLessons} lesson{unitLessons !== 1 ? 's' : ''}</p>
                       </div>
                     </button>
 
                     {unitOpen && (
-                      <div className="pb-2 bg-slate-50/60">
+                      <div className="pb-2 bg-vigno-line/10">
                         {unit.sections.map((section, sectionIndex) => {
                           const sectionKey = `${unitIndex}-${sectionIndex}`
                           const sectionOpen = !!openSections[sectionKey]
                           return (
-                            <div key={sectionKey} className="border-t border-slate-200/70 first:border-t-0">
+                            <div key={sectionKey} className="border-t border-vigno-line/40 first:border-t-0">
                               <button
                                 onClick={() => setOpenSections((prev) => ({ ...prev, [sectionKey]: !prev[sectionKey] }))}
-                                className="w-full pl-10 pr-5 py-3 flex items-start gap-2 text-left hover:bg-white"
+                                className="group w-full pl-12 pr-6 py-3 flex items-center gap-3 text-left transition-colors hover:bg-white/5"
                               >
-                                <Icon name="chevron" className={`w-3.5 h-3.5 mt-1 text-slate-500 transition-transform ${sectionOpen ? 'rotate-90' : ''}`} />
+                                <Icon name="chevron" className={`w-3.5 h-3.5 text-vigno-muted transition-transform duration-300 ${sectionOpen ? 'rotate-90 text-vigno-txt' : 'group-hover:text-vigno-txt'}`} />
                                 <div className="min-w-0 flex-1">
-                                  <h4 className="text-[13px] font-black leading-snug text-slate-800">Section {sectionIndex + 1}: {section.title}</h4>
-                                  <p className="text-xs text-slate-500 mt-0.5">{section.items.length} resource{section.items.length !== 1 ? 's' : ''}</p>
+                                  <h4 className="text-[13px] font-bold leading-snug text-vigno-txt/90">Section {sectionIndex + 1}: {section.title}</h4>
                                 </div>
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-vigno-line/30 text-vigno-muted">{section.items.length} resource{section.items.length !== 1 ? 's' : ''}</span>
                               </button>
 
                               {sectionOpen && (
-                                <div className="pb-1 bg-white">
+                                <div className="pb-1 bg-transparent">
                                   {section.items.map((item, itemIndex) => {
                                     const meta = lessonMeta(item)
                                     const done = completionMap[item.id] || false
@@ -449,29 +466,27 @@ export default function CourseWorkspace() {
                                     return (
                                       <div
                                         key={item.id}
-                                        className={`w-full flex items-start gap-3 pl-14 pr-5 py-3 text-left transition-colors ${selected ? 'bg-blue-50' : 'hover:bg-blue-50/70'}`}
+                                        className={`group relative w-full flex items-start gap-4 pl-14 pr-6 py-4 text-left transition-all duration-300 ${selected ? 'bg-vigno-accent/10 border-l-2 border-vigno-accent' : 'border-l-2 border-transparent hover:bg-white/5'}`}
                                       >
                                         {/* Checkbox Button - Clickable */}
                                         <button
                                           type="button"
-                                          onClick={() => {
-                                            toggleCompletion(item.id)
-                                          }}
+                                          onClick={() => toggleCompletion(item.id)}
                                           disabled={isTogglingCompletion}
-                                          className={`flex-shrink-0 w-5 h-5 mt-0.5 rounded border-2 flex items-center justify-center transition-all cursor-pointer ${
+                                          className={`flex-shrink-0 w-5 h-5 mt-0.5 rounded flex items-center justify-center transition-all duration-300 cursor-pointer shadow-sm ${
                                             done
-                                              ? 'bg-blue-700 border-blue-700 text-white'
-                                              : 'border-slate-300 text-slate-400 hover:border-blue-500'
+                                              ? 'bg-vigno-accent border-vigno-accent text-vigno-accent-txt'
+                                              : 'border-2 border-vigno-line/60 bg-transparent text-transparent hover:border-vigno-accent'
                                           } ${isTogglingCompletion ? 'opacity-50 cursor-wait' : ''} disabled:opacity-50`}
                                           title={done ? 'Mark as incomplete' : 'Mark as complete'}
                                         >
                                           {isTogglingCompletion ? (
-                                            <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
-                                              <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" />
+                                            <svg className="w-3 h-3 animate-spin text-current" fill="none" viewBox="0 0 24 24">
+                                              <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" opacity="0.25" />
                                               <path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                                             </svg>
                                           ) : done ? (
-                                            <Icon name="check" className="w-3 h-3 fill-current" />
+                                            <Icon name="check" className="w-3.5 h-3.5 fill-current" />
                                           ) : (
                                             <span />
                                           )}
@@ -481,14 +496,14 @@ export default function CourseWorkspace() {
                                         <button
                                           type="button"
                                           onClick={() => setActiveContentId(item.id)}
-                                          className="flex-1 text-left min-w-0"
+                                          className="flex-1 text-left min-w-0 flex flex-col justify-center"
                                         >
-                                          <span className={`block text-sm font-semibold leading-snug ${selected ? 'text-blue-800' : 'text-slate-800'}`}>
+                                          <span className={`block text-sm font-bold leading-snug transition-colors duration-300 ${selected ? 'text-vigno-accent' : 'text-vigno-txt group-hover:text-vigno-txt/90'}`}>
                                             {item.title}
                                           </span>
-                                          <span className="mt-1 flex items-center gap-1.5 text-xs text-slate-500">
+                                          <span className={`mt-1.5 flex items-center gap-1.5 text-[11px] font-semibold transition-colors duration-300 ${selected ? 'text-vigno-accent/80' : 'text-vigno-muted group-hover:text-vigno-muted/80'}`}>
                                             <Icon name={meta.icon} className="w-3.5 h-3.5" />
-                                            {meta.label} | {meta.detail}
+                                            {meta.label} • {meta.detail}
                                           </span>
                                         </button>
                                       </div>

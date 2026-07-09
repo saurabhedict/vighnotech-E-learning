@@ -111,7 +111,7 @@ export default function Sidebar() {
             ? 'bg-vigno-accent text-vigno-accent-txt font-bold shadow-sm'
             : isDark ? 'text-vigno-muted hover:bg-white/10' : 'text-vigno-muted hover:bg-vigno-line/40'
           }`
-        }>★ Saved</NavLink>
+        }>Wishlist</NavLink>
       </div>
 
       {/* Admin link — only for admin users */}

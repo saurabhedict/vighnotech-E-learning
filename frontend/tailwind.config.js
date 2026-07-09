@@ -17,8 +17,15 @@ export default {
           'accent-txt': v('accent-txt'),
         },
       },
-      fontFamily: { sans: ['Segoe UI', 'system-ui', 'Arial', 'sans-serif'] },
+      fontFamily: {
+        sans: ['"Libre Baskerville"', 'Georgia', 'serif'],
+        serif: ['"Crimson Text"', 'Georgia', 'serif'],
+        montserrat: ['Montserrat', 'sans-serif'],
+        crimson: ['"Crimson Text"', 'serif'],
+        baskerville: ['"Libre Baskerville"', 'serif'],
+      },
     },
   },
   plugins: [],
 }
+

@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Crimson+Text:ital,wght@0,400;0,600;0,700;1,400&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Montserrat:wght@300;400;500;600;700;800;900&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -39,7 +39,7 @@ html, body, #root { height: 100%; }
 
 body {
   margin: 0;
-  font-family: 'Segoe UI', system-ui, Arial, sans-serif;
+  font-family: 'Libre Baskerville', Georgia, serif;
   color: rgb(var(--v-txt));
   background: linear-gradient(160deg, #050b1a 0%, #0a1535 40%, #0d1f4a 80%, #0a2a5a 100%);
   background-attachment: fixed;
@@ -216,7 +216,34 @@ input:focus-visible, textarea:focus-visible, select:focus-visible { outline: non
 .scroll-row { -ms-overflow-style: none; scrollbar-width: none; }
 
 /* ── Formal typography refinements ──────────────────────────────────────── */
-h1, h2, h3, h4 { font-feature-settings: "kern" 1, "liga" 1; }
+h1, h2, h3, h4, h5, h6,
+h1 *, h2 *, h3 *, h4 *, h5 *, h6 *,
+.font-serif,
+.font-display {
+  font-family: 'Crimson Text', Georgia, serif;
+  font-feature-settings: "kern" 1, "liga" 1;
+}
+
+/* UI Controls, interactive elements, metadata, buttons, labels, and badges use Montserrat */
+button,
+input,
+select,
+textarea,
+label,
+a,
+nav,
+.font-montserrat,
+[role="button"],
+.price,
+.badge,
+.rating,
+.text-xs,
+.text-\[9px\],
+.text-\[10px\],
+.text-\[11px\],
+.uppercase {
+  font-family: 'Montserrat', 'Segoe UI', system-ui, sans-serif;
+}
 
 /* ── Section heading rule ────────────────────────────────────────────────── */
 .section-rule {

@@ -33,18 +33,37 @@ function Coupons() {
 
   return (
     <div>
-      {msg && <p className={'text-sm mb-2 ' + (msg.ok ? 'text-green-300' : 'text-red-300')}>{msg.text}</p>}
-      <div className="flex flex-wrap gap-2 items-center mb-4">
-        <input placeholder="CODE" value={form.code} onChange={set('code')} className={input + ' uppercase w-32'} />
-        <select value={form.kind} onChange={set('kind')} className={input}>
-          <option value="percent">% off</option>
-          <option value="flat">₹ off</option>
-        </select>
-        <input type="number" placeholder="value" value={form.value} onChange={set('value')} className={input + ' w-24'} />
-        <input type="number" placeholder="max (0=∞)" value={form.maxRedemptions} onChange={set('maxRedemptions')} className={input + ' w-28'} />
-        <button onClick={create} disabled={!form.code.trim()} className="bg-vigno-accent text-vigno-accent-txt font-bold px-4 py-2 rounded-lg text-sm disabled:opacity-50">Create</button>
+      {msg && <p className={'text-sm mb-4 ' + (msg.ok ? 'text-green-300' : 'text-red-300')}>{msg.text}</p>}
+      <div className="flex flex-col gap-4 mb-6 p-4 rounded-xl border border-vigno-line/40 bg-black/5 dark:bg-white/5 shadow-sm">
+        <h4 className="text-[11px] font-extrabold text-vigno-txt uppercase tracking-wider">Create New Coupon</h4>
+        <div className="flex flex-wrap gap-4 items-end">
+          <div className="flex flex-col space-y-1.5 flex-1 min-w-[120px]">
+            <label className="text-[10px] font-bold text-vigno-muted uppercase ml-1 tracking-wide">Coupon Code</label>
+            <input placeholder="e.g. SALE50" value={form.code} onChange={set('code')} className={input + ' uppercase w-full font-mono'} />
+          </div>
+          <div className="flex flex-col space-y-1.5">
+            <label className="text-[10px] font-bold text-vigno-muted uppercase ml-1 tracking-wide">Type</label>
+            <select value={form.kind} onChange={set('kind')} className={input + ' w-28'}>
+              <option value="percent">% off</option>
+              <option value="flat">₹ off</option>
+            </select>
+          </div>
+          <div className="flex flex-col space-y-1.5 flex-1 min-w-[120px]">
+            <label className="text-[10px] font-bold text-vigno-muted uppercase ml-1 tracking-wide">Discount Value</label>
+            <input type="text" inputMode="numeric" pattern="[0-9]*" placeholder="e.g. 10" value={form.value} onChange={set('value')} className={input + ' w-full'} />
+          </div>
+          <div className="flex flex-col space-y-1.5 flex-1 min-w-[120px]">
+            <label className="text-[10px] font-bold text-vigno-muted uppercase ml-1 tracking-wide">Usage Limit (0 = ∞)</label>
+            <input type="text" inputMode="numeric" pattern="[0-9]*" placeholder="0" value={form.maxRedemptions} onChange={set('maxRedemptions')} className={input + ' w-full'} />
+          </div>
+          <div className="pt-2 w-full sm:w-auto">
+            <button onClick={create} disabled={!form.code.trim()} className="w-full sm:w-auto bg-vigno-accent hover:brightness-110 text-vigno-accent-txt font-extrabold px-6 py-2.5 rounded-lg text-sm transition-all disabled:opacity-50 active:scale-95">
+              + Create
+            </button>
+          </div>
+        </div>
       </div>
-      <table className="w-full text-sm">
+      <table className="w-full text-sm mt-2">
         <thead className="bg-black/20 text-vigno-muted text-xs">
           <tr><th className="text-left px-3 py-2">Code</th><th className="text-left px-3 py-2">Discount</th><th className="text-left px-3 py-2">Redeemed</th><th className="text-right px-3 py-2"></th></tr>
         </thead>

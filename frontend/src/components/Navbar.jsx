@@ -80,37 +80,33 @@ function NavPanel({ open, onClose, user, isAdmin, isDark, settings, onLogout, on
           </button>
         </div>
 
-        {/* Search */}
-        <div className="px-4 py-3">
-          <form onSubmit={onSearch}>
-            <input
-              value={q}
-              onChange={e => setQ(e.target.value)}
-              placeholder="Search courses..."
-              className={[
-                'w-full px-3 py-2 rounded-lg text-sm outline-none transition-all border',
-                isDark
-                  ? 'bg-vigno-bg1 border-vigno-line text-vigno-txt placeholder-vigno-muted/50'
-                  : 'bg-vigno-bg2 border-vigno-line text-vigno-txt placeholder-vigno-muted/50',
-              ].join(' ')}
-            />
-          </form>
-        </div>
+        {/* Search — admin only, inside panel */}
+        {isAdmin && false && (
+          <div className="px-4 py-3">
+            <form onSubmit={onSearch}>
+              <input
+                value={q}
+                onChange={e => setQ(e.target.value)}
+                placeholder="Search courses..."
+                className={[
+                  'w-full px-3 py-2 rounded-lg text-sm outline-none transition-all border',
+                  isDark
+                    ? 'bg-vigno-bg1 border-vigno-line text-vigno-txt placeholder-vigno-muted/50'
+                    : 'bg-vigno-bg2 border-vigno-line text-vigno-txt placeholder-vigno-muted/50',
+                ].join(' ')}
+              />
+            </form>
+          </div>
+        )}
 
-        {/* Nav links */}
+        {/* Nav links — users only; admins navigate via the main admin panel tabs */}
         <nav className="flex-1 overflow-y-auto px-3 py-1 space-y-0.5">
-          {isAdmin && (
-            <>
-              <p className={`text-[10px] font-semibold uppercase tracking-widest px-4 py-2 ${isDark ? 'text-vigno-muted/50' : 'text-vigno-muted/60'}`}>Administration</p>
-              {navLink('/app/admin?tab=overview', 'Admin Dashboard')}
-            </>
-          )}
-          {(
+          {!isAdmin && (
             <>
               <p className={`text-[10px] font-semibold uppercase tracking-widest px-4 py-2 ${isDark ? 'text-vigno-muted/50' : 'text-vigno-muted/60'}`}>Navigation</p>
               {navLink('/app', 'Home', true)}
-              {navLink('/app/library', 'My Library')}
-              {navLink('/app/favorites', 'Saved')}
+              {navLink('/app/library', 'My Learning')}
+              {navLink('/app/favorites', 'Wishlist')}
               {navLink('/app/wallet', 'Wallet')}
               {navLink('/app/profile', 'Profile')}
 
@@ -187,8 +183,8 @@ export default function Navbar() {
           : 'bg-white/95 border-b border-vigno-line/70 shadow-sm',
       ].join(' ')}>
 
-        {/* Brand */}
-        <NavLink to="/app" className="flex items-center shrink-0">
+        {/* Brand — admin goes to admin panel, user goes to landing */}
+        <NavLink to={isAdmin ? '/app/admin?tab=overview' : '/app'} className="flex items-center shrink-0">
           <span style={{ fontFamily: "'Caveat', cursive" }} className="text-3xl font-bold select-none text-vigno-txt">
             {brandName}
           </span>
@@ -217,8 +213,8 @@ export default function Navbar() {
         )}
 
         <div className="flex items-center gap-4">
-          {/* My learning link */}
-          {(
+          {/* My learning link — users only */}
+          {!isAdmin && (
             <NavLink
               to="/app/library"
               className={({ isActive }) => [
@@ -242,8 +238,8 @@ export default function Navbar() {
             </NavLink>
           )}
 
-          {/* Wishlist Link */}
-          {(
+          {/* Wishlist Link — users only */}
+          {!isAdmin && (
             <NavLink to="/app/favorites" className="text-vigno-muted hover:text-vigno-txt transition-colors p-1" title="Wishlist">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
@@ -251,8 +247,8 @@ export default function Navbar() {
             </NavLink>
           )}
 
-          {/* Wallet Link */}
-          {(
+          {/* Wallet Link — users only */}
+          {!isAdmin && (
             <NavLink to="/app/wallet" className="text-vigno-muted hover:text-vigno-txt transition-colors p-1 relative" title="Wallet">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                 <rect x="3" y="5" width="18" height="14" rx="2" />
@@ -266,8 +262,8 @@ export default function Navbar() {
             </NavLink>
           )}
 
-          {/* Cart Icon (functional) */}
-          {(
+          {/* Cart Icon — users only */}
+          {!isAdmin && (
             <button
               onClick={() => navigate('/app/cart')}
               className="text-vigno-muted hover:text-vigno-txt transition-colors p-1 relative cursor-pointer focus:outline-none"
@@ -298,7 +294,7 @@ export default function Navbar() {
           </button>
         </div>
       </header>
-
+      
       <NavPanel
         open={panelOpen}
         onClose={() => setPanelOpen(false)}

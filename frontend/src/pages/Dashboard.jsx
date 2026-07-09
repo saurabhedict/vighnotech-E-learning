@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { useSelector } from 'react-redux'
 import { useQuery } from '@tanstack/react-query'
@@ -193,6 +193,153 @@ const COURSE_META = {
   },
 }
 
+function TagFilterDropdown({ allTags, tagCounts, selectedTags, setSelectedTags, toggleTag, isDark, availableCourses }) {
+  const [filterOpen, setFilterOpen] = useState(false)
+  const filterRef = useRef(null)
+
+  useEffect(() => {
+    if (!filterOpen) return
+    const handler = (e) => {
+      if (filterRef.current && !filterRef.current.contains(e.target)) setFilterOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [filterOpen])
+
+  if (allTags.length === 0) return null
+
+  return (
+    <div className="flex items-center gap-3 flex-wrap">
+      {/* Filter trigger button */}
+      <div ref={filterRef} className="relative">
+        <button
+          onClick={() => setFilterOpen(v => !v)}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold border transition-all duration-200 active:scale-95 ${
+            selectedTags.size > 0
+              ? isDark
+                ? 'bg-vigno-accent/15 text-vigno-accent border-vigno-accent/40'
+                : 'bg-vigno-accent/10 text-vigno-accent border-vigno-accent/30'
+              : isDark
+              ? 'bg-vigno-bg2/60 text-vigno-txt border-vigno-line/50 hover:border-vigno-accent/40'
+              : 'bg-white text-slate-700 border-slate-200 hover:border-vigno-accent/40 shadow-sm'
+          }`}
+        >
+          <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3 4.5h18M7 9.5h10M11 14.5h2" />
+          </svg>
+          Filter by Tags
+          {selectedTags.size > 0 && (
+            <span className="flex items-center justify-center w-5 h-5 rounded-full bg-vigno-accent text-vigno-accent-txt text-[10px] font-black">
+              {selectedTags.size}
+            </span>
+          )}
+          <svg className={`w-3.5 h-3.5 flex-shrink-0 transition-transform duration-200 ${filterOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+          </svg>
+        </button>
+
+        {/* Dropdown panel */}
+        {filterOpen && (
+          <div className={`absolute top-full left-0 mt-2 z-30 w-64 rounded-2xl border shadow-2xl overflow-hidden ${
+            isDark ? 'bg-vigno-card border-vigno-line/60' : 'bg-white border-slate-200/80'
+          }`}>
+            {/* Header */}
+            <div className={`flex items-center justify-between px-4 py-3 border-b ${isDark ? 'border-vigno-line/40' : 'border-slate-100'}`}>
+              <span className="text-xs font-black uppercase tracking-widest text-vigno-muted">Filter Courses</span>
+              {selectedTags.size > 0 && (
+                <button
+                  onClick={() => setSelectedTags(new Set())}
+                  className="text-[11px] font-bold text-vigno-accent hover:underline"
+                >
+                  Clear all
+                </button>
+              )}
+            </div>
+
+            {/* Tag list */}
+            <div className="max-h-64 overflow-y-auto py-2">
+              {allTags.map((tag) => {
+                const active = selectedTags.has(tag)
+                const count = tagCounts[tag] || 0
+                return (
+                  <button
+                    key={tag}
+                    onClick={() => toggleTag(tag)}
+                    className={`w-full flex items-center justify-between px-4 py-2.5 text-sm transition-colors duration-150 text-left ${
+                      active
+                        ? isDark ? 'bg-vigno-accent/12 text-vigno-accent' : 'bg-vigno-accent/8 text-vigno-accent'
+                        : isDark ? 'text-vigno-txt hover:bg-white/5' : 'text-slate-700 hover:bg-slate-50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <span className={`w-4 h-4 rounded flex-shrink-0 flex items-center justify-center border transition-all duration-150 ${
+                        active
+                          ? 'bg-vigno-accent border-vigno-accent'
+                          : isDark ? 'border-vigno-line/60 bg-transparent' : 'border-slate-300 bg-white'
+                      }`}>
+                        {active && (
+                          <svg className="w-2.5 h-2.5 text-vigno-accent-txt" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="3.5">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l5 5L19.5 6.25" />
+                          </svg>
+                        )}
+                      </span>
+                      <span className="font-semibold">{tag}</span>
+                    </div>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                      active
+                        ? 'bg-vigno-accent/20 text-vigno-accent'
+                        : isDark ? 'bg-vigno-line/40 text-vigno-muted' : 'bg-slate-100 text-slate-400'
+                    }`}>
+                      {count}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+
+            {/* Footer */}
+            <div className={`px-4 py-3 border-t ${isDark ? 'border-vigno-line/40' : 'border-slate-100'}`}>
+              <button
+                onClick={() => setFilterOpen(false)}
+                className="w-full py-2 rounded-xl bg-vigno-accent hover:brightness-110 text-vigno-accent-txt text-xs font-black transition-all"
+              >
+                Apply{selectedTags.size > 0 ? ` (${selectedTags.size} selected)` : ''}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Active tag chips summary — shown next to the button */}
+      {selectedTags.size > 0 && (
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {[...selectedTags].map(tag => (
+            <span
+              key={tag}
+              className={`flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full border ${
+                isDark
+                  ? 'bg-vigno-accent/10 text-vigno-accent border-vigno-accent/25'
+                  : 'bg-vigno-accent/8 text-vigno-accent border-vigno-accent/20'
+              }`}
+            >
+              {tag}
+              <button
+                onClick={() => toggleTag(tag)}
+                className="ml-0.5 opacity-60 hover:opacity-100 transition-opacity"
+                aria-label={`Remove ${tag} filter`}
+              >
+                <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="3">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function Carousel({ children }) {
   const containerRef = useRef(null)
   const [showLeft, setShowLeft] = useState(false)
@@ -234,7 +381,7 @@ function Carousel({ children }) {
       {showLeft && (
         <button
           onClick={() => scroll('left')}
-          className="absolute -left-4 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full flex items-center justify-center bg-white dark:bg-[#0f172a] text-[#0f172a] dark:text-white border border-slate-200 dark:border-slate-800 shadow-xl hover:scale-105 hover:bg-slate-100 hover:text-vigno-accent2 dark:hover:bg-slate-800 dark:hover:text-vigno-accent2 active:scale-95 transition-all duration-200"
+          className="absolute -left-4 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full flex items-center justify-center bg-white text-slate-800 border border-slate-200 shadow-xl hover:scale-105 hover:bg-slate-50 hover:text-slate-900 active:scale-95 transition-all duration-200"
           aria-label="Scroll left"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
@@ -255,7 +402,7 @@ function Carousel({ children }) {
       {showRight && (
         <button
           onClick={() => scroll('right')}
-          className="absolute -right-4 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full flex items-center justify-center bg-white dark:bg-[#0f172a] text-[#0f172a] dark:text-white border border-slate-200 dark:border-slate-800 shadow-xl hover:scale-105 hover:bg-slate-100 hover:text-vigno-accent2 dark:hover:bg-slate-800 dark:hover:text-vigno-accent2 active:scale-95 transition-all duration-200"
+          className="absolute -right-4 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full flex items-center justify-center bg-white text-slate-800 border border-slate-200 shadow-xl hover:scale-105 hover:bg-slate-50 hover:text-slate-900 active:scale-95 transition-all duration-200"
           aria-label="Scroll right"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
@@ -272,6 +419,7 @@ export default function Dashboard() {
   const theme = useSelector((s) => s.ui.theme)
   const isDark = theme === 'dark'
   const { data: courses, isLoading, isError } = useClasses()
+  const [selectedTags, setSelectedTags] = useState(new Set())
 
   const { data: progressItems, isLoading: isProgressLoading } = useQuery({
     queryKey: ['progress', 'mine', { limit: 4 }],
@@ -304,6 +452,62 @@ export default function Dashboard() {
     return !purchasedCourseKeys.has(courseSlug)
   }) || []
 
+  // Derive all unique admin-set tags from ALL courses (not just available)
+  // so learners see the full tag list even if they've bought some courses
+  const allTags = useMemo(() => {
+    const tagSet = new Set()
+    ;(courses || []).forEach((course) => {
+      if (course && typeof course === 'object' && course.meta) {
+        const tags = Array.isArray(course.meta.tags)
+          ? course.meta.tags
+          : typeof course.meta.tags === 'string' && course.meta.tags
+          ? course.meta.tags.split(',').map(t => t.trim()).filter(Boolean)
+          : []
+        tags.forEach(t => t && tagSet.add(t))
+      }
+    })
+    return [...tagSet].sort()
+  }, [courses])
+
+  // Count against availableCourses (not-yet-purchased) for the badge numbers
+  const tagCounts = useMemo(() => {
+    const counts = {}
+    availableCourses.forEach((course) => {
+      if (course && typeof course === 'object' && course.meta) {
+        const tags = Array.isArray(course.meta.tags)
+          ? course.meta.tags
+          : typeof course.meta.tags === 'string' && course.meta.tags
+          ? course.meta.tags.split(',').map(t => t.trim()).filter(Boolean)
+          : []
+        tags.forEach(t => { if (t) counts[t] = (counts[t] || 0) + 1 })
+      }
+    })
+    return counts
+  }, [availableCourses])
+
+  // Apply tag filtering — show courses matching ANY selected tag
+  const filteredCourses = useMemo(() => {
+    if (selectedTags.size === 0) return availableCourses
+    return availableCourses.filter((course) => {
+      if (!course || typeof course !== 'object' || !course.meta) return false
+      const tags = Array.isArray(course.meta.tags)
+        ? course.meta.tags
+        : typeof course.meta.tags === 'string' && course.meta.tags
+        ? course.meta.tags.split(',').map(t => t.trim()).filter(Boolean)
+        : []
+      return tags.some(t => selectedTags.has(t))
+    })
+  }, [availableCourses, selectedTags])
+
+  const toggleTag = (tag) => {
+    setSelectedTags(prev => {
+      const next = new Set(prev)
+      if (next.has(tag)) next.delete(tag)
+      else next.add(tag)
+      return next
+    })
+  }
+
   const filteredResources = standaloneResources?.filter(
     (item) => !purchasedResourceIds.has(item.id)
   )
@@ -335,6 +539,34 @@ export default function Dashboard() {
           <p className="text-sm text-vigno-muted font-medium mt-1">Recommended for you</p>
         </div>
 
+        {/* Tag Filter Dropdown — only shown when admin has set tags on courses */}
+        {!isLoading && allTags.length > 0 && (
+          <TagFilterDropdown
+            allTags={allTags}
+            tagCounts={tagCounts}
+            selectedTags={selectedTags}
+            setSelectedTags={setSelectedTags}
+            toggleTag={toggleTag}
+            isDark={isDark}
+            availableCourses={availableCourses}
+          />
+        )}
+
+        {/* No results state */}
+        {!isLoading && selectedTags.size > 0 && filteredCourses.length === 0 && (
+          <div className={`py-10 text-center rounded-2xl border-2 border-dashed ${
+            isDark ? 'border-vigno-line/30 bg-vigno-bg2/20' : 'border-slate-200 bg-slate-50/50'
+          }`}>
+            <p className="text-vigno-muted text-sm font-medium">No courses match the selected tags.</p>
+            <button
+              onClick={() => setSelectedTags(new Set())}
+              className="mt-3 text-xs font-bold text-vigno-accent hover:underline"
+            >
+              Clear filter
+            </button>
+          </div>
+        )}
+
         {isLoading && (
           <div className="flex gap-6 overflow-x-auto pb-4 pt-1 -mx-4 px-4 scrollbar-none">
             {[...Array(4)].map((_, i) => (
@@ -349,9 +581,9 @@ export default function Dashboard() {
           </div>
         )}
 
-        {!isLoading && courses && (
+        {!isLoading && courses && filteredCourses.length > 0 && (
           <Carousel>
-            {availableCourses.map((course) => {
+            {filteredCourses.map((course) => {
               const courseSlug = typeof course === 'string' ? course : course.slug
               return <CourseCard key={courseSlug} course={course} />
             })}

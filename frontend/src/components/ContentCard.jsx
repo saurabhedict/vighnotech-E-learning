@@ -184,8 +184,8 @@ export default function ContentCard({ item, disablePopover = false }) {
               {disablePopover ? (
                 // In continue learning, hide premium/unlocked labels but keep the price/free label if it's a standalone resource
                 !item.courseKey && (
-                  item.paid ? (
-                    <span className="text-xs font-bold text-vigno-txt">₹{item.price}</span>
+                  (item.paid || item.price > 0 || item.meta?.price > 0 || item.type === 'course') ? (
+                    <span className="text-xs font-bold text-vigno-txt">{(item.price || item.meta?.price) ? `₹${item.price || item.meta?.price}` : 'Premium'}</span>
                   ) : (
                     <span className={`text-[10px] font-semibold ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}>Free</span>
                   )
@@ -197,8 +197,8 @@ export default function ContentCard({ item, disablePopover = false }) {
                   ) : (
                     <span className="text-[10px] font-bold text-vigno-accent2">Premium</span>
                   )
-                ) : item.paid ? (
-                  <span className="text-xs font-bold text-vigno-txt">₹{item.price}</span>
+                ) : (item.paid || item.price > 0 || item.meta?.price > 0 || item.type === 'course') ? (
+                  <span className="text-xs font-bold text-vigno-txt">{(item.price || item.meta?.price) ? `₹${item.price || item.meta?.price}` : 'Premium'}</span>
                 ) : (
                   <span className={`text-[10px] font-semibold ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}>Free</span>
                 )

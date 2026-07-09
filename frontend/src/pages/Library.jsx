@@ -198,17 +198,24 @@ export default function Library() {
   const courseKeys = Object.keys(courseGroups)
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 max-w-7xl mx-auto pb-12">
       <Breadcrumb trail="My learning" />
 
       {/* Header Section */}
-      <div className="space-y-2">
-        <h1 className="text-3xl font-extrabold text-vigno-txt tracking-tight">My Learning Hub</h1>
-        <p className="text-sm text-vigno-muted font-medium">All your purchased courses and study materials in one organized space</p>
+      <div className="flex items-center gap-4 mb-8 mt-4">
+        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500/20 to-purple-600/10 flex items-center justify-center text-indigo-500 shadow-sm border border-indigo-500/20 backdrop-blur-md">
+          <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+          </svg>
+        </div>
+        <div>
+          <h1 className="text-3xl md:text-4xl font-black tracking-tight text-vigno-txt">My Learning</h1>
+          <p className="text-sm font-medium text-vigno-muted mt-1.5">All your purchased courses and study materials in one organized space</p>
+        </div>
       </div>
 
       {/* Sub-tab navigation */}
-      <div className="flex border-b border-vigno-line/30 gap-6 text-sm font-bold overflow-x-auto">
+      <div className="flex gap-2 text-sm font-bold overflow-x-auto p-1.5 rounded-2xl bg-vigno-bg2/40 border border-vigno-line/30 w-max backdrop-blur-md shadow-sm">
         {[
           { key: 'courses', label: 'My purchases' },
           { key: 'licenses', label: 'All Licenses' },
@@ -219,7 +226,11 @@ export default function Library() {
             <button
               key={t.key}
               onClick={() => setTab(t.key)}
-              className={`pb-3 border-b-2 transition-all whitespace-nowrap ${isActive ? 'border-vigno-accent text-vigno-accent' : 'border-transparent text-vigno-muted hover:text-vigno-txt'}`}
+              className={`px-5 py-2.5 rounded-xl transition-all whitespace-nowrap active:scale-95 flex items-center gap-2 ${
+                isActive 
+                  ? 'bg-white dark:bg-vigno-card text-vigno-accent shadow-sm border border-vigno-line/40 font-black' 
+                  : 'text-vigno-muted hover:text-vigno-txt hover:bg-black/5 dark:hover:bg-white/5 border border-transparent font-bold'
+              }`}
             >
               {t.label}
             </button>
@@ -300,49 +311,51 @@ export default function Library() {
                           </div>
                           
                           {/* Content */}
-                          <div className="p-3.5 flex-1 flex flex-col justify-between space-y-2">
+                          <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
                             {/* Title & Instructor */}
                             <div className="space-y-1">
-                              <h3 className="font-bold text-xs text-vigno-txt leading-snug line-clamp-2 group-hover/card:text-vigno-accent transition-colors" title={courseName}>
+                              <h3 className="font-extrabold text-lg text-vigno-txt leading-tight line-clamp-2 group-hover/card:text-vigno-accent transition-colors" title={courseName}>
                                 {courseName}
                               </h3>
-                              <p className="text-[10px] text-vigno-muted/80 font-medium truncate">
-                                by <span className="text-vigno-accent font-semibold">{instructorName}</span>
+                              <p className="text-sm text-vigno-muted/90 font-medium truncate">
+                                by <span className="text-vigno-accent font-semibold hover:underline cursor-pointer">{instructorName}</span>
                               </p>
                             </div>
 
                             {/* Rating & Stats */}
-                            <div className="flex items-center gap-1.5 text-[10px] py-0.5 border-y border-vigno-line/20">
-                              <span className="font-extrabold text-amber-500 text-xs">{meta.rating}</span>
-                              <div className="flex text-amber-400 text-[8px] gap-0.5">
+                            <div className="flex items-center gap-2 text-sm pt-1">
+                              <span className="font-extrabold text-amber-500">{meta.rating}</span>
+                              <div className="flex text-amber-400 text-xs gap-0.5">
                                 {[...Array(5)].map((_, i) => (
                                   <span key={i}>★</span>
                                 ))}
                               </div>
-                              <span className="text-vigno-muted text-[8px]">({meta.reviews})</span>
+                              <span className="text-vigno-muted text-xs">({meta.reviews})</span>
                             </div>
 
                             {/* Progress Bar */}
-                            <div className="space-y-1">
-                              <div className="flex items-center justify-between text-[10px]">
+                            <div className="space-y-2 pt-1">
+                              <div className="flex items-center justify-between text-sm">
                                 <span className="font-bold text-vigno-txt">{group.length} lessons</span>
-                                <span className="text-vigno-accent text-[8px] font-bold">IN PROGRESS</span>
+                                <span className="text-vigno-accent text-xs font-bold tracking-widest uppercase">In Progress</span>
                               </div>
-                              <div className="h-1.5 bg-vigno-bg2/80 rounded-full overflow-hidden border border-vigno-line/30">
+                              <div className="h-2 bg-vigno-line/30 rounded-full overflow-hidden shadow-inner">
                                 <div 
-                                  className="h-full bg-gradient-to-r from-vigno-accent via-vigno-accent2 to-vigno-accent transition-all duration-500"
+                                  className="h-full bg-gradient-to-r from-vigno-accent to-vigno-accent2 transition-all duration-500 rounded-full"
                                   style={{ width: `${Math.min((group.length / 20) * 100, 90)}%` }}
                                 />
                               </div>
                             </div>
 
                             {/* CTA Button */}
-                            <Link
-                              to={`/app/${key}/learn`}
-                              className="w-full text-center text-[10px] font-extrabold bg-vigno-accent hover:brightness-115 text-vigno-accent-txt rounded-lg py-1.5 transition-all duration-200 active:scale-95"
-                            >
-                              Resume Learning
-                            </Link>
+                            <div className="pt-2">
+                              <Link
+                                to={`/app/${key}/learn`}
+                                className="block w-full text-center text-sm font-black bg-vigno-accent text-vigno-accent-txt rounded-xl py-3 shadow-md hover:shadow-lg hover:brightness-110 transition-all duration-200 active:scale-95"
+                              >
+                                Resume Learning
+                              </Link>
+                            </div>
                           </div>
                         </div>
                       )

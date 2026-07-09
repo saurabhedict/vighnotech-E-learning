@@ -124,11 +124,12 @@ export default function CourseCard({ course }) {
 
   const dynamicInstructor = hasMeta && course.meta.instructor ? course.meta.instructor : 'AeroLearn Expert'
   const dynamicPrice = hasMeta && course.meta.price ? course.meta.price : meta.price
-  const dynamicTags = hasMeta && Array.isArray(course.meta.tags) && course.meta.tags.length > 0 
-    ? course.meta.tags 
-    : (hasMeta && typeof course.meta.tags === 'string' && course.meta.tags 
+  // Only use explicitly admin-set tags — no auto-derived fallbacks
+  const dynamicTags = hasMeta && Array.isArray(course.meta.tags) && course.meta.tags.length > 0
+    ? course.meta.tags
+    : (hasMeta && typeof course.meta.tags === 'string' && course.meta.tags
       ? course.meta.tags.split(',').map(t => t.trim()).filter(Boolean)
-      : [courseSlug.includes('Ground') ? 'Ground' : 'Flight'])
+      : [])
 
   const IconComponent = meta.icon
 
@@ -234,22 +235,10 @@ export default function CourseCard({ course }) {
               <span className="text-vigno-muted">({meta.reviews})</span>
             </div>
 
-            {/* Price & Tags */}
-            <div className="flex items-center justify-between flex-wrap gap-1.5">
-              <div className="flex items-baseline gap-1.5">
-                <span className="font-extrabold text-vigno-txt">₹{dynamicPrice}</span>
-                <span className="line-through text-[11px] text-vigno-muted">₹{meta.oldPrice}</span>
-              </div>
-              <div className="flex gap-1 flex-wrap">
-                {dynamicTags.map((tagText, tIdx) => (
-                  <span 
-                    key={tIdx} 
-                    className="text-[9px] font-extrabold tracking-wider px-2 py-0.5 rounded-md uppercase border text-vigno-accent2 border-vigno-accent2/20 bg-vigno-accent2/5"
-                  >
-                    {tagText}
-                  </span>
-                ))}
-              </div>
+            {/* Price */}
+            <div className="flex items-baseline gap-1.5">
+              <span className="font-extrabold text-vigno-txt">₹{dynamicPrice}</span>
+              <span className="line-through text-[11px] text-vigno-muted">₹{meta.oldPrice}</span>
             </div>
           </div>
         </div>
@@ -260,7 +249,7 @@ export default function CourseCard({ course }) {
         <UdemyHoverPopover
           title={courseName}
           isCourse={true}
-          isPaid={true} // courses are always paid items in the demo
+          isPaid={true}
           price={dynamicPrice}
           oldPrice={meta.oldPrice}
           instructor={dynamicInstructor}
@@ -275,6 +264,7 @@ export default function CourseCard({ course }) {
           thumbnail={course.meta?.thumbnail || ''}
           rating={meta.rating}
           ratingCount={meta.reviews}
+          tags={dynamicTags}
         />
       )}
     </div>
