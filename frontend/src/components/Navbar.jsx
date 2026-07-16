@@ -10,10 +10,11 @@ import { useSiteSettings } from '../hooks/useSiteSettings'
 import { safeHref } from '../lib/safeUrl'
 import Avatar from './Avatar'
 import NotificationBell from './NotificationBell'
+import SmartSearchBar from './SmartSearchBar'
 import { paymentsApi } from '../api/paymentsApi'
 import { removeCartItem, clearCart } from '../store/cartSlice'
 import { purchaseCourse, purchaseContent } from '../lib/buy'
-function NavPanel({ open, onClose, user, isAdmin, isDark, settings, onLogout, onToggleTheme, theme, q, setQ, onSearch }) {
+function NavPanel({ open, onClose, user, isAdmin, isDark, settings, onLogout }) {
   const panelRef = useRef(null)
   const extraLinks = settings?.header?.extraLinks || []
 
@@ -80,28 +81,15 @@ function NavPanel({ open, onClose, user, isAdmin, isDark, settings, onLogout, on
           </button>
         </div>
 
-        {/* Search — admin only, inside panel */}
-        {isAdmin && false && (
-          <div className="px-4 py-3">
-            <form onSubmit={onSearch}>
-              <input
-                value={q}
-                onChange={e => setQ(e.target.value)}
-                placeholder="Search courses..."
-                className={[
-                  'w-full px-3 py-2 rounded-lg text-sm outline-none transition-all border',
-                  isDark
-                    ? 'bg-vigno-bg1 border-vigno-line text-vigno-txt placeholder-vigno-muted/50'
-                    : 'bg-vigno-bg2 border-vigno-line text-vigno-txt placeholder-vigno-muted/50',
-                ].join(' ')}
-              />
-            </form>
-          </div>
-        )}
-
-        {/* Nav links — users only; admins navigate via the main admin panel tabs */}
+        {/* Nav links — everyone can browse the user side; admins also get the panel */}
         <nav className="flex-1 overflow-y-auto px-3 py-1 space-y-0.5">
-          {!isAdmin && (
+          {isAdmin && (
+            <>
+              <p className={`text-[10px] font-semibold uppercase tracking-widest px-4 py-2 ${isDark ? 'text-vigno-muted/50' : 'text-vigno-muted/60'}`}>Administration</p>
+              {navLink('/app/admin?tab=overview', 'Admin Dashboard')}
+            </>
+          )}
+          {(
             <>
               <p className={`text-[10px] font-semibold uppercase tracking-widest px-4 py-2 ${isDark ? 'text-vigno-muted/50' : 'text-vigno-muted/60'}`}>Navigation</p>
               {navLink('/app', 'Home', true)}
@@ -151,7 +139,6 @@ export default function Navbar() {
   const { data: settings } = useSiteSettings()
   const brandName = settings?.brand?.name || 'Aerolearn'
   const showSearch = settings?.header?.showSearch !== false
-  const [q, setQ] = useState('')
   const [panelOpen, setPanelOpen] = useState(false)
 
   const cartItems = useSelector((s) => s.cart.items)
@@ -163,12 +150,6 @@ export default function Navbar() {
     await authApi.logout()
     dispatch(logout())
     navigate('/')
-  }
-
-  const doSearch = (e) => {
-    e.preventDefault()
-    setPanelOpen(false)
-    navigate(`/app/search${q.trim() ? `?q=${encodeURIComponent(q.trim())}` : ''}`)
   }
 
   // Close panel on route change
@@ -183,63 +164,51 @@ export default function Navbar() {
           : 'bg-white/95 border-b border-vigno-line/70 shadow-sm',
       ].join(' ')}>
 
-        {/* Brand — admin goes to admin panel, user goes to landing */}
-        <NavLink to={isAdmin ? '/app/admin?tab=overview' : '/app'} className="flex items-center shrink-0">
+        {/* Brand — same as the user side */}
+        <NavLink to="/app" className="flex items-center shrink-0">
           <span style={{ fontFamily: "'Caveat', cursive" }} className="text-3xl font-bold select-none text-vigno-txt">
             {brandName}
           </span>
         </NavLink>
 
-        {/* Search — grows to fill middle */}
-        {showSearch && (
-          <form onSubmit={doSearch} className="flex-1 max-w-xl mx-4 hidden sm:block">
-            <div className="relative">
-              <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-vigno-muted pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-              </svg>
-              <input
-                value={q}
-                onChange={e => setQ(e.target.value)}
-                placeholder="Search for anything..."
-                className={[
-                  'w-full pl-10 pr-4 py-2 rounded-full text-sm outline-none transition-all border',
-                  isDark
-                    ? 'bg-white/6 border-vigno-line/40 text-vigno-txt placeholder-vigno-muted/50'
-                    : 'bg-vigno-bg2/80 border-vigno-line/60 text-vigno-txt placeholder-vigno-muted/60',
-                ].join(' ')}
-              />
-            </div>
-          </form>
-        )}
+        {/* Search — grows to fill middle (mic + live suggestions) */}
+        {showSearch && <SmartSearchBar variant="navbar" className="flex-1 max-w-xl mx-4 hidden sm:block" />}
 
         <div className="flex items-center gap-4">
-          {/* My learning link — users only */}
-          {!isAdmin && (
-            <NavLink
-              to="/app/library"
-              className={({ isActive }) => [
-                'text-sm font-medium hover:text-vigno-accent transition-colors hidden md:block',
-                isActive ? 'text-vigno-accent' : 'text-vigno-txt'
-              ].join(' ')}
-            >
-              My learning
-            </NavLink>
-          )}
+          {/* My learning — same as the user side */}
+          <NavLink
+            to="/app/library"
+            className={({ isActive }) => [
+              'text-sm font-medium hover:text-vigno-accent transition-colors hidden md:block',
+              isActive ? 'text-vigno-accent' : 'text-vigno-txt'
+            ].join(' ')}
+          >
+            My learning
+          </NavLink>
 
+          {/* Admin panel — the one extra for admins, styled as a distinct pill */}
           {isAdmin && (
             <NavLink
               to="/app/admin?tab=overview"
+              title="Admin panel"
               className={({ isActive }) => [
-                'text-sm font-medium transition-colors hidden md:block',
-                isActive ? 'text-vigno-accent' : 'text-vigno-accent/80 hover:text-vigno-accent'
+                'hidden md:inline-flex items-center gap-1.5 pl-2.5 pr-3.5 py-1.5 rounded-full text-sm font-semibold',
+                'border transition-all duration-200 shadow-sm active:scale-[0.97]',
+                isActive
+                  ? 'bg-vigno-accent text-vigno-bg1 border-vigno-accent'
+                  : 'text-vigno-accent border-vigno-accent/35 bg-gradient-to-r from-vigno-accent/12 to-vigno-accent2/12 hover:from-vigno-accent/22 hover:to-vigno-accent2/22 hover:border-vigno-accent/60',
               ].join(' ')}
             >
+              <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 2.5l7 3.2v5.8c0 4.3-2.9 7.7-7 9.5-4.1-1.8-7-5.2-7-9.5V5.7l7-3.2z" />
+                <path d="M9.2 12l2 2 3.6-3.8" />
+              </svg>
               Admin panel
             </NavLink>
           )}
 
-          {/* Wishlist Link — users only */}
-          {!isAdmin && (
+          {/* Wishlist Link */}
+          {(
             <NavLink to="/app/favorites" className="text-vigno-muted hover:text-vigno-txt transition-colors p-1" title="Wishlist">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
@@ -247,8 +216,8 @@ export default function Navbar() {
             </NavLink>
           )}
 
-          {/* Wallet Link — users only */}
-          {!isAdmin && (
+          {/* Wallet Link */}
+          {(
             <NavLink to="/app/wallet" className="text-vigno-muted hover:text-vigno-txt transition-colors p-1 relative" title="Wallet">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                 <rect x="3" y="5" width="18" height="14" rx="2" />
@@ -262,8 +231,8 @@ export default function Navbar() {
             </NavLink>
           )}
 
-          {/* Cart Icon — users only */}
-          {!isAdmin && (
+          {/* Cart Icon */}
+          {(
             <button
               onClick={() => navigate('/app/cart')}
               className="text-vigno-muted hover:text-vigno-txt transition-colors p-1 relative cursor-pointer focus:outline-none"
@@ -305,9 +274,6 @@ export default function Navbar() {
         onLogout={doLogout}
         onToggleTheme={() => dispatch(toggleTheme())}
         theme={theme}
-        q={q}
-        setQ={setQ}
-        onSearch={doSearch}
       />
     </>
   )

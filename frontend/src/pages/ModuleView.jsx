@@ -39,7 +39,7 @@ export default function ModuleView() {
   const { data: mod, isLoading, isError } = useModule(className, moduleId)
   const { data: licenses } = useQuery({ queryKey: ['licenses', 'mine'], queryFn: licenseApi.mine })
   const isAdmin = useSelector((s) => s.auth.user?.role) === 'admin'
-  const isEnrolled = isAdmin || licenses?.some((l) => l.content?.courseKey === className)
+  const isEnrolled = isAdmin || licenses?.some((l) => l.usable && l.content?.courseKey === className)
   const displayName = className?.replace(/_/g, ' ')
 
   if (isLoading) return <p className="text-vigno-muted">Loading module…</p>

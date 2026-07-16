@@ -5,6 +5,10 @@ export const discoverApi = {
   search(params) {
     return api.get('/search', { params }).then((r) => r.data)
   },
+  // Type-ahead keyword suggestions (course names / titles / tags) for the search bar.
+  suggest(q) {
+    return api.get('/search/suggest', { params: { q } }).then((r) => r.data.suggestions)
+  },
   // Favorites
   favoriteIds() {
     return api.get('/favorites/ids').then((r) => r.data.ids)

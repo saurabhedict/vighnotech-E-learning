@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Crimson+Text:ital,wght@0,400;0,600;0,700;1,400&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Montserrat:wght@300;400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400;1,600&family=Red+Hat+Text:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400;1,500&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -39,7 +39,7 @@ html, body, #root { height: 100%; }
 
 body {
   margin: 0;
-  font-family: 'Libre Baskerville', Georgia, serif;
+  font-family: 'Red Hat Text', 'Segoe UI', system-ui, sans-serif;
   color: rgb(var(--v-txt));
   background: linear-gradient(160deg, #050b1a 0%, #0a1535 40%, #0d1f4a 80%, #0a2a5a 100%);
   background-attachment: fixed;
@@ -87,6 +87,7 @@ body::before {
 }
 .vigno-loader__text {
   color: rgb(var(--v-muted)); font-size: 0.85rem; font-weight: 500; letter-spacing: 0.03em;
+  font-family: 'Red Hat Text', system-ui, sans-serif;
 }
 @media (prefers-reduced-motion: reduce) {
   .vigno-spinner { animation-duration: 2s; }
@@ -215,16 +216,23 @@ input:focus-visible, textarea:focus-visible, select:focus-visible { outline: non
 .scroll-row::-webkit-scrollbar { display: none; }
 .scroll-row { -ms-overflow-style: none; scrollbar-width: none; }
 
-/* ── Formal typography refinements ──────────────────────────────────────── */
+/* ── Formal typography — Montserrat for headings, Red Hat Text for body ─── */
+
+/* Headings: bold, tight, commanding — Montserrat */
 h1, h2, h3, h4, h5, h6,
-h1 *, h2 *, h3 *, h4 *, h5 *, h6 *,
-.font-serif,
 .font-display {
-  font-family: 'Crimson Text', Georgia, serif;
+  font-family: 'Montserrat', system-ui, sans-serif;
   font-feature-settings: "kern" 1, "liga" 1;
+  letter-spacing: -0.01em;
 }
 
-/* UI Controls, interactive elements, metadata, buttons, labels, and badges use Montserrat */
+/* Body prose inherits Red Hat Text from body */
+p, span, li, blockquote, td, th, dd, dt,
+.font-body {
+  font-family: 'Red Hat Text', 'Segoe UI', system-ui, sans-serif;
+}
+
+/* UI Controls, navigation, buttons, labels, badges — Montserrat */
 button,
 input,
 select,

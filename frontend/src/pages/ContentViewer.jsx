@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, lazy, Suspense } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useParams, useSearchParams, Link } from 'react-router-dom'
 import { useSelector } from 'react-redux'
 import { useContentItem } from '../hooks/useContent'
 import { useSiteSettings } from '../hooks/useSiteSettings'
@@ -18,6 +18,11 @@ const Model3DViewer = lazy(() => import('../components/Model3DViewer'))
 // behind the buy flow (server-issued license unlocks it).
 export default function ContentViewer() {
   const { className, moduleId, contentId } = useParams()
+  const [searchParams] = useSearchParams()
+  // ?play=1 — used when arriving from "Resume Learning" in My Learning (an
+  // owned resource): jump straight into the player instead of the landing/
+  // details page a first-time visitor would want to see.
+  const autoplay = searchParams.get('play') === '1'
   const user = useSelector((s) => s.auth.user)
   const isDark = useSelector((s) => s.ui.theme) === 'dark'
   const [showViewer, setShowViewer] = useState(false)
@@ -32,6 +37,11 @@ export default function ContentViewer() {
   const accessible = !!item && !item.locked && !item.requiresLauncher
   const isStandalone = !!item && !item.courseKey
   const showLanding = isStandalone && !showViewer
+
+  // Owned resource opened with ?play=1 → skip the landing page entirely.
+  useEffect(() => {
+    if (accessible && autoplay && !showViewer) setShowViewer(true)
+  }, [accessible, autoplay, showViewer])
 
   // Record a view (recently-viewed / continue-watching) when accessible content opens.
   useEffect(() => {

@@ -16,6 +16,7 @@ const ContentViewer = lazy(() => import('./pages/ContentViewer'))
 const Library = lazy(() => import('./pages/Library'))
 const Favorites = lazy(() => import('./pages/Favorites'))
 const Search = lazy(() => import('./pages/Search'))
+const Browse = lazy(() => import('./pages/Browse'))
 const Wallet = lazy(() => import('./pages/Wallet'))
 const Profile = lazy(() => import('./pages/Profile'))
 const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'))
@@ -35,6 +36,7 @@ export default function App() {
           <Route path="library" element={<Library />} />
           <Route path="favorites" element={<Favorites />} />
           <Route path="search" element={<Search />} />
+          <Route path="browse" element={<Browse />} />
           <Route path="wallet" element={<Wallet />} />
           <Route path="profile" element={<Profile />} />
           <Route path="cart" element={<Cart />} />

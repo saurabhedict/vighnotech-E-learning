@@ -257,7 +257,7 @@ export default function Home() {
 
   // Check if student has purchased any content in this course
   // Admins see every course as unlocked so they can review the full site.
-  const isEnrolled = user?.role === 'admin' || licenses?.some((l) => l.content?.courseKey === className)
+  const isEnrolled = user?.role === 'admin' || licenses?.some((l) => l.usable && l.content?.courseKey === className)
 
   const cartItems = useSelector((s) => s.cart.items)
   const isInCart = cartItems.some((i) => i.id === className)
@@ -492,6 +492,12 @@ export default function Home() {
                   <div className="text-xs text-center text-green-400 font-bold bg-green-500/10 border border-green-500/20 py-2 rounded-lg">
                     ✓ You own licenses in this course
                   </div>
+                  <p className="text-[10px] text-center text-vigno-muted font-medium flex items-center justify-center gap-1">
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Lifetime access — yours until revoked
+                  </p>
                   <button
                     onClick={() => navigate(`/app/${className}/learn`)}
                     className="w-full bg-vigno-accent hover:brightness-115 text-vigno-accent-txt font-black py-3 rounded-xl text-sm transition-all focus:outline-none"

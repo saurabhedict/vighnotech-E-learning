@@ -191,6 +191,26 @@ export const adminApi = {
     return api.delete(`/admin/notifications/${id}`).then((r) => r.data)
   },
 
+  // ── Filters (dynamic categories used to classify courses/programs) ────────────
+  listFilters() {
+    return api.get('/admin/filters').then((r) => r.data.categories)
+  },
+  createFilterCategory(payload) {
+    return api.post('/admin/filters', payload).then((r) => r.data)
+  },
+  updateFilterCategory(id, payload) {
+    return api.patch(`/admin/filters/${id}`, payload).then((r) => r.data)
+  },
+  deleteFilterCategory(id) {
+    return api.delete(`/admin/filters/${id}`).then((r) => r.data)
+  },
+  addFilterOption(id, label) {
+    return api.post(`/admin/filters/${id}/options`, { label }).then((r) => r.data)
+  },
+  removeFilterOption(id, optionId) {
+    return api.delete(`/admin/filters/${id}/options/${optionId}`).then((r) => r.data)
+  },
+
   // ── Coupons ─────────────────────────────────────────────────────────────────
   listCoupons() {
     return api.get('/admin/coupons').then((r) => r.data.coupons)

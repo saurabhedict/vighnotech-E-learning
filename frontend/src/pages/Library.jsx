@@ -125,7 +125,6 @@ function LessonIcon({ type, className = "w-5 h-5 text-vigno-accent2" }) {
 
 const STATUS = {
   active: 'bg-green-500/20 text-green-300',
-  expired: 'bg-yellow-500/20 text-yellow-200',
   revoked: 'bg-red-500/20 text-red-300',
 }
 
@@ -159,6 +158,25 @@ const COURSE_META = {
   ATC_Basics: { rating: '4.9', reviews: '310,299', price: '659', oldPrice: '4,229' },
 }
 
+// Standalone-resource cards reuse the exact same visual language as course
+// cards (thumbnail gradient + icon, rating row, lifetime badge) for a
+// uniform "My Learning" page — just keyed by content type instead of course.
+const RESOURCE_DECOR = {
+  video: { gradient: 'from-blue-600 to-indigo-850', icon: (props) => <LessonIcon type="video" {...props} /> },
+  pdf: { gradient: 'from-teal-600 to-green-850', icon: (props) => <LessonIcon type="pdf" {...props} /> },
+  '3d': { gradient: 'from-purple-600 to-indigo-950', icon: (props) => <LessonIcon type="3d" {...props} /> },
+  game: { gradient: 'from-rose-600 to-pink-850', icon: (props) => <LessonIcon type="game" {...props} /> },
+  default: { gradient: 'from-slate-600 to-slate-850', icon: (props) => <LessonIcon {...props} /> },
+}
+
+const RESOURCE_META = {
+  video: { rating: '4.7', reviews: '12,480' },
+  pdf: { rating: '4.6', reviews: '8,210' },
+  '3d': { rating: '4.8', reviews: '3,150' },
+  game: { rating: '4.7', reviews: '6,900' },
+  default: { rating: '4.6', reviews: '4,000' },
+}
+
 function fmt(d) {
   return d ? new Date(d).toLocaleDateString() : '—'
 }
@@ -175,9 +193,9 @@ export default function Library() {
   const courseGroups = {}
   const individualResourceLicenses = []
   licenses.data?.forEach((l) => {
-    if (l.usable && l.content?.courseKey) {
+    if (l.usable && l.content) {
       const key = l.content.courseKey
-      if (key === 'Individual_Resources') {
+      if (!key || key === 'Individual_Resources') {
         individualResourceLicenses.push(l)
       } else {
         if (!courseGroups[key]) {
@@ -281,7 +299,7 @@ export default function Library() {
                       const IconComponent = decor.icon
                       const courseData = courseMap[key] || {}
                       const courseMeta = courseData.meta || {}
-                      const courseName = key.replace(/_/g, ' ')
+                      const courseName = courseData.name || key.replace(/_/g, ' ')
                       const meta = COURSE_META[key] || { rating: '4.5', reviews: '1,204' }
                       const instructorName = courseMeta.instructor || 'AeroLearn Experts'
                       const thumbnail = courseMeta.thumbnail
@@ -308,6 +326,12 @@ export default function Library() {
                                 <IconComponent className="w-12 h-12" />
                               </span>
                             )}
+                            <span className="absolute top-2.5 right-2.5 z-10 inline-flex items-center gap-1 text-[9px] font-extrabold tracking-wide text-white bg-black/40 backdrop-blur-sm px-2 py-1 rounded-full uppercase">
+                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                              Lifetime
+                            </span>
                           </div>
                           
                           {/* Content */}
@@ -374,85 +398,88 @@ export default function Library() {
                     </div>
                     <span className="text-xs font-bold text-vigno-accent2/70 bg-vigno-accent2/10 px-3 py-1 rounded-full">{individualResourceLicenses.length} resources</span>
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                     {individualResourceLicenses.map((l) => {
                       const item = l.content
                       if (!item) return null
                       const resourceTypeLabel = { pdf: 'PDF', video: 'Video', game: 'Simulator', '3d': '3D Model' }[item.type] || item.type
-                      const resourceGradient = {
-                        video: 'from-blue-600 to-indigo-850',
-                        pdf: 'from-teal-600 to-green-850',
-                        '3d': 'from-purple-600 to-indigo-950',
-                        game: 'from-rose-600 to-pink-850',
-                      }[item.type] || 'from-slate-600 to-slate-850'
+                      const decor = RESOURCE_DECOR[item.type] || RESOURCE_DECOR.default
+                      const IconComponent = decor.icon
+                      const meta = RESOURCE_META[item.type] || RESOURCE_META.default
 
                       return (
                         <div
                           key={l.jti}
-                          className="flex flex-col bg-vigno-card border border-vigno-line/50 rounded-2xl overflow-hidden hover:border-vigno-accent/40 hover:-translate-y-0.5 transition-all duration-200 group"
+                          className="flex flex-col bg-vigno-card border border-vigno-line/50 rounded-xl overflow-hidden hover:border-vigno-accent/50 hover:shadow-lg transition-all duration-300 group/card"
                         >
-                          {/* Graphic / Banner */}
-                          <div className="w-full aspect-video relative flex items-center justify-center overflow-hidden border-b border-vigno-line/20 bg-slate-900">
+                          {/* Thumbnail/Banner with Image Support */}
+                          <div className={`w-full aspect-video bg-gradient-to-br ${decor.gradient} relative flex items-center justify-center overflow-hidden border-b border-vigno-line/20 bg-slate-900`}>
                             {item.thumbnailUrl ? (
-                              <img src={item.thumbnailUrl} alt={item.title} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                              <img
+                                src={item.thumbnailUrl}
+                                alt={item.title}
+                                className="absolute inset-0 w-full h-full object-cover group-hover/card:scale-105 transition-transform duration-300"
+                              />
                             ) : (
-                              <div className={`absolute inset-0 bg-gradient-to-br ${resourceGradient}`} />
+                              <div className="absolute inset-0 bg-gradient-to-br opacity-90" style={{ backgroundImage: `linear-gradient(to bottom right, var(--tw-gradient-stops))` }} />
                             )}
-                            <div className="absolute inset-0 bg-black/15 group-hover:bg-black/5 transition-colors" />
+                            <div className="absolute inset-0 bg-black/10 group-hover/card:bg-black/5 transition-colors" />
                             {!item.thumbnailUrl && (
-                              <span className="transform group-hover:scale-110 transition-transform duration-300 select-none filter drop-shadow-lg text-white z-10">
-                                {item.type === 'video' && (
-                                  <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                  </svg>
-                                )}
-                                {item.type === 'pdf' && (
-                                  <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                                  </svg>
-                                )}
-                                {item.type === '3d' && (
-                                  <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                                  </svg>
-                                )}
-                                {item.type !== 'video' && item.type !== 'pdf' && item.type !== '3d' && (
-                                  <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
-                                  </svg>
-                                )}
+                              <span className="transform group-hover/card:scale-110 transition-transform duration-300 select-none filter drop-shadow-lg text-white z-10">
+                                <IconComponent className="w-12 h-12" />
                               </span>
                             )}
-                            <span className="absolute bottom-2.5 left-2.5 text-[10px] font-bold tracking-widest text-white/80 uppercase font-mono z-10 bg-black/30 px-1.5 py-0.5 rounded">
-                              RESOURCE
+                            <span className="absolute top-2.5 right-2.5 z-10 inline-flex items-center gap-1 text-[9px] font-extrabold tracking-wide text-white bg-black/40 backdrop-blur-sm px-2 py-1 rounded-full uppercase">
+                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                              Lifetime
                             </span>
                           </div>
-                          <div className="p-4 flex-1 flex flex-col justify-between space-y-4">
+
+                          {/* Content */}
+                          <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
+                            {/* Title & Source */}
                             <div className="space-y-1">
-                              <h3 className="font-bold text-sm text-vigno-txt leading-snug line-clamp-2" title={item.title}>
+                              <h3 className="font-extrabold text-lg text-vigno-txt leading-tight line-clamp-2 group-hover/card:text-vigno-accent transition-colors" title={item.title}>
                                 {item.title}
                               </h3>
-                              <p className="text-xs text-vigno-muted font-medium truncate">
-                                AeroLearn Resource
+                              <p className="text-sm text-vigno-muted/90 font-medium truncate">
+                                by <span className="text-vigno-accent font-semibold">AeroLearn Resource</span>
                               </p>
                             </div>
-                            <div className="space-y-2">
-                              <div className="flex items-center gap-1.5 text-xs">
-                                <span className="text-vigno-muted font-medium">Standalone study resource</span>
+
+                            {/* Rating & Stats */}
+                            <div className="flex items-center gap-2 text-sm pt-1">
+                              <span className="font-extrabold text-amber-500">{meta.rating}</span>
+                              <div className="flex text-amber-400 text-xs gap-0.5">
+                                {[...Array(5)].map((_, i) => (
+                                  <span key={i}>★</span>
+                                ))}
                               </div>
-                              <div className="flex items-center justify-between flex-wrap gap-1.5 pt-1">
-                                <span className="text-[9px] font-extrabold tracking-wider px-2 py-0.5 rounded-md uppercase border text-vigno-accent border-vigno-accent/20 bg-vigno-accent/5">
-                                  {resourceTypeLabel}
-                                </span>
+                              <span className="text-vigno-muted text-xs">({meta.reviews})</span>
+                            </div>
+
+                            {/* Status row + full "ready" bar (single standalone item — no multi-lesson progress) */}
+                            <div className="space-y-2 pt-1">
+                              <div className="flex items-center justify-between text-sm">
+                                <span className="font-bold text-vigno-txt">{resourceTypeLabel} Resource</span>
+                                <span className="text-vigno-accent text-xs font-bold tracking-widest uppercase">Ready</span>
+                              </div>
+                              <div className="h-2 bg-vigno-line/30 rounded-full overflow-hidden shadow-inner">
+                                <div className="h-full w-full bg-gradient-to-r from-vigno-accent to-vigno-accent2 rounded-full" />
                               </div>
                             </div>
-                            <Link
-                              to={`/app/content/${item.id}`}
-                              className="w-full text-center text-xs font-extrabold bg-vigno-accent text-vigno-accent-txt rounded-xl py-2.5 hover:brightness-110 transition-all"
-                            >
-                              Open Resource
-                            </Link>
+
+                            {/* CTA Button — straight into the player, not a details/landing page */}
+                            <div className="pt-2">
+                              <Link
+                                to={`/app/content/${item.id}?play=1`}
+                                className="block w-full text-center text-sm font-black bg-vigno-accent text-vigno-accent-txt rounded-xl py-3 shadow-md hover:shadow-lg hover:brightness-110 transition-all duration-200 active:scale-95"
+                              >
+                                Resume Learning
+                              </Link>
+                            </div>
                           </div>
                         </div>
                       )
@@ -490,7 +517,20 @@ export default function Library() {
                   </div>
                   <div>
                     <div className="font-semibold text-xs text-vigno-txt truncate">{l.content?.title || 'Content'}</div>
-                    <p className="text-[10px] text-vigno-muted mt-1 capitalize">{l.type} · expires {fmt(l.expiresAt)}</p>
+                    <p className="text-[10px] text-vigno-muted mt-1 capitalize flex items-center gap-1">
+                      <span>{l.type}</span>
+                      <span>·</span>
+                      {l.status === 'revoked' ? (
+                        <span>revoked {fmt(l.revokedAt || l.expiresAt)}</span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-vigno-accent2 font-bold normal-case">
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          Lifetime access
+                        </span>
+                      )}
+                    </p>
                   </div>
                   <div>
                     {l.usable && l.content ? (
@@ -502,7 +542,7 @@ export default function Library() {
                         Open
                       </Link>
                     ) : (
-                      <span className="text-xs text-vigno-muted font-medium block text-center py-1.5">{l.status === 'revoked' ? 'Access revoked' : 'Expired'}</span>
+                      <span className="text-xs text-vigno-muted font-medium block text-center py-1.5">Access revoked</span>
                     )}
                   </div>
                 </div>

@@ -6,6 +6,7 @@ import { useClasses } from '../hooks/useContent'
 import { discoverApi } from '../api/discoverApi'
 import ContentCard from '../components/ContentCard'
 import CourseCard from '../components/CourseCard'
+import CatalogFilterBar from '../components/CatalogFilterBar'
 import { licenseApi } from '../api/licenseApi'
 
 
@@ -340,6 +341,129 @@ function TagFilterDropdown({ allTags, tagCounts, selectedTags, setSelectedTags, 
   )
 }
 
+function CategoryFilterDropdown({ allCategories, categoryCounts, selectedCategory, setSelectedCategory, isDark }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef(null)
+
+  useEffect(() => {
+    if (!open) return
+    const handler = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [open])
+
+  if (allCategories.length === 0) return null
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setOpen(v => !v)}
+        className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold border transition-all duration-200 active:scale-95 ${
+          selectedCategory
+            ? isDark
+              ? 'bg-vigno-accent2/15 text-vigno-accent2 border-vigno-accent2/40'
+              : 'bg-vigno-accent2/10 text-vigno-accent2 border-vigno-accent2/30'
+            : isDark
+            ? 'bg-vigno-bg2/60 text-vigno-txt border-vigno-line/50 hover:border-vigno-accent2/40'
+            : 'bg-white text-slate-700 border-slate-200 hover:border-vigno-accent2/40 shadow-sm'
+        }`}
+      >
+        {/* Grid icon for category */}
+        <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+          <rect x="3" y="3" width="7" height="7" rx="1" />
+          <rect x="14" y="3" width="7" height="7" rx="1" />
+          <rect x="3" y="14" width="7" height="7" rx="1" />
+          <rect x="14" y="14" width="7" height="7" rx="1" />
+        </svg>
+        {selectedCategory ? selectedCategory : 'Category'}
+        {selectedCategory && (
+          <button
+            onClick={(e) => { e.stopPropagation(); setSelectedCategory('') }}
+            className="flex items-center justify-center w-4 h-4 rounded-full bg-vigno-accent2/20 text-vigno-accent2 hover:bg-vigno-accent2/40 transition-colors"
+            aria-label="Clear category filter"
+          >
+            <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="3">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        )}
+        <svg className={`w-3.5 h-3.5 flex-shrink-0 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+        </svg>
+      </button>
+
+      {/* Dropdown panel */}
+      {open && (
+        <div className={`absolute top-full left-0 mt-2 z-30 w-56 rounded-2xl border shadow-2xl overflow-hidden ${
+          isDark ? 'bg-vigno-card border-vigno-line/60' : 'bg-white border-slate-200/80'
+        }`}>
+          {/* Header */}
+          <div className={`flex items-center justify-between gap-3 px-4 py-3 border-b ${isDark ? 'border-vigno-line/40' : 'border-slate-100'}`}>
+            <span className="text-xs font-black uppercase tracking-widest text-vigno-muted">Filter by Category</span>
+            {selectedCategory && (
+              <button
+                onClick={() => setSelectedCategory('')}
+                className="shrink-0 text-[11px] font-bold text-vigno-accent2 hover:underline px-2 py-0.5 rounded-md hover:bg-vigno-accent2/10 transition-colors"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+
+          {/* Category list */}
+          <div className="max-h-64 overflow-y-auto py-2">
+            {allCategories.map((cat) => {
+              const active = selectedCategory === cat
+              const count = categoryCounts[cat] || 0
+              return (
+                <button
+                  key={cat}
+                  onClick={() => { setSelectedCategory(active ? '' : cat); setOpen(false) }}
+                  className={`w-full flex items-center justify-between px-4 py-2.5 text-sm transition-colors duration-150 text-left ${
+                    active
+                      ? isDark ? 'bg-vigno-accent2/12 text-vigno-accent2' : 'bg-vigno-accent2/8 text-vigno-accent2'
+                      : isDark ? 'text-vigno-txt hover:bg-white/5' : 'text-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 border-2 transition-all duration-150 ${
+                      active ? 'bg-vigno-accent2 border-vigno-accent2' : isDark ? 'border-vigno-line/60' : 'border-slate-300'
+                    }`} />
+                    <span className="font-semibold">{cat}</span>
+                  </div>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                    active
+                      ? 'bg-vigno-accent2/20 text-vigno-accent2'
+                      : isDark ? 'bg-vigno-line/40 text-vigno-muted' : 'bg-slate-100 text-slate-400'
+                  }`}>
+                    {count}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+
+          {/* Footer */}
+          <div className={`px-4 py-3 border-t ${isDark ? 'border-vigno-line/40' : 'border-slate-100'}`}>
+            {selectedCategory ? (
+              <div className="flex items-center justify-center gap-1.5 py-1.5">
+                <span className={`w-1.5 h-1.5 rounded-full bg-vigno-accent2 shrink-0`} />
+                <span className={`text-[11px] font-bold ${isDark ? 'text-vigno-accent2' : 'text-vigno-accent2'}`}>
+                  Showing: <span className="font-black">{selectedCategory}</span>
+                </span>
+              </div>
+            ) : (
+              <p className="text-center text-[11px] text-vigno-muted/60 py-1">Click a category to filter</p>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function Carousel({ children }) {
   const containerRef = useRef(null)
   const [showLeft, setShowLeft] = useState(false)
@@ -420,6 +544,7 @@ export default function Dashboard() {
   const isDark = theme === 'dark'
   const { data: courses, isLoading, isError } = useClasses()
   const [selectedTags, setSelectedTags] = useState(new Set())
+  const [selectedCategory, setSelectedCategory] = useState('')
 
   const { data: progressItems, isLoading: isProgressLoading } = useQuery({
     queryKey: ['progress', 'mine', { limit: 4 }],
@@ -485,19 +610,53 @@ export default function Dashboard() {
     return counts
   }, [availableCourses])
 
+  // Derive all unique categories from ALL courses
+  const allCategories = useMemo(() => {
+    const catSet = new Set()
+    ;(courses || []).forEach((course) => {
+      if (course && typeof course === 'object' && course.meta && course.meta.category) {
+        catSet.add(course.meta.category.trim())
+      }
+    })
+    return [...catSet].sort()
+  }, [courses])
+
+  // Count against availableCourses for the badge numbers
+  const categoryCounts = useMemo(() => {
+    const counts = {}
+    availableCourses.forEach((course) => {
+      if (course && typeof course === 'object' && course.meta && course.meta.category) {
+        const cat = course.meta.category.trim()
+        if (cat) counts[cat] = (counts[cat] || 0) + 1
+      }
+    })
+    return counts
+  }, [availableCourses])
+
   // Apply tag filtering — show courses matching ANY selected tag
   const filteredCourses = useMemo(() => {
-    if (selectedTags.size === 0) return availableCourses
-    return availableCourses.filter((course) => {
-      if (!course || typeof course !== 'object' || !course.meta) return false
-      const tags = Array.isArray(course.meta.tags)
-        ? course.meta.tags
-        : typeof course.meta.tags === 'string' && course.meta.tags
-        ? course.meta.tags.split(',').map(t => t.trim()).filter(Boolean)
-        : []
-      return tags.some(t => selectedTags.has(t))
-    })
-  }, [availableCourses, selectedTags])
+    let result = availableCourses
+    // Category filter (single-select)
+    if (selectedCategory) {
+      result = result.filter((course) => {
+        if (!course || typeof course !== 'object' || !course.meta) return false
+        return (course.meta.category || '').trim() === selectedCategory
+      })
+    }
+    // Tag filter (multi-select)
+    if (selectedTags.size > 0) {
+      result = result.filter((course) => {
+        if (!course || typeof course !== 'object' || !course.meta) return false
+        const tags = Array.isArray(course.meta.tags)
+          ? course.meta.tags
+          : typeof course.meta.tags === 'string' && course.meta.tags
+          ? course.meta.tags.split(',').map(t => t.trim()).filter(Boolean)
+          : []
+        return tags.some(t => selectedTags.has(t))
+      })
+    }
+    return result
+  }, [availableCourses, selectedTags, selectedCategory])
 
   const toggleTag = (tag) => {
     setSelectedTags(prev => {
@@ -512,6 +671,11 @@ export default function Dashboard() {
     (item) => !purchasedResourceIds.has(item.id)
   )
 
+  // Purchased standalone resources — show in "My Resources" section for quick access
+  const purchasedResources = licenses?.filter(
+    (l) => l.usable && l.content && (!l.content.courseKey || l.content.courseKey === 'Individual_Resources') && l.content.id
+  ).map((l) => l.content) || []
+
   const showResourcesLoading = isResourcesLoading || isLicensesLoading
 
   return (
@@ -522,11 +686,11 @@ export default function Dashboard() {
       <div className={`flex flex-col md:flex-row items-start md:items-center justify-between p-6 rounded-2xl border ${isDark ? 'bg-gradient-to-r from-vigno-accent/15 via-vigno-bg2/40 to-transparent border-vigno-line/40' : 'bg-gradient-to-r from-vigno-accent/10 via-white/80 to-transparent border-vigno-line/60 shadow-sm'}`}>
         <div className="flex items-center gap-4">
           <div className="w-16 h-16 rounded-full bg-vigno-accent/20 flex items-center justify-center text-3xl font-black text-vigno-accent shadow-inner border border-vigno-accent/30">
-            {user?.name ? user.name.slice(0, 2).toUpperCase() : 'DG'}
+            {user?.name ? user.name.charAt(0).toUpperCase() : 'U'}
           </div>
           <div>
             <h1 className="text-2xl font-extrabold text-vigno-txt leading-tight tracking-tight">
-              Welcome, {user?.name || 'Dhruv Gupta'}
+              Welcome, {user?.name ? user.name.split(' ')[0] : 'there'}
             </h1>
           </div>
         </div>
@@ -539,30 +703,46 @@ export default function Dashboard() {
           <p className="text-sm text-vigno-muted font-medium mt-1">Recommended for you</p>
         </div>
 
-        {/* Tag Filter Dropdown — only shown when admin has set tags on courses */}
-        {!isLoading && allTags.length > 0 && (
-          <TagFilterDropdown
-            allTags={allTags}
-            tagCounts={tagCounts}
-            selectedTags={selectedTags}
-            setSelectedTags={setSelectedTags}
-            toggleTag={toggleTag}
-            isDark={isDark}
-            availableCourses={availableCourses}
-          />
+        {/* Filter bar — Tag Filter + Category Filter side by side */}
+        {!isLoading && (allTags.length > 0 || allCategories.length > 0) && (
+          <div className="flex items-center gap-3 flex-wrap">
+            {allTags.length > 0 && (
+              <TagFilterDropdown
+                allTags={allTags}
+                tagCounts={tagCounts}
+                selectedTags={selectedTags}
+                setSelectedTags={setSelectedTags}
+                toggleTag={toggleTag}
+                isDark={isDark}
+                availableCourses={availableCourses}
+              />
+            )}
+            {allCategories.length > 0 && (
+              <CategoryFilterDropdown
+                allCategories={allCategories}
+                categoryCounts={categoryCounts}
+                selectedCategory={selectedCategory}
+                setSelectedCategory={setSelectedCategory}
+                isDark={isDark}
+              />
+            )}
+          </div>
         )}
 
+        {/* Admin-managed catalog filters — dynamic dropdowns + Apply → /app/browse results page */}
+        <CatalogFilterBar />
+
         {/* No results state */}
-        {!isLoading && selectedTags.size > 0 && filteredCourses.length === 0 && (
+        {!isLoading && (selectedTags.size > 0 || selectedCategory) && filteredCourses.length === 0 && (
           <div className={`py-10 text-center rounded-2xl border-2 border-dashed ${
             isDark ? 'border-vigno-line/30 bg-vigno-bg2/20' : 'border-slate-200 bg-slate-50/50'
           }`}>
-            <p className="text-vigno-muted text-sm font-medium">No courses match the selected tags.</p>
+            <p className="text-vigno-muted text-sm font-medium">No courses match the selected filters.</p>
             <button
-              onClick={() => setSelectedTags(new Set())}
+              onClick={() => { setSelectedTags(new Set()); setSelectedCategory('') }}
               className="mt-3 text-xs font-bold text-vigno-accent hover:underline"
             >
-              Clear filter
+              Clear all filters
             </button>
           </div>
         )}
@@ -616,6 +796,8 @@ export default function Dashboard() {
           )}
         </section>
       )}
+
+
 
       {/* Continue Watching Section */}
       {progressItems && progressItems.length > 0 && (

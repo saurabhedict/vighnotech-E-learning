@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSelector } from 'react-redux'
@@ -23,7 +23,7 @@ function Icon({ name, className = 'w-4 h-4' }) {
 }
 
 function cleanName(name = '') {
-  return name.replace(/^Unit\s*\d+\s*[-:]\s*/i, '').trim() || name
+  return name.replace(/^(Unit|Chapter|Section|Submodule)\s*\d+\s*[-–—:]\s*/i, '').trim() || name
 }
 
 function lessonMeta(item = {}) {
@@ -215,20 +215,21 @@ export default function CourseWorkspace() {
   const units = useMemo(() => {
     const list = []
     data?.tree?.forEach((subject) => {
-      subject.modules?.forEach((module) => {
-        const sections = module.chapters?.map((chapter) => ({
-          title: cleanName(chapter.name),
-          items: chapter.items?.map((item) => ({
+      const sections = (subject.modules || []).map((module) => ({
+        title: cleanName(module.name),
+        moduleId: module.id,
+        items: (module.chapters || []).flatMap((chapter) =>
+          (chapter.items || []).map((item) => ({
             ...item,
             moduleId: module.id,
             moduleName: module.name,
             subject: subject.subject,
-            sectionName: cleanName(chapter.name),
-          })) || [],
-        })).filter((section) => section.items.length) || []
+            sectionName: cleanName(module.name),
+          }))
+        ),
+      })).filter((section) => section.items.length)
 
-        if (sections.length) list.push({ subject: subject.subject, moduleId: module.id, title: module.name, sections })
-      })
+      if (sections.length) list.push({ subject: subject.subject, moduleId: sections[0].moduleId, title: subject.subject, sections })
     })
     return list
   }, [data])
@@ -236,7 +237,24 @@ export default function CourseWorkspace() {
   const lessons = units.flatMap((unit) => unit.sections.flatMap((section) => section.items))
   const activeLesson = lessons.find((lesson) => lesson.id === activeContentId) || lessons[0]
   const { data: activeContent, isLoading: contentLoading } = useContentItem(activeLesson?.id)
-  
+  const unitRefs = useRef({})
+
+  // "Jump to submodule" — used by the dropdown in the sidebar so a learner
+  // can go straight to e.g. submodule 3 instead of scrolling/expanding
+  // through everything before it.
+  const jumpToUnit = useCallback((unitIndex) => {
+    const unit = units[unitIndex]
+    if (!unit) return
+    setOpenUnits({ [unitIndex]: true })
+    setOpenSections({ [`${unitIndex}-0`]: true })
+    const firstItem = unit.sections[0]?.items?.[0]
+    if (firstItem) setActiveContentId(firstItem.id)
+    // Let the newly-expanded content mount before scrolling to it.
+    requestAnimationFrame(() => {
+      unitRefs.current[unitIndex]?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    })
+  }, [units])
+
   // Create a map of content completion status
   const completionMap = useMemo(() => {
     const map = {}
@@ -247,7 +265,8 @@ export default function CourseWorkspace() {
   }, [allProgress])
   
   const displayName = course?.name || className?.replace(/_/g, ' ')
-  const isEnrolled = user?.role === 'admin' || licenses?.some((l) => l.content?.courseKey === className)
+  const activeUnitIndex = units.findIndex((unit) => unit.sections.some((section) => section.items.some((it) => it.id === activeLesson?.id)))
+  const isEnrolled = user?.role === 'admin' || licenses?.some((l) => l.usable && l.content?.courseKey === className)
   const totalMinutes = lessons.reduce((sum, item) => sum + (item.type === 'video' ? (item.durationSec ? Math.round(item.durationSec / 60) : 12) : 6), 0)
   const completedCount = lessons.filter((lesson) => completionMap[lesson.id]).length
   const progress = lessons.length ? Math.round((completedCount / lessons.length) * 100) : 0
@@ -415,6 +434,29 @@ export default function CourseWorkspace() {
                 <div className="mt-5 h-2 rounded-full bg-vigno-line/40 overflow-hidden relative">
                   <div className="absolute inset-y-0 left-0 bg-gradient-to-r from-vigno-accent to-vigno-accent2 rounded-full transition-all duration-700 ease-out shadow-[0_0_10px_rgba(var(--v-accent),0.5)]" style={{ width: `${progress}%` }} />
                 </div>
+                {units.length > 1 && (
+                  <div className="mt-5">
+                    <label htmlFor="unit-jump" className="text-[10px] font-bold text-vigno-muted uppercase tracking-wider block mb-1.5">
+                      Jump to submodule
+                    </label>
+                    <div className="relative">
+                      <select
+                        id="unit-jump"
+                        value={activeUnitIndex >= 0 ? activeUnitIndex : ''}
+                        onChange={(e) => jumpToUnit(Number(e.target.value))}
+                        className="w-full appearance-none text-xs font-bold bg-vigno-bg2 border border-vigno-line/60 rounded-lg pl-3 pr-9 py-2.5 text-vigno-txt outline-none focus:border-vigno-accent transition-colors cursor-pointer hover:border-vigno-accent/50"
+                      >
+                        <option value="" disabled>Select a submodule ({units.length} total)…</option>
+                        {units.map((unit, i) => (
+                          <option key={`${unit.moduleId}-${i}`} value={i}>
+                            Submodule {i + 1}: {unit.title}
+                          </option>
+                        ))}
+                      </select>
+                      <Icon name="chevron" className="w-3.5 h-3.5 text-vigno-muted absolute right-3 top-1/2 -translate-y-1/2 rotate-90 pointer-events-none" />
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -423,7 +465,7 @@ export default function CourseWorkspace() {
                 const unitOpen = !!openUnits[unitIndex]
                 const unitLessons = unit.sections.reduce((sum, section) => sum + section.items.length, 0)
                 return (
-                  <section key={`${unit.moduleId}-${unitIndex}`}>
+                  <section key={`${unit.moduleId}-${unitIndex}`} ref={(el) => { unitRefs.current[unitIndex] = el }}>
                     <button
                       onClick={() => setOpenUnits((prev) => ({ ...prev, [unitIndex]: !prev[unitIndex] }))}
                       className="group w-full px-6 py-5 flex items-start gap-4 text-left transition-colors hover:bg-white/5"
@@ -432,7 +474,7 @@ export default function CourseWorkspace() {
                         <Icon name="chevron" className="w-3.5 h-3.5" />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <h3 className="text-[15px] font-bold leading-snug text-vigno-txt group-hover:text-vigno-accent transition-colors">Unit {unitIndex + 1}: {unit.title}</h3>
+                        <h3 className="text-[15px] font-bold leading-snug text-vigno-txt group-hover:text-vigno-accent transition-colors">Submodule {unitIndex + 1}: {unit.title}</h3>
                         <p className="text-[11px] font-semibold tracking-wide text-vigno-muted uppercase mt-1.5">{unit.sections.length} section{unit.sections.length !== 1 ? 's' : ''} • {unitLessons} lesson{unitLessons !== 1 ? 's' : ''}</p>
                       </div>
                     </button>

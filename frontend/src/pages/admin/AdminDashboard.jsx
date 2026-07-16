@@ -159,7 +159,7 @@ function NotificationsPanel() {
 }
 
 // ── LicensesPanel (all licenses on the platform + actions) ────────────────────
-const LIC_STATUS_CLS = { active: 'bg-green-500/15 text-green-300', revoked: 'bg-red-500/15 text-red-300', expired: 'bg-white/10 text-vigno-muted' }
+const LIC_STATUS_CLS = { active: 'bg-green-500/15 text-green-300', revoked: 'bg-red-500/15 text-red-300' }
 function LicensesPanel() {
   const qc = useQueryClient()
   const [status, setStatus] = useState('all')
@@ -182,7 +182,7 @@ function LicensesPanel() {
     try { await adminApi.unflagLicense(jti); qc.invalidateQueries({ queryKey: ['admin', 'licenses'] }) }
     catch (e) { setMsg({ ok: false, text: apiErrorMessage(e, 'Unflag failed') }) }
   }
-  const FILTERS = ['all', 'active', 'revoked', 'expired', 'flagged']
+  const FILTERS = ['all', 'active', 'revoked', 'flagged']
   return (
     <div className="space-y-4">
       <p className="text-sm text-vigno-muted">Every license issued on the platform. Revoke takes effect on the user's next content access.</p>
@@ -210,7 +210,7 @@ function LicensesPanel() {
                 <th className="py-2 pr-3 font-semibold">Content</th>
                 <th className="py-2 pr-3 font-semibold">Type</th>
                 <th className="py-2 pr-3 font-semibold">Status</th>
-                <th className="py-2 pr-3 font-semibold">Expires</th>
+                <th className="py-2 pr-3 font-semibold">Access</th>
                 <th className="py-2 pr-3 font-semibold">Actions</th>
               </tr>
             </thead>
@@ -231,7 +231,18 @@ function LicensesPanel() {
                     <span className={'px-2 py-0.5 rounded text-[10px] font-bold ' + (LIC_STATUS_CLS[l.status] || 'bg-white/10 text-vigno-muted')}>{l.status}</span>
                     {l.flagged && <span className="ml-1 px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/15 text-amber-300" title={l.flaggedReason}>flagged</span>}
                   </td>
-                  <td className="py-2 pr-3 text-vigno-muted text-xs whitespace-nowrap">{new Date(l.expiresAt).toLocaleDateString()}</td>
+                  <td className="py-2 pr-3 text-xs whitespace-nowrap">
+                    {l.status === 'revoked' ? (
+                      <span className="text-vigno-muted">Revoked {l.revokedReason ? `(${l.revokedReason})` : ''}</span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-vigno-accent2 font-semibold">
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        Lifetime
+                      </span>
+                    )}
+                  </td>
                   <td className="py-2 pr-3">
                     <div className="flex gap-3">
                       {l.status !== 'revoked' && <button onClick={() => revoke(l.jti)} className="text-red-400 hover:text-red-300 text-xs font-semibold">Revoke</button>}
@@ -249,6 +260,85 @@ function LicensesPanel() {
         <summary className="text-xs text-vigno-muted cursor-pointer hover:text-vigno-txt">Revoke by License ID…</summary>
         <div className="mt-3"><RevokeLicense /></div>
       </details>
+    </div>
+  )
+}
+
+// ── FiltersPanel (dynamic categories to classify courses) ────────────────────
+function FiltersPanel() {
+  const qc = useQueryClient()
+  const { data: cats, isLoading } = useQuery({ queryKey: ['admin', 'filters'], queryFn: adminApi.listFilters })
+  const [newCat, setNewCat] = useState('')
+  const [msg, setMsg] = useState(null)
+  const [busy, setBusy] = useState(false)
+  const refresh = () => qc.invalidateQueries({ queryKey: ['admin', 'filters'] })
+
+  const addCategory = async (e) => {
+    e.preventDefault()
+    if (!newCat.trim()) return
+    setBusy(true); setMsg(null)
+    try { await adminApi.createFilterCategory({ name: newCat.trim() }); setNewCat(''); refresh() }
+    catch (err) { setMsg({ ok: false, text: apiErrorMessage(err, 'Failed to add category') }) }
+    finally { setBusy(false) }
+  }
+  const delCategory = async (id) => {
+    if (!window.confirm('Delete this filter category and all its options?')) return
+    try { await adminApi.deleteFilterCategory(id); refresh() } catch (err) { setMsg({ ok: false, text: apiErrorMessage(err, 'Delete failed') }) }
+  }
+  const addOption = async (id, label, reset) => {
+    if (!label.trim()) return
+    try { await adminApi.addFilterOption(id, label.trim()); reset(); refresh() }
+    catch (err) { setMsg({ ok: false, text: apiErrorMessage(err, 'Failed to add option') }) }
+  }
+  const removeOption = async (id, optionId) => {
+    try { await adminApi.removeFilterOption(id, optionId); refresh() } catch (err) { setMsg({ ok: false, text: apiErrorMessage(err, 'Failed') }) }
+  }
+
+  return (
+    <div className="space-y-5">
+      <p className="text-sm text-vigno-muted">Filters classify courses. On the catalog, users get one multi-select dropdown per category — pick options, hit Apply, and see matching courses. Create as many categories and options as you need.</p>
+      {msg && <p className={'text-sm px-3 py-2 rounded-lg ' + (msg.ok ? 'text-green-300 bg-green-500/10 border border-green-500/20' : 'text-red-300 bg-red-500/10 border border-red-500/20')}>{msg.text}</p>}
+
+      <form onSubmit={addCategory} className="flex gap-2 max-w-md">
+        <input value={newCat} onChange={(e) => setNewCat(e.target.value)} placeholder="New filter category (e.g. Difficulty)" className={inp + ' flex-1'} />
+        <button disabled={busy || !newCat.trim()} className={btnCls.primary}>Add Category</button>
+      </form>
+
+      {isLoading && <p className="text-sm text-vigno-muted">Loading…</p>}
+      {cats?.length === 0 && <p className="text-sm text-vigno-muted">No filter categories yet.</p>}
+      <div className="space-y-3">
+        {cats?.map((cat) => (
+          <FilterCategoryCard key={cat.id} cat={cat}
+            onDelete={() => delCategory(cat.id)}
+            onAddOption={(label, reset) => addOption(cat.id, label, reset)}
+            onRemoveOption={(oid) => removeOption(cat.id, oid)} />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function FilterCategoryCard({ cat, onDelete, onAddOption, onRemoveOption }) {
+  const [label, setLabel] = useState('')
+  return (
+    <div className="bg-vigno-bg2 border border-vigno-line/50 rounded-lg p-4">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-sm font-bold text-vigno-txt">{cat.name}</h3>
+        <button onClick={onDelete} className="text-red-400 hover:text-red-300 text-xs font-semibold">Delete category</button>
+      </div>
+      <div className="flex flex-wrap gap-2 mb-3">
+        {cat.options.length === 0 && <span className="text-xs text-vigno-muted">No options yet — add some below.</span>}
+        {cat.options.map((o) => (
+          <span key={o.id} className="inline-flex items-center gap-1.5 bg-vigno-accent/10 border border-vigno-accent/25 text-vigno-txt text-xs px-2.5 py-1 rounded-full">
+            {o.label}
+            <button onClick={() => onRemoveOption(o.id)} className="text-vigno-muted hover:text-red-400 leading-none" title="Remove option">✕</button>
+          </span>
+        ))}
+      </div>
+      <form onSubmit={(e) => { e.preventDefault(); onAddOption(label, () => setLabel('')) }} className="flex gap-2">
+        <input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Add option…" className={inp + ' flex-1 max-w-xs'} />
+        <button className={btnCls.ghost}>Add option</button>
+      </form>
     </div>
   )
 }
@@ -845,6 +935,7 @@ const GROUPS = [
     title: 'Content CMS',
     items: [
       { key: 'manage-courses',  label: 'Manage Courses',  icon: <CoursesTabIcon /> },
+      { key: 'filters',         label: 'Filters',         icon: <FilterTabIcon /> },
       { key: 'users',           label: 'Manage Users',    icon: <UsersTabIcon /> },
     ]
   },
@@ -945,6 +1036,7 @@ export default function AdminDashboard() {
 
         {tab === 'overview'       && <div className="mb-6"><Overview /></div>}
         {tab === 'manage-courses' && <Panel title="Manage Courses — Create, Edit, Resources & CMS" icon={<CoursesTabIcon />}><ManageCoursesPanel /></Panel>}
+        {tab === 'filters'        && <Panel title="Filters — Classify Courses" icon={<FilterTabIcon />}><FiltersPanel /></Panel>}
         {tab === 'users'          && <Panel title="Manage Users" icon={<UsersTabIcon />}><UsersPanel /></Panel>}
         {tab === 'reports'        && <Panel title="Reports & Export" icon={<ReportsIcon />}><ReportsPanel /></Panel>}
         {tab === 'commerce'       && <Panel title="Coupons & Refunds" icon={<CommerceIcon />}><CommercePanel /></Panel>}
@@ -967,6 +1059,7 @@ function LicenseTabIcon() { return <svg width="14" height="14" viewBox="0 0 24 2
 function SettingsIcon()   { return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93A10 10 0 1 0 4.93 19.07 10 10 0 0 0 19.07 4.93z"/></svg> }
 function AuditIcon()      { return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg> }
 function BellTabIcon()    { return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg> }
+function FilterTabIcon()  { return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg> }
 
 function UsersIcon()   { return <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> }
 function ContentIcon() { return <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg> }

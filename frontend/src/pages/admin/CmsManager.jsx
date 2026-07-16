@@ -96,6 +96,63 @@ function CheckIcon({ className = "w-4 h-4" }) {
 }
 
 // ── Course Selector Grid ──────────────────────────────────────────────────────
+// Assign a course to filter options (per dynamic category), with inline option
+// creation so admins can add new filters right here during course creation.
+function CourseFilterPicker({ selected = [], onChange }) {
+  const qc = useQueryClient()
+  const { data: cats } = useQuery({ queryKey: ['admin', 'filters'], queryFn: adminApi.listFilters })
+  const [addingTo, setAddingTo] = useState(null)
+  const [newOpt, setNewOpt] = useState('')
+
+  const toggle = (id) => onChange(selected.includes(id) ? selected.filter((x) => x !== id) : [...selected, id])
+  const addOption = async (catId) => {
+    if (!newOpt.trim()) return
+    try {
+      const updated = await adminApi.addFilterOption(catId, newOpt.trim())
+      setNewOpt(''); setAddingTo(null)
+      qc.invalidateQueries({ queryKey: ['admin', 'filters'] })
+      const newest = updated.options[updated.options.length - 1]
+      if (newest) onChange([...selected, newest.id]) // auto-select what you just created
+    } catch { /* ignore */ }
+  }
+
+  if (!cats) return null
+  if (cats.length === 0) return <p className="text-xs text-vigno-muted">No filters yet — create categories in Admin → Filters.</p>
+
+  return (
+    <div className="space-y-3">
+      {cats.map((cat) => (
+        <div key={cat.id}>
+          <div className="text-[10px] font-bold text-vigno-muted uppercase tracking-wider mb-1.5">{cat.name}</div>
+          <div className="flex flex-wrap gap-1.5 items-center">
+            {cat.options.map((o) => {
+              const on = selected.includes(o.id)
+              return (
+                <button type="button" key={o.id} onClick={() => toggle(o.id)}
+                  className={'text-xs px-2.5 py-1 rounded-full border transition-all ' + (on ? 'bg-vigno-accent text-vigno-bg1 border-vigno-accent font-semibold' : 'bg-vigno-bg2/60 border-vigno-line/60 text-vigno-muted hover:text-vigno-txt')}>
+                  {o.label}
+                </button>
+              )
+            })}
+            {addingTo === cat.id ? (
+              <span className="inline-flex gap-1 items-center">
+                <input autoFocus value={newOpt} onChange={(e) => setNewOpt(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addOption(cat.id) } }}
+                  placeholder="New option" className="text-xs px-2 py-1 rounded-full bg-vigno-bg2 border border-vigno-line/60 w-28 outline-none text-vigno-txt" />
+                <button type="button" onClick={() => addOption(cat.id)} className="text-xs text-vigno-accent font-bold">Add</button>
+                <button type="button" onClick={() => { setAddingTo(null); setNewOpt('') }} className="text-xs text-vigno-muted">✕</button>
+              </span>
+            ) : (
+              <button type="button" onClick={() => { setAddingTo(cat.id); setNewOpt('') }}
+                className="text-xs px-2 py-1 rounded-full border border-dashed border-vigno-line text-vigno-muted hover:text-vigno-accent">+ New</button>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 function CourseList({ onSelect, isDark }) {
   const qc = useQueryClient()
   const { data: courses, isLoading, isError } = useQuery({
@@ -105,6 +162,7 @@ function CourseList({ onSelect, isDark }) {
   const [newCourseName, setNewCourseName] = useState('')
   const [newInstructor, setNewInstructor] = useState('')
   const [newTags, setNewTags] = useState('')
+  const [newFilters, setNewFilters] = useState([])
   const [adding, setAdding] = useState(false)
   const [error, setError] = useState('')
 
@@ -122,11 +180,13 @@ function CourseList({ onSelect, isDark }) {
         meta: {
           instructor: newInstructor.trim(),
           tags: tagsArr,
+          filters: newFilters,
         }
       })
       setNewCourseName('')
       setNewInstructor('')
       setNewTags('')
+      setNewFilters([])
       qc.invalidateQueries({ queryKey: ['admin', 'nodes', 'courses'] })
       qc.invalidateQueries({ queryKey: ['classes'] })
     } catch (err) {
@@ -137,13 +197,28 @@ function CourseList({ onSelect, isDark }) {
   }
 
   const handleDeleteCourse = async (id, name) => {
-    if (!window.confirm(`Are you absolutely sure you want to delete "${name}"? This will delete all subjects, modules, chapters, and files inside it!`)) return
+    if (!window.confirm(`Are you absolutely sure you want to delete "${name}"? This will delete all submodules, sections, content, and files inside it!`)) return
     try {
       await adminApi.deleteNode(id)
       qc.invalidateQueries({ queryKey: ['admin', 'nodes', 'courses'] })
       qc.invalidateQueries({ queryKey: ['classes'] })
     } catch (err) {
       alert(apiErrorMessage(err, 'Failed to delete course'))
+    }
+  }
+
+  const handleMoveCourse = async (idx, dir) => {
+    if (!courses) return
+    const targetIdx = idx + dir
+    if (targetIdx < 0 || targetIdx >= courses.length) return
+    const ids = courses.map((c) => c._id)
+    ;[ids[idx], ids[targetIdx]] = [ids[targetIdx], ids[idx]]
+    try {
+      await adminApi.reorderNodes(ids)
+      qc.invalidateQueries({ queryKey: ['admin', 'nodes', 'courses'] })
+      qc.invalidateQueries({ queryKey: ['classes'] })
+    } catch (err) {
+      alert(apiErrorMessage(err, 'Failed to reorder courses'))
     }
   }
 
@@ -208,6 +283,10 @@ function CourseList({ onSelect, isDark }) {
             )}
           </button>
         </form>
+        <div className="mt-4 pt-4 border-t border-vigno-line/40">
+          <div className="text-[10px] font-bold text-vigno-muted uppercase tracking-wider mb-2">Categorize — used by the catalog filters (Content Type, Training Program…)</div>
+          <CourseFilterPicker selected={newFilters} onChange={setNewFilters} />
+        </div>
       </div>
 
       {error && <p className="text-xs text-red-300 bg-red-500/10 border border-red-500/20 px-3 py-2 rounded-lg">{error}</p>}
@@ -218,72 +297,175 @@ function CourseList({ onSelect, isDark }) {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {courses?.map((course) => (
-            <div
+          {courses?.map((course, idx) => (
+            <CourseCard
               key={course._id}
-              className="bg-vigno-card border border-vigno-line/50 rounded-2xl p-5 flex flex-col justify-between space-y-4 hover:border-vigno-accent/40 hover:-translate-y-1 transition-all duration-300 shadow-sm hover:shadow-md group"
-            >
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="w-7 h-7 rounded-lg bg-vigno-accent/10 flex items-center justify-center text-vigno-accent border border-vigno-accent/20 transition-colors group-hover:bg-vigno-accent/15">
-                    <CourseIcon className="w-3.5 h-3.5" />
-                  </div>
-                  <button
-                    onClick={() => handleDeleteCourse(course._id, course.name)}
-                    className="w-7 h-7 flex items-center justify-center rounded-lg bg-red-500/10 border border-red-500/20 hover:bg-red-500 hover:text-white hover:border-red-500 active:scale-95 transition-all"
-                    title="Delete Course"
-                  >
-                    <TrashIcon className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-                
-                <div className="space-y-1">
-                  <h3 className="font-extrabold text-sm text-vigno-txt leading-snug group-hover:text-vigno-accent transition-colors truncate" title={course.name}>
-                    {course.name}
-                  </h3>
-                  {course.meta?.instructor ? (
-                    <div className="flex items-center gap-1.5 text-xs text-vigno-muted">
-                      <svg className="w-3.5 h-3.5 shrink-0 text-vigno-muted/70" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
-                      </svg>
-                      <span className="truncate">By {course.meta.instructor}</span>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-1.5 text-xs text-vigno-muted">
-                      <svg className="w-3.5 h-3.5 shrink-0 text-vigno-muted/70" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
-                      </svg>
-                      <span className="truncate">AeroLearn Expert</span>
-                    </div>
-                  )}
-                </div>
-
-                {course.meta?.tags && course.meta.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-1 pt-1">
-                    {course.meta.tags.map((tag, tIdx) => (
-                      <span key={tIdx} className="text-[9px] font-extrabold tracking-wider px-2 py-0.5 rounded-md uppercase border border-vigno-line/40 text-vigno-muted bg-white/5">
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <div className="pt-3 border-t border-vigno-line/20">
-                <button
-                  onClick={() => onSelect(course)}
-                  className="w-full flex items-center justify-center gap-1.5 text-center text-xs font-extrabold bg-vigno-accent text-vigno-accent-txt rounded-xl py-2.5 hover:brightness-105 active:scale-[0.98] transition-all shadow-sm"
-                >
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" />
-                  </svg>
-                  Edit Curriculum
-                </button>
-              </div>
-            </div>
+              course={course}
+              onSelect={onSelect}
+              onDeleteCourse={handleDeleteCourse}
+              onMoveCourse={(dir) => handleMoveCourse(idx, dir)}
+              isFirst={idx === 0}
+              isLast={idx === (courses?.length || 0) - 1}
+            />
           ))}
         </div>
       )}
+    </div>
+  )
+}
+
+// ── Individual Course Card (name is editable inline) ──────────────────────────
+function CourseCard({ course, onSelect, onDeleteCourse, onMoveCourse, isFirst, isLast }) {
+  const qc = useQueryClient()
+  const [renaming, setRenaming] = useState(false)
+  const [newName, setNewName] = useState(course.name)
+  const [saving, setSaving] = useState(false)
+
+  const startRename = () => {
+    setNewName(course.name)
+    setRenaming(true)
+  }
+
+  const cancelRename = () => {
+    setNewName(course.name)
+    setRenaming(false)
+  }
+
+  const handleRename = async (e) => {
+    e.preventDefault()
+    const trimmed = newName.trim()
+    if (!trimmed || trimmed === course.name) return cancelRename()
+    setSaving(true)
+    try {
+      await adminApi.updateNode(course._id, { name: trimmed })
+      course.name = trimmed
+      setRenaming(false)
+      qc.invalidateQueries({ queryKey: ['admin', 'nodes', 'courses'] })
+      qc.invalidateQueries({ queryKey: ['classes'] })
+    } catch (err) {
+      alert(apiErrorMessage(err, 'Failed to rename course'))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="bg-vigno-card border border-vigno-line/50 rounded-2xl p-5 flex flex-col justify-between space-y-4 hover:border-vigno-accent/40 hover:-translate-y-1 transition-all duration-300 shadow-sm hover:shadow-md group">
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="w-7 h-7 rounded-lg bg-vigno-accent/10 flex items-center justify-center text-vigno-accent border border-vigno-accent/20 transition-colors group-hover:bg-vigno-accent/15">
+            <CourseIcon className="w-3.5 h-3.5" />
+          </div>
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => onMoveCourse?.(-1)}
+              disabled={isFirst}
+              className="w-7 h-7 flex items-center justify-center rounded-lg bg-vigno-bg2/60 border border-vigno-line/50 text-vigno-muted hover:bg-vigno-accent/10 hover:text-vigno-accent hover:border-vigno-accent/30 active:scale-95 transition-all disabled:opacity-30 disabled:pointer-events-none"
+              title="Move Up"
+            >
+              <ArrowUpIcon className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={() => onMoveCourse?.(1)}
+              disabled={isLast}
+              className="w-7 h-7 flex items-center justify-center rounded-lg bg-vigno-bg2/60 border border-vigno-line/50 text-vigno-muted hover:bg-vigno-accent/10 hover:text-vigno-accent hover:border-vigno-accent/30 active:scale-95 transition-all disabled:opacity-30 disabled:pointer-events-none"
+              title="Move Down"
+            >
+              <ArrowDownIcon className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={startRename}
+              className="w-7 h-7 flex items-center justify-center rounded-lg bg-vigno-accent/10 border border-vigno-accent/20 text-vigno-accent hover:bg-vigno-accent hover:text-vigno-accent-txt active:scale-95 transition-all"
+              title="Rename Course"
+            >
+              <EditIcon className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={() => onDeleteCourse(course._id, course.name)}
+              className="w-7 h-7 flex items-center justify-center rounded-lg bg-red-500/10 border border-red-500/20 hover:bg-red-500 hover:text-white hover:border-red-500 active:scale-95 transition-all"
+              title="Delete Course"
+            >
+              <TrashIcon className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+
+        <div className="space-y-1">
+          {renaming ? (
+            <form onSubmit={handleRename} className="flex items-center gap-1.5">
+              <input
+                type="text"
+                autoFocus
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                onKeyDown={(e) => e.key === 'Escape' && cancelRename()}
+                className="flex-1 min-w-0 px-2.5 py-1.5 rounded-lg bg-vigno-bg2 border border-vigno-accent/50 text-sm font-extrabold text-vigno-txt outline-none"
+              />
+              <button
+                type="submit"
+                disabled={saving}
+                className="w-7 h-7 shrink-0 flex items-center justify-center rounded-lg bg-vigno-accent text-vigno-accent-txt disabled:opacity-50"
+                title="Save"
+              >
+                <CheckIcon className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={cancelRename}
+                className="text-[11px] text-vigno-muted hover:underline shrink-0"
+                title="Cancel"
+              >
+                Cancel
+              </button>
+            </form>
+          ) : (
+            <h3
+              onClick={startRename}
+              className="font-extrabold text-sm text-vigno-txt leading-snug group-hover:text-vigno-accent transition-colors truncate cursor-text"
+              title={`${course.name} (click to rename)`}
+            >
+              {course.name}
+            </h3>
+          )}
+          {course.meta?.instructor ? (
+            <div className="flex items-center gap-1.5 text-xs text-vigno-muted">
+              <svg className="w-3.5 h-3.5 shrink-0 text-vigno-muted/70" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+              </svg>
+              <span className="truncate">By {course.meta.instructor}</span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5 text-xs text-vigno-muted">
+              <svg className="w-3.5 h-3.5 shrink-0 text-vigno-muted/70" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+              </svg>
+              <span className="truncate">AeroLearn Expert</span>
+            </div>
+          )}
+        </div>
+
+        {course.meta?.tags && course.meta.tags.length > 0 && (
+          <div className="flex flex-wrap gap-1 pt-1">
+            {course.meta.tags.map((tag, tIdx) => (
+              <span key={tIdx} className="text-[9px] font-extrabold tracking-wider px-2 py-0.5 rounded-md uppercase border border-vigno-line/40 text-vigno-muted bg-white/5">
+                {tag}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="pt-3 border-t border-vigno-line/20">
+        <button
+          onClick={() => onSelect(course)}
+          className="w-full flex items-center justify-center gap-1.5 text-center text-xs font-extrabold bg-vigno-accent text-vigno-accent-txt rounded-xl py-2.5 hover:brightness-105 active:scale-[0.98] transition-all shadow-sm"
+        >
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" />
+          </svg>
+          Edit Curriculum
+        </button>
+      </div>
     </div>
   )
 }
@@ -321,14 +503,14 @@ function LessonsList({ chapterId, isDark }) {
       setTitle('')
       qc.invalidateQueries({ queryKey: ['admin', 'chapter', chapterId, 'content'] })
     } catch (err) {
-      alert(apiErrorMessage(err, 'Failed to add lesson'))
+      alert(apiErrorMessage(err, 'Failed to add content'))
     } finally {
       setAdding(false)
     }
   }
 
   const handleDeleteLesson = async (id, name) => {
-    if (!window.confirm(`Delete lesson "${name}"?`)) return
+    if (!window.confirm(`Delete content "${name}"?`)) return
     try {
       await adminApi.deleteContent(id)
       qc.invalidateQueries({ queryKey: ['admin', 'chapter', chapterId, 'content'] })
@@ -378,10 +560,10 @@ function LessonsList({ chapterId, isDark }) {
   return (
     <div className="mt-3 pl-8 border-l border-vigno-line/20 space-y-3">
       {isLoading ? (
-        <p className="text-[11px] text-vigno-muted">Loading lessons…</p>
+        <p className="text-[11px] text-vigno-muted">Loading content…</p>
       ) : (
         <div className="space-y-2">
-          {lessons?.length === 0 && <p className="text-[11px] text-vigno-muted/60">No lessons inside this chapter yet.</p>}
+          {lessons?.length === 0 && <p className="text-[11px] text-vigno-muted/60">No content uploaded yet.</p>}
           {lessons?.map((lesson, idx) => {
             const up = uploads[lesson._id]
             const isEditingMeta = metaOpenId === lesson._id
@@ -423,12 +605,12 @@ function LessonsList({ chapterId, isDark }) {
                       {lesson.published ? 'Live' : 'Draft'}
                     </button>
 
-                    {/* Hover Card Meta */}
+                    {/* Overview toggle */}
                     <button
                       onClick={() => setMetaOpenId(isEditingMeta ? null : lesson._id)}
                       className={`px-2 py-0.5 rounded font-semibold border ${isEditingMeta ? 'bg-vigno-accent/20 border-vigno-accent text-vigno-accent' : 'bg-white/5 border-vigno-line/40 text-vigno-muted hover:text-vigno-txt'}`}
                     >
-                      Details
+                      Overview
                     </button>
 
                     {/* File Upload / Status */}
@@ -465,17 +647,17 @@ function LessonsList({ chapterId, isDark }) {
                     {/* Delete */}
                     <button
                       onClick={() => handleDeleteLesson(lesson._id, lesson.title)}
-                      className="text-red-400 hover:text-red-350 p-1 transition-colors"
-                      title="Delete Lesson"
+                      className="text-red-400 hover:text-red-355 p-1 transition-colors"
+                      title="Delete Content"
                     >
                       <TrashIcon className="w-4 h-4" />
                     </button>
                   </div>
                 </div>
 
-                {/* Inline Details Editor */}
+                {/* Inline Overview Editor */}
                 {isEditingMeta && (
-                  <LessonDetailsEditor lesson={lesson} onSave={(data) => saveMeta(lesson._id, data)} />
+                  <LessonOverviewEditor lesson={lesson} onSave={(data) => saveMeta(lesson._id, data)} />
                 )}
               </div>
             )
@@ -487,7 +669,7 @@ function LessonsList({ chapterId, isDark }) {
       <form onSubmit={handleAddLesson} className="flex gap-2 flex-wrap items-center bg-black/10 p-2.5 rounded-xl border border-vigno-line/30">
         <input
           type="text"
-          placeholder="New Lesson Title…"
+          placeholder="New Content Title…"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           className="flex-1 min-w-[150px] px-2 py-1 rounded-md bg-vigno-bg2 border border-vigno-line/50 text-xs text-vigno-txt outline-none"
@@ -507,14 +689,70 @@ function LessonsList({ chapterId, isDark }) {
           disabled={adding}
           className="bg-vigno-accent text-vigno-bg1 font-extrabold px-3 py-1 rounded-md text-xs hover:brightness-110"
         >
-          Add Lesson
+          Add Content
         </button>
       </form>
     </div>
   )
 }
 
-// ── Lesson Details Editor ────────────────────────────────────────────────────
+function BookIcon({ className = "w-4 h-4" }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className}>
+      <path d="M4 4.5A1.5 1.5 0 0 1 5.5 3H12v18H5.5A1.5 1.5 0 0 1 4 19.5v-15Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+      <path d="M20 4.5A1.5 1.5 0 0 0 18.5 3H12v18h6.5a1.5 1.5 0 0 0 1.5-1.5v-15Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+// ── Lesson Overview Editor (course content only) ─────────────────────────────
+// Used for lessons that live inside a course's curriculum tree. Mirrors the
+// learner-side "Overview" tab (see CourseWorkspace.jsx) — this is the only
+// editable field here, since nothing else on the learner side surfaces a
+// per-lesson thumbnail/hover-preview for course content.
+function LessonOverviewEditor({ lesson, onSave }) {
+  const [desc, setDesc] = useState(lesson.description || '')
+  const dirty = desc !== (lesson.description || '')
+  const wordCount = desc.trim() ? desc.trim().split(/\s+/).length : 0
+
+  return (
+    <div className="bg-gradient-to-br from-vigno-accent/[0.06] to-transparent p-4 rounded-xl border border-vigno-accent/20 text-xs space-y-3">
+      <div className="flex items-center gap-2">
+        <div className="w-6 h-6 rounded-md bg-vigno-accent/15 flex items-center justify-center shrink-0">
+          <BookIcon className="w-3.5 h-3.5 text-vigno-accent" />
+        </div>
+        <div>
+          <h4 className="font-bold text-[11px] text-vigno-txt leading-none">Lesson Overview</h4>
+          <p className="text-[9.5px] text-vigno-muted mt-1">Shown on the Overview tab when a learner opens this lesson</p>
+        </div>
+      </div>
+
+      <textarea
+        rows={5}
+        value={desc}
+        onChange={(e) => setDesc(e.target.value)}
+        placeholder="What will the learner understand or be able to do after this lesson? Give context, key concepts, and how it fits into the bigger picture…"
+        className="w-full px-3 py-2.5 rounded-lg bg-vigno-bg2 border border-vigno-line/50 outline-none resize-none leading-relaxed focus:border-vigno-accent/50 transition-colors"
+      />
+
+      <div className="flex items-center justify-between pt-0.5">
+        <span className="text-[9.5px] text-vigno-muted">{wordCount} word{wordCount === 1 ? '' : 's'}</span>
+        <button
+          onClick={() => onSave({ description: desc })}
+          disabled={!dirty}
+          className="bg-vigno-accent text-vigno-bg1 font-extrabold px-3.5 py-1.5 rounded-lg text-[11px] flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed hover:brightness-110 transition-all"
+        >
+          <CheckIcon className="w-3.5 h-3.5" />
+          Save Overview
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ── Standalone Resource Details Editor ───────────────────────────────────────
+// Used only for standalone (non-course) resources in the catalogue, which
+// have their own hover-card preview and thumbnail on the learner side.
 function LessonDetailsEditor({ lesson, onSave }) {
   const [desc, setDesc] = useState(lesson.description || '')
   const [previewText, setPreviewText] = useState(lesson.previewText || '')
@@ -619,6 +857,13 @@ function LessonDetailsEditor({ lesson, onSave }) {
 }
 
 // ── Recursive Syllabus Nodes ──────────────────────────────────────────────────
+const getDisplayKindName = (kind) => {
+  if (kind === 'subject') return 'submodule'
+  if (kind === 'module') return 'section'
+  if (kind === 'chapter') return 'content'
+  return kind
+}
+
 function SyllabusNode({ node, depth, onNodeModified, isDark }) {
   const qc = useQueryClient()
   const [expanded, setExpanded] = useState(false)
@@ -649,7 +894,7 @@ function SyllabusNode({ node, depth, onNodeModified, isDark }) {
   }
 
   const handleDelete = async () => {
-    if (!window.confirm(`Delete this ${node.kind} "${node.name}" and all children inside?`)) return
+    if (!window.confirm(`Delete this ${getDisplayKindName(node.kind)} "${node.name}" and all children inside?`)) return
     try {
       await adminApi.deleteNode(node._id)
       onNodeModified?.()
@@ -742,7 +987,7 @@ function SyllabusNode({ node, depth, onNodeModified, isDark }) {
           )}
 
           <span className={`text-[9px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full ${styles.badge}`}>
-            {node.kind}
+            {getDisplayKindName(node.kind)}
           </span>
         </div>
 
@@ -768,7 +1013,7 @@ function SyllabusNode({ node, depth, onNodeModified, isDark }) {
         <div className="pl-6 border-l border-vigno-line/20 space-y-3 pt-1">
           {isLoading && <p className="text-xs text-vigno-muted">Loading children…</p>}
           {!isLoading && children?.length === 0 && (
-            <p className="text-xs text-vigno-muted/50">No {childKind}s added under this {node.kind} yet.</p>
+            <p className="text-xs text-vigno-muted/50">No {getDisplayKindName(childKind)}s added under this {getDisplayKindName(node.kind)} yet.</p>
           )}
           {!isLoading && children?.map((child) => (
             <SyllabusNode
@@ -795,7 +1040,7 @@ function SyllabusNode({ node, depth, onNodeModified, isDark }) {
               <input
                 type="text"
                 autoFocus
-                placeholder={`Name of new ${childKind}…`}
+                placeholder={`Name of new ${getDisplayKindName(childKind)}…`}
                 value={newChildName}
                 onChange={(e) => setNewChildName(e.target.value)}
                 className="px-2.5 py-1 rounded-md bg-vigno-bg2 border border-vigno-line/50 text-xs outline-none text-vigno-txt"
@@ -808,7 +1053,7 @@ function SyllabusNode({ node, depth, onNodeModified, isDark }) {
               onClick={() => setAddingChild(true)}
               className="text-xs text-vigno-accent2 hover:underline font-bold"
             >
-              + Add {childKind}
+              + Add {getDisplayKindName(childKind)}
             </button>
           )}
         </div>
@@ -832,6 +1077,7 @@ function CurriculumBuilder({ course, onBack, isDark }) {
   const [tagsText, setTagsText] = useState(
     Array.isArray(course.meta?.tags) ? course.meta.tags.join(', ') : (course.meta?.tags || '')
   )
+  const [category, setCategory] = useState(course.meta?.category || '')
   const [thumbnail, setThumbnail] = useState(course.meta?.thumbnail || '')
   const [thumbnailUploading, setThumbnailUploading] = useState(false)
   const [thumbnailError, setThumbnailError] = useState('')
@@ -844,6 +1090,7 @@ function CurriculumBuilder({ course, onBack, isDark }) {
   const [targetAudienceText, setTargetAudienceText] = useState(
     Array.isArray(course.meta?.targetAudience) ? course.meta.targetAudience.join('\n') : (course.meta?.targetAudience || '')
   )
+  const [filterSel, setFilterSel] = useState(Array.isArray(course.meta?.filters) ? course.meta.filters : [])
   const [savingSettings, setSavingSettings] = useState(false)
   const [settingsMsg, setSettingsMsg] = useState(null)
 
@@ -865,7 +1112,7 @@ function CurriculumBuilder({ course, onBack, isDark }) {
       setAddingSubject(false)
       qc.invalidateQueries({ queryKey: ['admin', 'nodes', course._id, 'subjects'] })
     } catch (err) {
-      alert(apiErrorMessage(err, 'Failed to add subject'))
+      alert(apiErrorMessage(err, 'Failed to add submodule'))
     }
   }
 
@@ -902,6 +1149,8 @@ function CurriculumBuilder({ course, onBack, isDark }) {
         instructor: instructor.trim(),
         price: Number(price) || 0,
         tags: parsedTags,
+        filters: filterSel,
+        category: category.trim(),
         thumbnail: thumbnail.trim(),
       }
       await adminApi.updateNode(course._id, { meta: updatedMeta })
@@ -959,7 +1208,7 @@ function CurriculumBuilder({ course, onBack, isDark }) {
             ) : (
               <div className="space-y-4">
                 {subjects?.length === 0 && (
-                  <p className="text-sm text-vigno-muted">This course syllabus is empty. Add a subject below to begin.</p>
+                  <p className="text-sm text-vigno-muted">This course syllabus is empty. Add a submodule below to begin.</p>
                 )}
                 {subjects?.map((sub) => (
                   <SyllabusNode
@@ -1005,7 +1254,7 @@ function CurriculumBuilder({ course, onBack, isDark }) {
                 onClick={() => setAddingSubject(true)}
                 className="bg-vigno-accent text-vigno-bg1 font-bold px-4 py-2.5 rounded-xl text-xs hover:brightness-110 transition-all"
               >
-                + Add New Subject
+                + Add New Submodule
               </button>
             )}
           </div>
@@ -1110,6 +1359,23 @@ function CurriculumBuilder({ course, onBack, isDark }) {
                 className="w-full px-3 py-2 rounded-lg bg-vigno-bg2 border border-vigno-line/60 text-sm outline-none text-vigno-txt"
               />
             </div>
+
+            <div className="space-y-1">
+              <label className="text-xs text-vigno-muted font-bold block">Category</label>
+              <input
+                type="text"
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                placeholder="e.g. Aviation, Engineering, Medical"
+                className="w-full px-3 py-2 rounded-lg bg-vigno-bg2 border border-vigno-line/60 text-sm outline-none text-vigno-txt"
+              />
+              <p className="text-[10px] text-vigno-muted/60">Used to group courses by domain. Learners can filter by this category on the home page.</p>
+            </div>
+          </div>
+
+          <div className="space-y-2 pt-1">
+            <label className="text-xs text-vigno-muted font-bold block">Catalog Filters — how users find this course (Content Type, Training Program…)</label>
+            <CourseFilterPicker selected={filterSel} onChange={setFilterSel} />
           </div>
 
           <div className="space-y-1">
