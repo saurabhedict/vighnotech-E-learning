@@ -13,7 +13,10 @@ export const LANES = { STREAM: 'stream', DOWNLOAD: 'download' }
 export const CONTENT_LANES = Object.values(LANES)
 
 // Content/file types (must match the secure viewers in the web app).
-export const CONTENT_TYPES = ['pdf', 'video', '3d', 'game']
+//   - game → downloadable PC software (.zip), runs via the desktop launcher
+//   - apk  → downloadable Android app (.apk) for tablets/phones
+// Both are "download lane": encrypted at rest + device-locked via LicenseGuard.
+export const CONTENT_TYPES = ['pdf', 'video', '3d', 'game', 'apk']
 
 // License lifecycle states (stored on the License document).
 export const LICENSE_STATUS = ['active', 'revoked', 'expired']
@@ -33,7 +36,11 @@ export const LICENSE_CLAIMS = {
   device: 'dev', // bound device (download lane)
 }
 
-// Default lane for a content type (games are downloadable software).
+// Downloadable software types use the download lane (encrypted + launcher/
+// LicenseGuard); everything else streams in-browser via signed URLs.
+export const DOWNLOAD_LANE_TYPES = ['game', 'apk']
+
+// Default lane for a content type (downloadable software → download lane).
 export function defaultLaneForType(type) {
-  return type === 'game' ? LANES.DOWNLOAD : LANES.STREAM
+  return DOWNLOAD_LANE_TYPES.includes(type) ? LANES.DOWNLOAD : LANES.STREAM
 }

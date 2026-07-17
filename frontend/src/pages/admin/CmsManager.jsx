@@ -39,6 +39,13 @@ function LessonIcon({ type, className = "w-4 h-4" }) {
       </svg>
     )
   }
+  if (type === 'apk') {
+    return (
+      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9 4.5h6a1.5 1.5 0 011.5 1.5v12a1.5 1.5 0 01-1.5 1.5H9A1.5 1.5 0 017.5 18V6A1.5 1.5 0 019 4.5zm2 13.5h2" />
+      </svg>
+    )
+  }
   // Fallback (Interactive game or standard resource)
   return (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
@@ -683,6 +690,7 @@ function LessonsList({ chapterId, isDark }) {
           <option value="pdf">PDF</option>
           <option value="3d">3D Model</option>
           <option value="game">Interactive Game</option>
+          <option value="apk">Android App (APK)</option>
         </select>
         <button
           type="submit"
@@ -1515,6 +1523,7 @@ function StandaloneResourcesManager({ isDark }) {
     if (type === 'pdf') return 'PDF'
     if (type === '3d') return '3D Model / Animation'
     if (type === 'game') return 'Interactive Game'
+    if (type === 'apk') return 'Android App (APK)'
     return type
   }
 
@@ -1557,6 +1566,7 @@ function StandaloneResourcesManager({ isDark }) {
               <option value="pdf">PDF</option>
               <option value="3d">3D Model / Animation</option>
               <option value="game">Interactive Game</option>
+              <option value="apk">Android App (APK)</option>
             </select>
           </div>
           <div className="flex flex-col gap-1 w-full">

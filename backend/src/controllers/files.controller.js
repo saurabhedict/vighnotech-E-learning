@@ -32,6 +32,7 @@ const MIME = {
   '.m3u8': 'application/vnd.apple.mpegurl',
   '.ts': 'video/mp2t',
   '.glb': 'model/gltf-binary',
+  '.apk': 'application/vnd.android.package-archive',
   '.bin': 'application/octet-stream',
 }
 const mimeFor = (key) => MIME[(key.match(/\.[a-z0-9]+$/i) || ['.bin'])[0].toLowerCase()] || 'application/octet-stream'

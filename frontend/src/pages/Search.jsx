@@ -7,7 +7,7 @@ import CourseCard from '../components/CourseCard'
 import Breadcrumb from '../components/Breadcrumb'
 import SmartSearchBar from '../components/SmartSearchBar'
 
-const TYPES = ['', 'pdf', 'video', '3d', 'game']
+const TYPES = ['', 'pdf', 'video', '3d', 'game', 'apk']
 
 export default function Search() {
   const [params, setParams] = useSearchParams()

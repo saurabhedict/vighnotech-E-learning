@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { CONTENT_TYPES } from '@vigno/shared'
 import { asyncHandler } from '../utils/asyncHandler.js'
 import { Favorite } from '../models/Favorite.js'
 import { Progress } from '../models/Progress.js'
@@ -101,7 +102,7 @@ export const myFavorites = asyncHandler(async (req, res) => {
 // ── Search ───────────────────────────────────────────────────────────────────
 export const searchSchema = z.object({
   q: z.string().trim().max(100).optional(),
-  type: z.enum(['pdf', 'video', '3d', 'game']).optional(),
+  type: z.enum(CONTENT_TYPES).optional(),
   tag: z.string().trim().max(50).optional(),
 })
 

@@ -6,7 +6,7 @@ import { licenseApi } from '../api/licenseApi'
 import FavoriteButton from './FavoriteButton'
 import UdemyHoverPopover from './UdemyHoverPopover'
 
-const TYPE_LABEL = { pdf: 'PDF', video: 'Video', game: 'Simulator', '3d': '3D Model' }
+const TYPE_LABEL = { pdf: 'PDF', video: 'Video', game: 'Simulator', '3d': '3D Model', apk: 'Android App' }
 
 function LessonIcon({ type, className = "w-10 h-10" }) {
   if (type === 'video') {
@@ -28,6 +28,13 @@ function LessonIcon({ type, className = "w-10 h-10" }) {
     return (
       <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
         <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+      </svg>
+    )
+  }
+  if (type === 'apk') {
+    return (
+      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9 4.5h6a1.5 1.5 0 011.5 1.5v12a1.5 1.5 0 01-1.5 1.5H9A1.5 1.5 0 017.5 18V6A1.5 1.5 0 019 4.5zm2 13.5h2" />
       </svg>
     )
   }
@@ -104,6 +111,7 @@ export default function ContentCard({ item, disablePopover = false }) {
     pdf: 'from-teal-600 to-green-850',
     '3d': 'from-purple-600 to-indigo-950',
     game: 'from-rose-600 to-pink-850',
+    apk: 'from-emerald-600 to-green-850',
   }[item.type] || 'from-slate-600 to-slate-850'
 
   const isPlayableResource = !item.courseKey && item.type !== 'pdf'
@@ -173,7 +181,8 @@ export default function ContentCard({ item, disablePopover = false }) {
                     video: 'bg-blue-50 text-blue-600 border-blue-200/60 dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/20',
                     pdf: 'bg-emerald-50 text-emerald-600 border-emerald-200/60 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20',
                     '3d': 'bg-purple-50 text-purple-600 border-purple-200/60 dark:bg-purple-500/10 dark:text-purple-400 dark:border-purple-500/20',
-                    game: 'bg-rose-50 text-rose-600 border-rose-200/60 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/20'
+                    game: 'bg-rose-50 text-rose-600 border-rose-200/60 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/20',
+                    apk: 'bg-green-50 text-green-600 border-green-200/60 dark:bg-green-500/10 dark:text-green-400 dark:border-green-500/20'
                   }[item.type] || 'bg-slate-50 text-slate-600 border-slate-200/60 dark:bg-slate-500/10 dark:text-slate-400 dark:border-slate-500/20'
                 }`}>
                   {TYPE_LABEL[item.type] || item.type}

@@ -64,7 +64,7 @@ export default function ContentViewer() {
 
   if (showLanding) {
     const displayName = item.title
-    const resourceTypeLabel = { pdf: 'PDF', video: 'Video', game: 'Simulator', '3d': '3D Model' }[item.type] || item.type
+    const resourceTypeLabel = { pdf: 'PDF', video: 'Video', game: 'Simulator', '3d': '3D Model', apk: 'Android App' }[item.type] || item.type
 
     return (
       <div className="space-y-8 pb-16">
@@ -239,13 +239,19 @@ export default function ContentViewer() {
           </div>
         )}
 
-        {/* Download lane (software/games) → launcher */}
+        {/* Download lane (software / Android apps) → secure launcher */}
         {!item.locked && item.requiresLauncher && (
           <div className="py-10 flex flex-col items-center justify-center text-vigno-muted text-center gap-4">
-            <div className="text-5xl">🎮</div>
+            <div className="text-5xl">{item.type === 'apk' ? '📱' : '🎮'}</div>
             <div className="max-w-md">
-              You own this. Download &amp; run it through the secure desktop launcher — the
-              license + device binding are verified before it decrypts.
+              {item.type === 'apk' ? (
+                <>You own this Android app. It’s stored <b>encrypted</b> and locked to your
+                registered device — the embedded <b>LicenseGuard</b> verifies your license before
+                it runs.</>
+              ) : (
+                <>You own this. Download &amp; run it through the secure desktop launcher — the
+                license + device binding are verified before it decrypts.</>
+              )}
             </div>
             {launcherDownloadUrl ? (
               <div className="flex flex-col items-center gap-1.5">
@@ -255,15 +261,23 @@ export default function ContentViewer() {
                   rel="noopener noreferrer"
                   className="bg-vigno-accent text-[#1a0d0f] font-bold px-5 py-2.5 rounded-lg text-sm hover:brightness-110 inline-flex items-center gap-2"
                 >
-                  ⬇ Install the Launcher{launcher.version ? ` (v${launcher.version})` : ''}
+                  ⬇ {item.type === 'apk' ? 'Get the Vigno Android App' : `Install the Launcher${launcher.version ? ` (v${launcher.version})` : ''}`}
                 </a>
                 <span className="text-xs text-vigno-muted">
-                  Already installed? Open <b>Vigno Launcher</b> and sign in to download this title.
+                  {item.type === 'apk' ? (
+                    <>Install the Vigno app on your registered Android device and sign in to download this title.</>
+                  ) : (
+                    <>Already installed? Open <b>Vigno Launcher</b> and sign in to download this title.</>
+                  )}
                 </span>
               </div>
             ) : (
               <span className="text-xs text-vigno-muted">
-                The launcher download isn’t set up yet — an admin can add it under <b>Admin → Site Settings → Desktop Launcher</b>.
+                {item.type === 'apk' ? (
+                  <>The Android app delivery isn’t set up yet — an admin can add it under <b>Admin → Site Settings</b>.</>
+                ) : (
+                  <>The launcher download isn’t set up yet — an admin can add it under <b>Admin → Site Settings → Desktop Launcher</b>.</>
+                )}
               </span>
             )}
           </div>
@@ -283,6 +297,12 @@ export default function ContentViewer() {
               <div className="h-72 flex flex-col items-center justify-center text-vigno-muted text-center">
                 <div className="text-5xl mb-2">🎮</div>
                 <div>Simulation launches via the secure desktop launcher.</div>
+              </div>
+            )}
+            {item.type === 'apk' && (
+              <div className="h-72 flex flex-col items-center justify-center text-vigno-muted text-center">
+                <div className="text-5xl mb-2">📱</div>
+                <div>Install this app on your registered Android device via the Vigno app.</div>
               </div>
             )}
           </Suspense>

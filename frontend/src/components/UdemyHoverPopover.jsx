@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom'
 import FavoriteButton from './FavoriteButton'
 import { addCartItem, removeCartItem } from '../store/cartSlice'
 
-const TYPE_LABEL = { pdf: 'PDF', video: 'Video', game: 'Simulator', '3d': '3D Model' }
+const TYPE_LABEL = { pdf: 'PDF', video: 'Video', game: 'Simulator', '3d': '3D Model', apk: 'Android App' }
 
 export default function UdemyHoverPopover({
   title,
@@ -115,6 +115,12 @@ export default function UdemyHoverPopover({
             'Understand spatial relationships and system configurations.',
             'Deepen visual memory of cockpit components.',
           ]
+        } else if (type === 'apk') {
+          outcomes = [
+            'Native Android app for tablets and phones.',
+            'Delivered encrypted and locked to your registered device.',
+            'Built-in LicenseGuard verifies your license at runtime.',
+          ]
         } else {
           outcomes = [
             'Interactive pilot training simulator modules.',
@@ -218,7 +224,8 @@ export default function UdemyHoverPopover({
                   video: 'bg-blue-50 text-blue-600 border-blue-200/60 dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/20',
                   pdf: 'bg-emerald-50 text-emerald-600 border-emerald-200/60 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20',
                   '3d': 'bg-purple-50 text-purple-600 border-purple-200/60 dark:bg-purple-500/10 dark:text-purple-400 dark:border-purple-500/20',
-                  game: 'bg-rose-50 text-rose-600 border-rose-200/60 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/20'
+                  game: 'bg-rose-50 text-rose-600 border-rose-200/60 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/20',
+                  apk: 'bg-green-50 text-green-600 border-green-200/60 dark:bg-green-500/10 dark:text-green-400 dark:border-green-500/20'
                 }[type] || 'bg-slate-50 text-slate-600 border-slate-200/60 dark:bg-slate-500/10 dark:text-slate-400 dark:border-slate-500/20'
               }`}>
                 {TYPE_LABEL[type] || type}

@@ -36,6 +36,7 @@ function lessonMeta(item = {}) {
     return { label: 'Reading', detail: `${pages} pages`, icon: 'file' }
   }
   if (item.type === '3d') return { label: '3D lab', detail: 'Interactive', icon: 'cube' }
+  if (item.type === 'apk') return { label: 'Android App', detail: 'Install', icon: 'play' }
   return { label: 'Simulator', detail: 'Practice', icon: 'play' }
 }
 
@@ -176,9 +177,9 @@ function ResourceStage({ item, content, isLoading, watermark, onProgress, launch
             <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-700 text-white flex items-center justify-center shadow-[0_0_40px_rgba(59,130,246,0.5)] mb-6 transform hover:scale-110 transition-transform duration-300">
               <Icon name="play" className="w-10 h-10 fill-current ml-1" />
             </div>
-            <p className="text-[10px] font-black uppercase tracking-[0.3em] text-blue-400 mb-3 drop-shadow-md">Simulator</p>
+            <p className="text-[10px] font-black uppercase tracking-[0.3em] text-blue-400 mb-3 drop-shadow-md">{active.type === 'apk' ? 'Android App' : 'Simulator'}</p>
             <h2 className="text-4xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white to-white/70 tracking-tight drop-shadow-sm">{active.title}</h2>
-            <p className="text-sm font-medium text-white/60 mt-4 mb-8 max-w-lg leading-relaxed">This immersive simulator runs securely via the AeroLearn desktop launcher. Simply select this module to begin.</p>
+            <p className="text-sm font-medium text-white/60 mt-4 mb-8 max-w-lg leading-relaxed">{active.type === 'apk' ? 'This Android app is delivered securely and locked to your registered device — the embedded LicenseGuard verifies your license before it runs.' : 'This immersive simulator runs securely via the AeroLearn desktop launcher. Simply select this module to begin.'}</p>
             <LauncherPrompt active={active} launcherDownloadUrl={launcherDownloadUrl} launcherVersion={launcherVersion} onHelp={() => onLauncherHelp(active)} />
           </div>
         </div>

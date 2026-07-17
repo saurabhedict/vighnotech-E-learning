@@ -32,6 +32,7 @@ const MIME = {
   '.m3u8': 'application/vnd.apple.mpegurl',
   '.ts': 'video/mp2t',
   '.glb': 'model/gltf-binary',
+  '.apk': 'application/vnd.android.package-archive',
 }
 const mimeFor = (key) => MIME[path.extname(key).toLowerCase()] || 'application/octet-stream'
 

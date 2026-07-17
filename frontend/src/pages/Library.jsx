@@ -116,6 +116,13 @@ function LessonIcon({ type, className = "w-5 h-5 text-vigno-accent2" }) {
       </svg>
     )
   }
+  if (type === 'apk') {
+    return (
+      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9 4.5h6a1.5 1.5 0 011.5 1.5v12a1.5 1.5 0 01-1.5 1.5H9A1.5 1.5 0 017.5 18V6A1.5 1.5 0 019 4.5zm2 13.5h2" />
+      </svg>
+    )
+  }
   return (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
       <path strokeLinecap="round" strokeLinejoin="round" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
@@ -166,6 +173,7 @@ const RESOURCE_DECOR = {
   pdf: { gradient: 'from-teal-600 to-green-850', icon: (props) => <LessonIcon type="pdf" {...props} /> },
   '3d': { gradient: 'from-purple-600 to-indigo-950', icon: (props) => <LessonIcon type="3d" {...props} /> },
   game: { gradient: 'from-rose-600 to-pink-850', icon: (props) => <LessonIcon type="game" {...props} /> },
+  apk: { gradient: 'from-emerald-600 to-green-850', icon: (props) => <LessonIcon type="apk" {...props} /> },
   default: { gradient: 'from-slate-600 to-slate-850', icon: (props) => <LessonIcon {...props} /> },
 }
 
@@ -174,6 +182,7 @@ const RESOURCE_META = {
   pdf: { rating: '4.6', reviews: '8,210' },
   '3d': { rating: '4.8', reviews: '3,150' },
   game: { rating: '4.7', reviews: '6,900' },
+  apk: { rating: '4.7', reviews: '5,400' },
   default: { rating: '4.6', reviews: '4,000' },
 }
 
@@ -402,7 +411,7 @@ export default function Library() {
                     {individualResourceLicenses.map((l) => {
                       const item = l.content
                       if (!item) return null
-                      const resourceTypeLabel = { pdf: 'PDF', video: 'Video', game: 'Simulator', '3d': '3D Model' }[item.type] || item.type
+                      const resourceTypeLabel = { pdf: 'PDF', video: 'Video', game: 'Simulator', '3d': '3D Model', apk: 'Android App' }[item.type] || item.type
                       const decor = RESOURCE_DECOR[item.type] || RESOURCE_DECOR.default
                       const IconComponent = decor.icon
                       const meta = RESOURCE_META[item.type] || RESOURCE_META.default

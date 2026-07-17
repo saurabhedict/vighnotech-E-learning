@@ -34,6 +34,13 @@ function LessonIcon({ type, className = "w-4 h-4" }) {
       </svg>
     )
   }
+  if (type === 'apk') {
+    return (
+      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9 4.5h6a1.5 1.5 0 011.5 1.5v12a1.5 1.5 0 01-1.5 1.5H9A1.5 1.5 0 017.5 18V6A1.5 1.5 0 019 4.5zm2 13.5h2" />
+      </svg>
+    )
+  }
   return (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
       <path strokeLinecap="round" strokeLinejoin="round" d="M9 17.25v1.007a3 3 0 01-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0115 18.257V17.25m6-12V15a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 15V5.25m18 0A2.25 2.25 0 0018.75 3H5.25A2.25 2.25 0 003 5.25m18 0V12a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 12V5.25" />
@@ -150,7 +157,7 @@ function CourseCurriculumAccordion({ subjects, className, isDark, isEnrolled }) 
                               {/* Items List (No left vertical line) */}
                               <div className="space-y-2.5 pl-1.5">
                                 {ch.items?.map((it) => {
-                                  const typeLabels = { pdf: 'PDF', video: 'Video', game: 'Simulator', '3d': 'Animation' }
+                                  const typeLabels = { pdf: 'PDF', video: 'Video', game: 'Simulator', '3d': 'Animation', apk: 'Android App' }
                                   const badgeTypeLabel = typeLabels[it.type] || it.type
 
                                   // Compute duration text if available, fallback based on stable ID parsing
@@ -160,6 +167,8 @@ function CourseCurriculumAccordion({ subjects, className, isDark, isEnrolled }) 
                                     durationText = `${mins} min`
                                   } else if (it.type === 'game') {
                                     durationText = 'Interactive'
+                                  } else if (it.type === 'apk') {
+                                    durationText = 'Android'
                                   } else if (it.type === '3d') {
                                     durationText = '3D Model'
                                   } else if (it.type === 'pdf') {
