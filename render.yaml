@@ -1,0 +1,104 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Render Blueprint — Vigno Smart Class (MERN)
+# Provisions the backend API (Node web service) + the frontend SPA (static site).
+# Apply it from the Render dashboard: New → Blueprint → connect this repo.
+# Spec: https://render.com/docs/blueprint-spec   Runbook: ./DEPLOY.md
+# ─────────────────────────────────────────────────────────────────────────────
+services:
+  # ── Backend API ────────────────────────────────────────────────────────────
+  - type: web
+    name: vigno-smart-class-api
+    runtime: node
+    plan: free                       # spins down after ~15 min idle; first hit cold-starts (~50s)
+    rootDir: backend
+    # --omit=dev skips devDependencies so mongodb-memory-server does NOT download
+    # its ~200 MB Mongo binary on every build (we use Atlas, not the in-memory DB).
+    buildCommand: npm install --omit=dev
+    startCommand: npm start          # → node src/index.js (reads process.env.PORT)
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      # NOT 'production' on purpose: production mode REFUSES to boot without live
+      # Razorpay keys (mock gateway is forbidden). 'staging' boots with the mock
+      # gateway while everything else below stays hardened. Flip to 'production'
+      # once you add RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET / RAZORPAY_WEBHOOK_SECRET.
+      - key: NODE_ENV
+        value: staging
+
+      # Strong secrets — generated once and stored by Render (never in this repo).
+      - key: JWT_ACCESS_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: SIGNED_URL_SECRET
+        generateValue: true
+      - key: CONTENT_KEY_SECRET
+        generateValue: true
+
+      # HTTPS + cross-site cookies (frontend lives on a different subdomain).
+      # COOKIE_SECURE=true makes the auth cookies SameSite=None; Secure.
+      - key: COOKIE_SECURE
+        value: "true"
+      - key: FORCE_HTTPS
+        value: "true"
+
+      # ── Database (paste your Atlas URI in the dashboard — sync:false = not in git) ──
+      - key: MONGO_URI
+        sync: false
+      - key: USE_MEMORY_DB
+        value: "false"
+
+      # ── URLs — set AFTER the first deploy, once you know the frontend URL ──
+      # CLIENT_ORIGINS = your frontend URL (CORS allow-list), e.g.
+      #   https://vigno-smart-class-web.onrender.com
+      - key: CLIENT_ORIGINS
+        sync: false
+      - key: APP_URL
+        sync: false
+
+      # ── AWS S3 (persistent uploaded media) — fill in the dashboard ──
+      - key: AWS_REGION
+        sync: false
+      - key: AWS_S3_BUCKET
+        sync: false
+      - key: AWS_ACCESS_KEY_ID
+        sync: false
+      - key: AWS_SECRET_ACCESS_KEY
+        sync: false
+
+      # ── Email (optional; blank → OTP/verification codes print to server logs) ──
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+
+      # ── Bootstrap admin account (used by `npm run seed`) ──
+      - key: SEED_ADMIN_EMAIL
+        sync: false
+      - key: SEED_ADMIN_PASSWORD
+        sync: false
+
+  # ── Frontend SPA (Vite static build) ───────────────────────────────────────
+  - type: web
+    name: vigno-smart-class-web
+    runtime: static
+    rootDir: frontend
+    # --include=dev guarantees Vite + plugins install even if NODE_ENV leaks in.
+    buildCommand: npm install --include=dev && npm run build
+    staticPublishPath: ./dist
+    autoDeploy: true
+    # SPA fallback: every path serves index.html so React Router handles routing.
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      # Baked into the bundle AT BUILD TIME. Set to your backend URL + /api, e.g.
+      #   https://vigno-smart-class-api.onrender.com/api
+      # then trigger a manual redeploy of this static site so it rebuilds.
+      - key: VITE_API_BASE_URL
+        sync: false
+      - key: VITE_APP_NAME
+        value: AeroLearn Aviation
