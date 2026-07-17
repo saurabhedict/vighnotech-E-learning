@@ -1,0 +1,532 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vigno — Admin &amp; Content Pipeline Flow</title>
+<style>
+  :root {
+    --bg:#eef1f5; --panel:#ffffff; --panel-2:#f7f9fb;
+    --ink:#0f172a; --muted:#5b6675; --faint:#8a94a3;
+    --line:#e0e5ec; --rail:#c3cdda; --accent:#2456e6;
+    --fe:#1d4ed8;  --fe-bg:rgba(37,99,235,.10);  --fe-bd:rgba(37,99,235,.28);
+    --api:#6d28d9; --api-bg:rgba(124,58,237,.10); --api-bd:rgba(124,58,237,.28);
+    --svc:#0e7490; --svc-bg:rgba(14,116,144,.11); --svc-bd:rgba(14,116,144,.30);
+    --data:#a45a08;--data-bg:rgba(217,119,6,.13); --data-bd:rgba(217,119,6,.32);
+    --app:#be123c; --app-bg:rgba(225,29,72,.10);  --app-bd:rgba(225,29,72,.28);
+    --job:#047857; --job-bg:rgba(5,150,105,.12);  --job-bd:rgba(5,150,105,.32);
+    --font-sans:'Segoe UI Variable','Segoe UI',system-ui,-apple-system,Roboto,Helvetica,Arial,sans-serif;
+    --font-mono:ui-monospace,'Cascadia Code','JetBrains Mono','SF Mono',Menlo,Consolas,monospace;
+    --maxw:1080px;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --bg:#080d18; --panel:#0e1626; --panel-2:#0b1220;
+      --ink:#e7ecf3; --muted:#93a1b5; --faint:#63748c;
+      --line:#1c2740; --rail:#2c3a54; --accent:#5b8cff;
+      --fe:#7aa7ff;  --fe-bg:rgba(96,165,250,.14);  --fe-bd:rgba(96,165,250,.30);
+      --api:#b49bff; --api-bg:rgba(167,139,250,.15); --api-bd:rgba(167,139,250,.32);
+      --svc:#37d5ee; --svc-bg:rgba(34,211,238,.13);  --svc-bd:rgba(34,211,238,.30);
+      --data:#fbbf24;--data-bg:rgba(251,191,36,.14); --data-bd:rgba(251,191,36,.32);
+      --app:#fb7a90; --app-bg:rgba(251,113,133,.15); --app-bd:rgba(251,113,133,.32);
+      --job:#34d399; --job-bg:rgba(52,211,153,.14);  --job-bd:rgba(52,211,153,.32);
+    }
+  }
+  :root[data-theme="light"]{
+    --bg:#eef1f5; --panel:#ffffff; --panel-2:#f7f9fb; --ink:#0f172a; --muted:#5b6675; --faint:#8a94a3;
+    --line:#e0e5ec; --rail:#c3cdda; --accent:#2456e6;
+    --fe:#1d4ed8;--fe-bg:rgba(37,99,235,.10);--fe-bd:rgba(37,99,235,.28);
+    --api:#6d28d9;--api-bg:rgba(124,58,237,.10);--api-bd:rgba(124,58,237,.28);
+    --svc:#0e7490;--svc-bg:rgba(14,116,144,.11);--svc-bd:rgba(14,116,144,.30);
+    --data:#a45a08;--data-bg:rgba(217,119,6,.13);--data-bd:rgba(217,119,6,.32);
+    --app:#be123c;--app-bg:rgba(225,29,72,.10);--app-bd:rgba(225,29,72,.28);
+    --job:#047857;--job-bg:rgba(5,150,105,.12);--job-bd:rgba(5,150,105,.32);
+  }
+  :root[data-theme="dark"]{
+    --bg:#080d18; --panel:#0e1626; --panel-2:#0b1220; --ink:#e7ecf3; --muted:#93a1b5; --faint:#63748c;
+    --line:#1c2740; --rail:#2c3a54; --accent:#5b8cff;
+    --fe:#7aa7ff;--fe-bg:rgba(96,165,250,.14);--fe-bd:rgba(96,165,250,.30);
+    --api:#b49bff;--api-bg:rgba(167,139,250,.15);--api-bd:rgba(167,139,250,.32);
+    --svc:#37d5ee;--svc-bg:rgba(34,211,238,.13);--svc-bd:rgba(34,211,238,.30);
+    --data:#fbbf24;--data-bg:rgba(251,191,36,.14);--data-bd:rgba(251,191,36,.32);
+    --app:#fb7a90;--app-bg:rgba(251,113,133,.15);--app-bd:rgba(251,113,133,.32);
+    --job:#34d399;--job-bg:rgba(52,211,153,.14);--job-bd:rgba(52,211,153,.32);
+  }
+
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-sans);
+    line-height:1.5;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 22px}
+
+  .topbar{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--bg) 88%,transparent);
+    backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+  .topbar .wrap{display:flex;align-items:center;justify-content:space-between;height:52px;gap:16px}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:700;letter-spacing:-.01em}
+  .brand .mk{width:22px;height:22px;border-radius:5px;background:var(--accent);position:relative;flex:none}
+  .brand .mk::after{content:"";position:absolute;inset:5px;border:2px solid var(--bg);border-radius:2px}
+  .brand small{color:var(--muted);font-weight:500;letter-spacing:.02em}
+  .toggle{font-family:var(--font-mono);font-size:12px;color:var(--muted);background:var(--panel);
+    border:1px solid var(--line);border-radius:7px;padding:6px 11px;cursor:pointer;display:flex;gap:7px;align-items:center}
+  .toggle:hover{border-color:var(--rail);color:var(--ink)}
+  .toggle:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+  header.hero{padding:46px 0 26px}
+  .eyebrow{font-family:var(--font-mono);font-size:12px;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--accent);font-weight:600;margin:0 0 14px}
+  h1{font-size:clamp(30px,5vw,46px);line-height:1.04;letter-spacing:-.025em;margin:0 0 16px;
+    font-weight:800;text-wrap:balance}
+  .lede{font-size:17px;color:var(--muted);max-width:64ch;margin:0}
+  .lede b{color:var(--ink);font-weight:600}
+  .pair{display:inline-block;margin-top:14px;font-size:13px;color:var(--muted);
+    background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 13px}
+  .pair b{color:var(--ink)}
+
+  .legend{display:flex;flex-wrap:wrap;gap:9px;margin:24px 0 8px}
+  .lg{display:inline-flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted);
+    background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:5px 12px 5px 8px}
+  .lg .tag{margin:0}
+  .howto{font-size:13.5px;color:var(--muted);margin:16px 0 0;padding:13px 16px;background:var(--panel-2);
+    border:1px solid var(--line);border-radius:10px}
+  .howto code{font-family:var(--font-mono);color:var(--ink);font-size:12.5px}
+
+  nav.ribbon{margin:30px 0 8px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:16px 0}
+  nav.ribbon ol{list-style:none;display:flex;gap:8px;margin:0;padding:0;overflow-x:auto;scrollbar-width:thin}
+  nav.ribbon a{flex:1 0 auto;min-width:150px;display:flex;flex-direction:column;gap:3px;text-decoration:none;
+    padding:11px 14px;border-radius:10px;background:var(--panel);border:1px solid var(--line);color:var(--ink);
+    transition:border-color .15s,transform .15s}
+  nav.ribbon a:hover{border-color:var(--accent);transform:translateY(-2px)}
+  nav.ribbon .n{font-family:var(--font-mono);font-size:12px;color:var(--accent);font-weight:700}
+  nav.ribbon .t{font-weight:650;font-size:14px;letter-spacing:-.01em}
+  nav.ribbon .s{font-size:11.5px;color:var(--faint)}
+  nav.ribbon .arrow{align-self:center;color:var(--rail);flex:none;font-family:var(--font-mono)}
+
+  main{padding:8px 0 40px}
+  section.stage{padding:40px 0 8px;scroll-margin-top:64px}
+  .stage-head{display:flex;gap:16px;align-items:baseline;margin:0 0 6px}
+  .stage-num{font-family:var(--font-mono);font-weight:800;font-size:15px;color:var(--bg);
+    background:var(--accent);width:30px;height:30px;border-radius:8px;display:grid;place-items:center;flex:none;
+    transform:translateY(4px)}
+  .stage-title{font-size:23px;font-weight:750;letter-spacing:-.02em;margin:0}
+  .stage-what{color:var(--muted);font-size:14.5px;margin:2px 0 0}
+  .stage-body{margin-top:20px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:22px 22px 24px}
+  .subhead{font-family:var(--font-mono);font-size:11.5px;letter-spacing:.12em;text-transform:uppercase;
+    color:var(--faint);font-weight:600;margin:22px 0 12px;display:flex;align-items:center;gap:9px}
+  .subhead:first-child{margin-top:2px}
+  .subhead .br{font-size:10px;font-weight:700;padding:2px 7px;border-radius:5px;letter-spacing:.02em}
+  .br.stream{color:var(--fe);background:var(--fe-bg);border:1px solid var(--fe-bd)}
+  .br.download{color:var(--app);background:var(--app-bg);border:1px solid var(--app-bd)}
+
+  ol.chain{list-style:none;margin:0;padding:0}
+  li.step{display:grid;grid-template-columns:46px 1fr;gap:15px;padding-bottom:16px;position:relative}
+  li.step:last-child{padding-bottom:0}
+  .rail{display:flex;flex-direction:column;align-items:center;position:relative}
+  .rail::before{content:"";position:absolute;top:24px;bottom:-16px;left:50%;width:2px;transform:translateX(-50%);background:var(--rail)}
+  li.step:last-child .rail::before{display:none}
+  .tag{font-family:var(--font-mono);font-size:10.5px;font-weight:700;letter-spacing:.04em;
+    min-width:42px;height:22px;padding:0 6px;border-radius:6px;display:inline-flex;align-items:center;
+    justify-content:center;border:1px solid transparent;position:relative;z-index:1}
+  .tag.fe{color:var(--fe);background:var(--fe-bg);border-color:var(--fe-bd)}
+  .tag.api{color:var(--api);background:var(--api-bg);border-color:var(--api-bd)}
+  .tag.svc{color:var(--svc);background:var(--svc-bg);border-color:var(--svc-bd)}
+  .tag.data{color:var(--data);background:var(--data-bg);border-color:var(--data-bd)}
+  .tag.job{color:var(--job);background:var(--job-bg);border-color:var(--job-bd)}
+
+  .step-body{padding-top:1px;min-width:0}
+  .call{font-family:var(--font-mono);font-size:13px;line-height:1.5;word-break:break-word}
+  .call .path{color:var(--muted)}
+  .call .fn{font-weight:700;color:var(--ink)}
+  .call .sep{color:var(--rail);padding:0 3px}
+  .wire{display:inline-flex;align-items:center;gap:7px;font-family:var(--font-mono);font-size:11.5px;
+    margin-top:7px;padding:3px 9px;border-radius:6px;border:1px dashed var(--accent);color:var(--accent);
+    background:color-mix(in srgb,var(--accent) 7%,transparent);font-weight:600}
+  .wire .m{font-weight:800;letter-spacing:.02em}
+  .note{font-size:13.5px;color:var(--muted);margin:6px 0 0}
+  .note b{color:var(--ink);font-weight:600}
+  .store{font-family:var(--font-mono);font-size:11.5px;color:var(--data);background:var(--data-bg);
+    border:1px solid var(--data-bd);border-radius:6px;padding:2px 7px;display:inline-block;margin-top:7px}
+
+  /* content-type comparison */
+  .types{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-top:2px}
+  @media(min-width:900px){.types{grid-template-columns:repeat(4,1fr)}}
+  .tcard{background:var(--panel-2);border:1px solid var(--line);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:12px}
+  .tcard.enc{border-color:var(--app-bd)}
+  .tcard>header{display:flex;flex-direction:column;gap:7px}
+  .tname{font-weight:750;font-size:15.5px;letter-spacing:-.01em;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+  .tname .ext{font-family:var(--font-mono);font-size:11px;color:var(--faint);font-weight:500}
+  .lane{align-self:flex-start;font-family:var(--font-mono);font-size:10px;font-weight:700;letter-spacing:.04em;
+    padding:3px 8px;border-radius:6px;border:1px solid transparent;text-transform:uppercase}
+  .lane.stream{color:var(--fe);background:var(--fe-bg);border-color:var(--fe-bd)}
+  .lane.download{color:var(--app);background:var(--app-bg);border-color:var(--app-bd)}
+  .facts{margin:0;display:flex;flex-direction:column}
+  .fact{padding:9px 0;border-top:1px solid var(--line)}
+  .fact dt{font-family:var(--font-mono);font-size:9.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--faint);margin-bottom:3px}
+  .fact dd{margin:0;font-size:12.5px;color:var(--ink);line-height:1.45}
+  .fact dd .mono{font-family:var(--font-mono);font-size:11px;color:var(--muted)}
+
+  /* capability grid */
+  .caps{display:grid;grid-template-columns:1fr;gap:1px;background:var(--line);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  @media(min-width:720px){.caps{grid-template-columns:1fr 1fr}}
+  .cap{background:var(--panel);padding:15px 18px}
+  .cap h4{margin:0 0 5px;font-size:14px;font-weight:700;letter-spacing:-.01em;display:flex;align-items:center;gap:8px}
+  .cap .dot{width:7px;height:7px;border-radius:50%;flex:none}
+  .cap p{margin:0;font-size:12.5px;color:var(--muted)}
+  .cap code{font-family:var(--font-mono);font-size:11.5px;color:var(--ink)}
+  .cap .ep{font-family:var(--font-mono);font-size:11px;color:var(--accent);display:block;margin-top:5px}
+
+  .vault{margin:34px 0 8px;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--panel)}
+  .vault h3{margin:0;padding:16px 22px;font-size:16px;font-weight:750;letter-spacing:-.01em;
+    border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px}
+  .vault h3 .lk{font-family:var(--font-mono);color:var(--svc)}
+  .vgrid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line)}
+  .vcell{background:var(--panel);padding:18px 22px}
+  .vcell h4{margin:0 0 7px;font-size:13px;font-family:var(--font-mono);letter-spacing:.04em;text-transform:uppercase;color:var(--faint);font-weight:600}
+  .vcell p{margin:0;font-size:13.5px;color:var(--muted)}
+  .vcell code{font-family:var(--font-mono);font-size:12px;color:var(--ink);background:var(--panel-2);padding:1px 5px;border-radius:4px}
+
+  footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--faint);font-size:13px}
+  footer code{font-family:var(--font-mono);color:var(--muted)}
+
+  @media (max-width:640px){
+    li.step{grid-template-columns:42px 1fr;gap:11px}
+    .vgrid{grid-template-columns:1fr}
+    .stage-body{padding:18px 15px 20px}
+  }
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="topbar">
+  <div class="wrap">
+    <div class="brand"><span class="mk"></span>Vigno <small>· admin &amp; content pipeline</small></div>
+    <button class="toggle" id="themeBtn" aria-label="Toggle theme"><span id="themeIcon">◐</span><span id="themeLbl">Theme</span></button>
+  </div>
+</div>
+
+<header class="hero">
+  <div class="wrap">
+    <p class="eyebrow">Admin console → uploading content → what each type becomes</p>
+    <h1>How an admin runs the platform &amp; the content pipeline</h1>
+    <p class="lede">The companion to the user-journey map — this one follows the <b>admin</b>: signing in, building the course tree, and (the heart of it) <b>uploading a file and watching the pipeline branch by content type</b> — a PDF, a video, a 3D model, and a game each take a different route through storage, encryption, and transcoding. Every step names the exact file, function, and endpoint.</p>
+    <p class="pair"><b>Pairs with</b> the “How one user flows through the whole platform” map — same layers, same reading rules.</p>
+
+    <div class="legend" aria-label="Layer legend">
+      <span class="lg"><span class="tag fe">FE</span>Admin UI · React</span>
+      <span class="lg"><span class="tag api">API</span>Route + controller · Express</span>
+      <span class="lg"><span class="tag svc">SVC</span>Service · storage / crypto / transcode</span>
+      <span class="lg"><span class="tag data">DATA</span>Storage · MongoDB, S3/CloudFront</span>
+      <span class="lg"><span class="tag job">JOB</span>Background worker · async</span>
+    </div>
+    <p class="howto">Same rules as the user map: a <b>layer tag</b>, then <code>path/to/file.ext › function()</code>, a dashed <code>METHOD /api/…</code> pill for network hops, amber <code>disk/DB</code> chips for where data rests. The green <code>JOB</code> tag marks work that runs <b>after</b> the request returns — game encryption and video transcoding are non-blocking.</p>
+  </div>
+</header>
+
+<nav class="ribbon" aria-label="Admin stages">
+  <div class="wrap">
+    <ol>
+      <li><a href="#a1"><span class="n">01</span><span class="t">Sign in</span><span class="s">Admin console</span></a></li>
+      <li class="arrow" aria-hidden="true">→</li>
+      <li><a href="#a2"><span class="n">02</span><span class="t">Build curriculum</span><span class="s">CMS tree</span></a></li>
+      <li class="arrow" aria-hidden="true">→</li>
+      <li><a href="#a3"><span class="n">03</span><span class="t">Create lesson</span><span class="s">Lane is decided</span></a></li>
+      <li class="arrow" aria-hidden="true">→</li>
+      <li><a href="#a4"><span class="n">04</span><span class="t">Upload file</span><span class="s">Pipeline branches</span></a></li>
+      <li class="arrow" aria-hidden="true">→</li>
+      <li><a href="#a5"><span class="n">05</span><span class="t">By content type</span><span class="s">PDF · video · 3D · game</span></a></li>
+      <li class="arrow" aria-hidden="true">→</li>
+      <li><a href="#a6"><span class="n">06</span><span class="t">Run the platform</span><span class="s">Every other control</span></a></li>
+    </ol>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <!-- STAGE 1 -->
+  <section class="stage" id="a1">
+    <div class="stage-head"><span class="stage-num">1</span>
+      <div><h2 class="stage-title">Sign in to the admin console</h2>
+      <p class="stage-what">Same login as any user — the role decides what's unlocked, and every admin API is double-guarded on the server.</p></div>
+    </div>
+    <div class="stage-body">
+      <ol class="chain">
+        <li class="step"><div class="rail"><span class="tag fe">FE</span></div><div class="step-body">
+          <div class="call"><span class="path">frontend/src/pages/</span><span class="fn">Login.jsx</span><span class="sep">›</span><span class="fn">submit()</span> <span class="path">→</span> <span class="path">api/</span><span class="fn">authApi.js</span><span class="sep">›</span><span class="fn">login()</span></div>
+          <div class="wire"><span class="m">POST</span> /api/auth/login</div>
+          <p class="note">On success an admin routes to <code>/app/admin</code> (a normal user goes to <code>/app</code>).</p></div></li>
+
+        <li class="step"><div class="rail"><span class="tag api">API</span></div><div class="step-body">
+          <div class="call"><span class="path">backend/src/middleware/</span><span class="fn">auth.js</span><span class="sep">›</span><span class="fn">requireAuth()</span> + <span class="fn">requireRole('admin')</span></div>
+          <p class="note">Every <code>/api/admin/*</code> route is guarded by this pair — a non-admin token gets <b>403</b>.</p></div></li>
+
+        <li class="step"><div class="rail"><span class="tag fe">FE</span></div><div class="step-body">
+          <div class="call"><span class="path">frontend/src/pages/admin/</span><span class="fn">AdminDashboard.jsx</span></div>
+          <p class="note">A tabbed shell (<code>?tab=</code>) that mounts one panel each: Overview, <b>Manage Courses → CmsManager</b>, Users → UsersPanel, Reports → ReportsPanel, Commerce → CommercePanel, Licenses → LicensesPanel, Notifications → NotificationsPanel, Site Settings → SettingsPanel, Audit → AuditLog.</p></div></li>
+
+        <li class="step"><div class="rail"><span class="tag api">API</span></div><div class="step-body">
+          <div class="call"><span class="path">Overview</span> <span class="path">→</span> <span class="fn">adminApi.stats()</span> <span class="path">→</span> <span class="path">controllers/</span><span class="fn">admin.controller.js</span><span class="sep">›</span><span class="fn">stats()</span></div>
+          <div class="wire"><span class="m">GET</span> /api/admin/stats</div>
+          <p class="note">Cached headline counts — users, courses, revenue, active licenses.</p></div></li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- STAGE 2 -->
+  <section class="stage" id="a2">
+    <div class="stage-head"><span class="stage-num">2</span>
+      <div><h2 class="stage-title">Build the curriculum — the CMS tree</h2>
+      <p class="stage-what">Courses are a nested tree: course → subject → module → chapter → content. Each node inherits the course key from its parent.</p></div>
+    </div>
+    <div class="stage-body">
+      <ol class="chain">
+        <li class="step"><div class="rail"><span class="tag fe">FE</span></div><div class="step-body">
+          <div class="call"><span class="path">pages/admin/</span><span class="fn">CmsManager.jsx</span><span class="sep">›</span><span class="fn">CourseList.handleAddCourse()</span></div>
+          <div class="wire"><span class="m">POST</span> /api/admin/nodes &nbsp;·&nbsp; <span class="path">adminApi.createNode({ kind:'course' })</span></div></div></li>
+
+        <li class="step"><div class="rail"><span class="tag api">API</span></div><div class="step-body">
+          <div class="call"><span class="path">controllers/</span><span class="fn">admin.controller.js</span><span class="sep">›</span><span class="fn">createNode()</span></div>
+          <p class="note">A course gets <code>courseKey = slug</code>; every child (subject/module/chapter) inherits its parent's key via <code>resolveCourseKey()</code>. This key is what later ties licenses to a course.</p>
+          <span class="store">MongoDB · treenodes</span></div></li>
+
+        <li class="step"><div class="rail"><span class="tag fe">FE</span></div><div class="step-body">
+          <div class="call"><span class="path">CmsManager.jsx</span><span class="sep">›</span><span class="fn">CurriculumBuilder.handleAddSubject()</span> · <span class="fn">SyllabusNode.handleAddChild()</span></div>
+          <p class="note"><code>SyllabusNode</code> is recursive — it computes the next <code>childKind</code> (subject→module→chapter) and calls <code>adminApi.createNode()</code> down the tree.</p></div></li>
+
+        <li class="step"><div class="rail"><span class="tag api">API</span></div><div class="step-body">
+          <div class="call"><span class="fn">reorderNodes()</span> · <span class="fn">updateNode()</span> · <span class="fn">deleteNode()</span></div>
+          <div class="wire"><span class="m">POST</span> /nodes/reorder &nbsp;·&nbsp; <span class="m">PATCH</span>/<span class="m">DELETE</span> /nodes/:id</div>
+          <p class="note">Drag-reorder, rename, and recursive delete (a chapter delete removes its content too).</p></div></li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- STAGE 3 -->
+  <section class="stage" id="a3">
+    <div class="stage-head"><span class="stage-num">3</span>
+      <div><h2 class="stage-title">Create a lesson — the lane is decided here</h2>
+      <p class="stage-what">Adding content to a chapter picks a <b>type</b>, and the type decides the <b>lane</b> — which is the single fork that sends games down the encrypted path and everything else down the streaming path.</p></div>
+    </div>
+    <div class="stage-body">
+      <ol class="chain">
+        <li class="step"><div class="rail"><span class="tag fe">FE</span></div><div class="step-body">
+          <div class="call"><span class="path">CmsManager.jsx</span><span class="sep">›</span><span class="fn">LessonsList.handleAddLesson()</span></div>
+          <div class="wire"><span class="m">POST</span> /api/admin/content &nbsp;·&nbsp; <span class="path">adminApi.createContent({ chapterId, title, type })</span></div>
+          <p class="note">Type is one of exactly four: <code>pdf</code>, <code>video</code>, <code>3d</code>, <code>game</code>.</p></div></li>
+
+        <li class="step"><div class="rail"><span class="tag api">API</span></div><div class="step-body">
+          <div class="call"><span class="path">controllers/</span><span class="fn">admin.controller.js</span><span class="sep">›</span><span class="fn">createContent()</span></div>
+          <div class="call"><span class="path">→ Content.create({ lane: body.lane || </span><span class="fn">defaultLaneForType(type)</span><span class="path"> }) — storageKey still empty</span></div></div></li>
+
+        <li class="step"><div class="rail"><span class="tag svc">SVC</span></div><div class="step-body">
+          <div class="call"><span class="path">shared/src/</span><span class="fn">constants.js</span><span class="sep">›</span><span class="fn">defaultLaneForType()</span></div>
+          <p class="note"><b>The one fork:</b> <code>type === 'game' ? 'download' : 'stream'</code>. Only games are encrypted; pdf / video / 3d all stream.</p>
+          <span class="store">MongoDB · contents (lane set)</span></div></li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- STAGE 4 -->
+  <section class="stage" id="a4">
+    <div class="stage-head"><span class="stage-num">4</span>
+      <div><h2 class="stage-title">Upload the file — the pipeline branches</h2>
+      <p class="stage-what">The primary path streams the file <b>straight to S3</b> from the browser, then finalizes. Finalize is where stream and download lanes split.</p></div>
+    </div>
+    <div class="stage-body">
+
+      <div class="subhead">Primary path · direct browser → S3 (when S3 is configured)</div>
+      <ol class="chain">
+        <li class="step"><div class="rail"><span class="tag fe">FE</span></div><div class="step-body">
+          <div class="call"><span class="path">CmsManager “Upload file” → </span><span class="fn">lib/uploadManager.js › startUpload()</span> <span class="path">→</span> <span class="fn">api/adminApi.js › uploadContentFile()</span></div></div></li>
+
+        <li class="step"><div class="rail"><span class="tag api">API</span></div><div class="step-body">
+          <div class="call"><span class="fn">adminApi</span> step 1 <span class="path">→</span> <span class="path">controllers/</span><span class="fn">admin.controller.js</span><span class="sep">›</span><span class="fn">getContentUploadUrl()</span> <span class="path">→</span> <span class="fn">storage.js › createDirectUpload()</span> <span class="path">→</span> <span class="fn">s3.js › presignPutUrl()</span></div>
+          <div class="wire"><span class="m">POST</span> /api/admin/content/:id/upload-url</div>
+          <p class="note">Returns a one-hour presigned PUT URL + the object key <code>obj_&lt;id&gt;</code>. (If S3 is off → <code>{ supported:false }</code> and the client uses the fallback below.)</p></div></li>
+
+        <li class="step"><div class="rail"><span class="tag data">DATA</span></div><div class="step-body">
+          <div class="call"><span class="fn">axios.put(presignedUrl, file)</span> <span class="path">— straight to S3, no backend in the middle</span></div>
+          <p class="note">Bytes never touch our server → no size cap, true end-to-end progress. The <b>raw</b> object lands in S3 identically for both lanes.</p>
+          <span class="store">S3 · obj_&lt;id&gt; (raw)</span></div></li>
+
+        <li class="step"><div class="rail"><span class="tag api">API</span></div><div class="step-body">
+          <div class="call"><span class="fn">adminApi</span> step 3 <span class="path">→</span> <span class="fn">admin.controller.js › completeContentUpload()</span> <span class="path">→</span> <span class="fn">storage.js › statObject()</span></div>
+          <div class="wire"><span class="m">POST</span> /api/admin/content/:id/upload-complete</div>
+          <p class="note">Confirms the PUT landed, then <b>branches on <code>content.lane</code></b> ↓</p></div></li>
+      </ol>
+
+      <div class="subhead"><span class="br stream">STREAM</span> pdf · video · 3d — store as-is</div>
+      <ol class="chain">
+        <li class="step"><div class="rail"><span class="tag api">API</span></div><div class="step-body">
+          <div class="call"><span class="fn">completeContentUpload()</span> <span class="path">→ set storageKey, enc.encrypted = false →</span> <span class="fn">maybeTranscodeVideo()</span></div>
+          <p class="note">No encryption. The object is served later through a short-lived signed URL. Then the video sub-branch runs ↓</p>
+          <span class="store">MongoDB · content.storageKey = obj_&lt;id&gt;</span></div></li>
+      </ol>
+
+      <div class="subhead"><span class="br stream">STREAM · video only</span> adaptive HLS transcode</div>
+      <ol class="chain">
+        <li class="step"><div class="rail"><span class="tag svc">SVC</span></div><div class="step-body">
+          <div class="call"><span class="fn">admin.controller.js › maybeTranscodeVideo()</span> <span class="path">→</span> <span class="fn">services/mediaconvert.js › submitHlsJob()</span></div>
+          <p class="note">Only when <code>type === 'video' &amp;&amp; mediaConvertEnabled()</code>. Submits a 3-rung <b>720/480/360</b> H.264/AAC ladder; sets <code>hls.status = 'processing'</code>. If it can't submit, the upload still succeeds (progressive-MP4 fallback).</p>
+          <span class="store">S3 · hls/&lt;id&gt;/master.m3u8</span></div></li>
+
+        <li class="step"><div class="rail"><span class="tag job">JOB</span></div><div class="step-body">
+          <div class="call"><span class="path">services/</span><span class="fn">transcodePoller.js › pollPendingTranscodes()</span> <span class="path">— every 15s (index.js › startTranscodePoller)</span></div>
+          <p class="note">Polls AWS via <code>mediaconvert.js › getJobStatus()</code> and flips <code>hls.status</code> to <b>ready</b> or <b>failed</b>. Runs on a background interval, not the request.</p></div></li>
+      </ol>
+
+      <div class="subhead"><span class="br download">DOWNLOAD</span> game — encrypt in the background</div>
+      <ol class="chain">
+        <li class="step"><div class="rail"><span class="tag api">API</span></div><div class="step-body">
+          <div class="call"><span class="fn">completeContentUpload()</span> <span class="path">→ enc.status = 'encrypting', enc.rawKey = uploadKey →</span> <span class="fn">startDownloadEncryption()</span></div>
+          <p class="note">Returns to the admin <b>immediately</b> with <code>{ encrypting:true }</code> — the old game stays playable until the new one is ready.</p></div></li>
+
+        <li class="step"><div class="rail"><span class="tag job">JOB</span></div><div class="step-body">
+          <div class="call"><span class="fn">admin.controller.js › startDownloadEncryption()</span> <span class="path">→</span> <span class="fn">contentCrypto.js › newSalt() + deriveContentKey()</span> <span class="path">→</span> <span class="fn">storage.js › saveEncryptedFromObject()</span></div>
+          <p class="note">Streams the raw S3 object → <b>AES-256-GCM</b> → a new <code>.enc</code> object (never buffers a multi-GB game in RAM). Stores <code>enc = {'{ iv, tag, salt, status:ready }'}</code> and frees the raw key. A boot-time <code>recoverEncryptions()</code> resumes any job interrupted by a restart.</p>
+          <span class="store">S3 · obj_&lt;id&gt;.enc (encrypted)</span></div></li>
+      </ol>
+
+      <div class="subhead">Fallback · server-through (S3 off, or smaller files ≤ 200 MB)</div>
+      <ol class="chain">
+        <li class="step"><div class="rail"><span class="tag api">API</span></div><div class="step-body">
+          <div class="call"><span class="fn">adminApi.uploadContentFile()</span> fallback <span class="path">→</span> <span class="fn">admin.controller.js › uploadContentFile()</span> <span class="path">(multer memory)</span></div>
+          <div class="wire"><span class="m">POST</span> /api/admin/content/:id/upload</div>
+          <p class="note"><b>download</b> → <code>saveEncryptedBuffer()</code> (whole-buffer AES-256-GCM); <b>stream</b> → <code>saveBuffer()</code> then <code>maybeTranscodeVideo()</code>. Same outcomes, routed through the server.</p></div></li>
+
+        <li class="step"><div class="rail"><span class="tag fe">FE</span></div><div class="step-body">
+          <div class="call"><span class="fn">LessonDetailsEditor.handleUploadFile()</span> <span class="path">→</span> <span class="fn">adminApi.uploadContentThumbnail()</span></div>
+          <div class="wire"><span class="m">POST</span> /api/admin/content/:id/upload-thumbnail</div>
+          <p class="note">Thumbnails always take the plain path — <code>storage.js › saveBuffer() + createMediaUrl()</code>, never encrypted, never transcoded. (Course art: <code>uploadCourseThumbnail → /admin/nodes/:id/upload-thumbnail</code>.)</p></div></li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- STAGE 5 -->
+  <section class="stage" id="a5">
+    <div class="stage-head"><span class="stage-num">5</span>
+      <div><h2 class="stage-title">What each content type becomes</h2>
+      <p class="stage-what">The same “Upload file” click produces four very different results. Here's how each type is stored, processed, and later delivered to the learner.</p></div>
+    </div>
+    <div class="stage-body">
+      <div class="types">
+
+        <div class="tcard">
+          <header>
+            <div class="tname">PDF <span class="ext">.pdf</span></div>
+            <span class="lane stream">Stream lane</span>
+          </header>
+          <dl class="facts">
+            <div class="fact"><dt>At rest</dt><dd>Stored as-is in S3 · <span class="mono">obj_&lt;id&gt;</span> — not encrypted.</dd></div>
+            <div class="fact"><dt>Processing</dt><dd>None.</dd></div>
+            <div class="fact"><dt>Served by</dt><dd>Signed-URL token → <span class="mono">files.controller.js › streamFile()</span> with a per-user <b>watermark</b> (<span class="mono">addPdfWatermark</span>).</dd></div>
+            <div class="fact"><dt>Viewer</dt><dd><span class="mono">PdfViewer.jsx</span> — pdfjs canvas, no toolbar / download.</dd></div>
+          </dl>
+        </div>
+
+        <div class="tcard">
+          <header>
+            <div class="tname">Video <span class="ext">.mp4 → .m3u8</span></div>
+            <span class="lane stream">Stream lane</span>
+          </header>
+          <dl class="facts">
+            <div class="fact"><dt>At rest</dt><dd>Raw upload in S3, then an <b>HLS bundle</b> · <span class="mono">hls/&lt;id&gt;/master.m3u8</span>.</dd></div>
+            <div class="fact"><dt>Processing</dt><dd><b>MediaConvert</b> 720/480/360 ladder; <span class="mono">transcodePoller</span> flips <span class="mono">hls.status</span> → ready.</dd></div>
+            <div class="fact"><dt>Served by</dt><dd><span class="mono">buildHlsUrl()</span> signed token; CloudFront-signed <span class="mono">.ts</span> segments.</dd></div>
+            <div class="fact"><dt>Viewer</dt><dd><span class="mono">VideoPlayer.jsx</span> — hls.js, drifting email watermark.</dd></div>
+          </dl>
+        </div>
+
+        <div class="tcard">
+          <header>
+            <div class="tname">3D model <span class="ext">.glb</span></div>
+            <span class="lane stream">Stream lane</span>
+          </header>
+          <dl class="facts">
+            <div class="fact"><dt>At rest</dt><dd>Stored as-is in S3 · <span class="mono">obj_&lt;id&gt;</span> — not encrypted.</dd></div>
+            <div class="fact"><dt>Processing</dt><dd>None.</dd></div>
+            <div class="fact"><dt>Served by</dt><dd>Signed object URL via <span class="mono">storage.js › createMediaUrl()</span>.</dd></div>
+            <div class="fact"><dt>Viewer</dt><dd><span class="mono">Model3DViewer.jsx</span> — three.js GLTF loader.</dd></div>
+          </dl>
+        </div>
+
+        <div class="tcard enc">
+          <header>
+            <div class="tname">Game <span class="ext">.zip → .enc</span></div>
+            <span class="lane download">Download · encrypted</span>
+          </header>
+          <dl class="facts">
+            <div class="fact"><dt>At rest</dt><dd><b>AES-256-GCM</b> encrypted · <span class="mono">obj_&lt;id&gt;.enc</span>. Key <b>derived, never stored</b>.</dd></div>
+            <div class="fact"><dt>Processing</dt><dd>Background <span class="mono">startDownloadEncryption()</span> streams S3 → GCM → S3.</dd></div>
+            <div class="fact"><dt>Served by</dt><dd><b>Not</b> in the browser — <span class="mono">requiresLauncher:true</span>. The desktop app fetches the key via <span class="mono">POST /content/:id/key</span> after a license + device check.</dd></div>
+            <div class="fact"><dt>Runs in</dt><dd>The Electron launcher — decrypts in memory, then <span class="mono">spawn()</span>.</dd></div>
+          </dl>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- STAGE 6 -->
+  <section class="stage" id="a6">
+    <div class="stage-head"><span class="stage-num">6</span>
+      <div><h2 class="stage-title">Run the platform — every other control</h2>
+      <p class="stage-what">The remaining admin tabs. Each is a panel → an <code>adminApi</code> method → a guarded endpoint → a controller function.</p></div>
+    </div>
+    <div class="stage-body">
+      <div class="caps">
+        <div class="cap"><h4><span class="dot" style="background:var(--api)"></span>Broadcast notifications</h4>
+          <p><code>NotificationsPanel.send()</code> → <code>createNotification()</code> → <code>notification.controller.js › create()</code>. Reaches every user's bell.</p>
+          <span class="ep">POST /api/admin/notifications</span></div>
+
+        <div class="cap"><h4><span class="dot" style="background:var(--app)"></span>Licenses — audit &amp; act</h4>
+          <p><code>LicensesPanel</code> → <code>listLicenses()</code> / <code>revokeLicense()</code> / <code>unflagLicense()</code> → <code>license.controller.js › adminList / revoke / unflag</code>.</p>
+          <span class="ep">GET /admin/licenses · POST /admin/licenses/:jti/revoke</span></div>
+
+        <div class="cap"><h4><span class="dot" style="background:var(--svc)"></span>Coupons</h4>
+          <p><code>CommercePanel</code> → <code>createCoupon()</code> / <code>listCoupons()</code> / <code>deleteCoupon()</code> → <code>admin.controller.js</code>.</p>
+          <span class="ep">POST /api/admin/coupons</span></div>
+
+        <div class="cap"><h4><span class="dot" style="background:var(--svc)"></span>Refunds</h4>
+          <p><code>CommercePanel.Refund</code> → <code>refundPurchase()</code> → <code>admin.controller.js › refundPurchase()</code>: revokes the license <b>and</b> credits the wallet, atomically.</p>
+          <span class="ep">POST /api/admin/purchases/:id/refund</span></div>
+
+        <div class="cap"><h4><span class="dot" style="background:var(--fe)"></span>Users &amp; roles</h4>
+          <p><code>UsersPanel</code> → <code>listUsers()</code> / <code>setUserRole()</code> / <code>deleteUser()</code> → <code>admin.controller.js</code> (with a last-admin guard).</p>
+          <span class="ep">PATCH /api/admin/users/:id/role</span></div>
+
+        <div class="cap"><h4><span class="dot" style="background:var(--data)"></span>Reports &amp; export</h4>
+          <p><code>ReportsPanel</code> → <code>report()</code> / <code>exportReport()</code> → <code>admin.controller.js › getReport / exportReportHandler</code> (CSV / XLSX / PDF).</p>
+          <span class="ep">GET /api/admin/reports/:type/export</span></div>
+
+        <div class="cap"><h4><span class="dot" style="background:var(--api)"></span>Site settings</h4>
+          <p><code>SettingsPanel.save()</code> → <code>settingsApi.update()</code> → <code>settings.controller.js › updateSettings()</code>. Brand, header, footer, launcher link — only dirty sections are sent.</p>
+          <span class="ep">PUT /api/admin/settings</span></div>
+
+        <div class="cap"><h4><span class="dot" style="background:var(--faint)"></span>Audit log</h4>
+          <p><code>AuditLog</code> → <code>audit()</code> / <code>clearAudit()</code> → <code>admin.controller.js › recentAudit / clearAuditLog</code>. Every admin action above is recorded here.</p>
+          <span class="ep">GET /api/admin/audit</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SECURITY / NOTES -->
+  <div class="vault">
+    <h3><span class="lk">▣</span> Pipeline principles worth remembering</h3>
+    <div class="vgrid">
+      <div class="vcell"><h4>One fork, four outcomes</h4><p><code>defaultLaneForType()</code> is the only branch: <b>game → download (encrypted)</b>, and <code>pdf / video / 3d → stream</code>. Everything downstream follows from that single decision.</p></div>
+      <div class="vcell"><h4>Keys are derived, never stored</h4><p><code>deriveContentKey(id, salt)</code> re-computes the AES-256 key from a server secret + per-file salt. Only <code>salt / iv / tag</code> are persisted (all <code>select:false</code>); the key exists only for the moment of encrypt or decrypt.</p></div>
+      <div class="vcell"><h4>Heavy work is non-blocking</h4><p>Uploads return immediately. Game <b>encryption</b> (<code>startDownloadEncryption</code>) streams S3→GCM→S3; video <b>transcoding</b> is polled every 15s. Both survive a restart via <code>recoverEncryptions</code> / the transcode poller.</p></div>
+      <div class="vcell"><h4>Storage picks itself</h4><p><code>createMediaUrl()</code> chooses the read URL: <b>CloudFront-signed → presigned S3 → local disk</b>. The same code runs whether you're on a laptop or full AWS.</p></div>
+    </div>
+  </div>
+
+  <footer>
+    Traced from source across <code>frontend/src/pages/admin</code>, <code>backend/src/controllers</code>, and <code>backend/src/services</code>. Content types are exactly four — <code>pdf, video, 3d, game</code> (<code>shared/src/constants.js</code>). Reads as a pair with the user-journey map.
+  </footer>
+</main>
+
+<script>
+  (function(){
+    var root=document.documentElement, btn=document.getElementById('themeBtn'), lbl=document.getElementById('themeLbl');
+    function sysDark(){return window.matchMedia&&window.matchMedia('(prefers-color-scheme:dark)').matches;}
+    function cur(){return root.getAttribute('data-theme')||(sysDark()?'dark':'light');}
+    function apply(t){root.setAttribute('data-theme',t);lbl.textContent=t==='dark'?'Dark':'Light';}
+    apply(cur());
+    btn.addEventListener('click',function(){apply(cur()==='dark'?'light':'dark');});
+  })();
+</script>

@@ -8,6 +8,8 @@ const router = Router()
 
 // Search (auth so it can be personalized later; browsing tree stays public)
 router.get('/search', requireAuth, validate({ query: d.searchSchema }), d.search)
+// Type-ahead keyword suggestions for the search bar
+router.get('/search/suggest', requireAuth, validate({ query: d.suggestSchema }), d.suggest)
 
 // Favorites
 router.get('/favorites/mine', requireAuth, d.myFavorites)

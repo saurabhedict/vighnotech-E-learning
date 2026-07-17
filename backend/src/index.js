@@ -8,6 +8,7 @@ import { mediaConvertEnabled } from './services/mediaconvert.js'
 import { cloudFrontEnabled } from './services/cloudfront.js'
 import { Content } from './models/Content.js'
 import { startDownloadEncryption } from './controllers/admin.controller.js'
+import { ensureDefaultFilters } from './controllers/filters.controller.js'
 
 // Resume any download-lane encryptions interrupted by a restart.
 async function recoverEncryptions() {
@@ -34,6 +35,9 @@ async function start() {
     console.log('[boot] in-memory DB detected — auto-seeding…')
     await seedDatabase({ log: (m) => console.log(m) })
   }
+
+  // Ensure the default filter categories exist (no-op if any already present).
+  await ensureDefaultFilters((m) => console.log(m))
 
   const app = createApp()
   const server = app.listen(env.port, () => {

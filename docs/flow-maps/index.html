@@ -1,0 +1,55 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vigno — System Flow Maps</title>
+<style>
+  :root{
+    --bg:#eef1f5;--panel:#fff;--ink:#0f172a;--muted:#5b6675;--line:#e0e5ec;--accent:#2456e6;
+    --font-sans:'Segoe UI Variable','Segoe UI',system-ui,-apple-system,Roboto,Helvetica,Arial,sans-serif;
+    --font-mono:ui-monospace,'Cascadia Code','JetBrains Mono','SF Mono',Menlo,Consolas,monospace;
+  }
+  @media(prefers-color-scheme:dark){:root{--bg:#080d18;--panel:#0e1626;--ink:#e7ecf3;--muted:#93a1b5;--line:#1c2740;--accent:#5b8cff}}
+  :root[data-theme="dark"]{--bg:#080d18;--panel:#0e1626;--ink:#e7ecf3;--muted:#93a1b5;--line:#1c2740;--accent:#5b8cff}
+  :root[data-theme="light"]{--bg:#eef1f5;--panel:#fff;--ink:#0f172a;--muted:#5b6675;--line:#e0e5ec;--accent:#2456e6}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-sans);line-height:1.5;
+    display:flex;min-height:100vh;align-items:center;justify-content:center;padding:32px}
+  main{max-width:760px;width:100%}
+  .eyebrow{font-family:var(--font-mono);font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);font-weight:600;margin:0 0 12px}
+  h1{font-size:clamp(26px,5vw,38px);letter-spacing:-.025em;margin:0 0 12px;font-weight:800}
+  p.lede{color:var(--muted);font-size:16px;margin:0 0 28px;max-width:60ch}
+  .cards{display:grid;gap:14px;grid-template-columns:1fr}
+  @media(min-width:640px){.cards{grid-template-columns:1fr 1fr}}
+  a.card{display:flex;flex-direction:column;gap:8px;text-decoration:none;color:var(--ink);
+    background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:22px;transition:border-color .15s,transform .15s}
+  a.card:hover{border-color:var(--accent);transform:translateY(-3px)}
+  a.card .n{font-family:var(--font-mono);font-size:12px;color:var(--accent);font-weight:700}
+  a.card h2{margin:0;font-size:19px;letter-spacing:-.01em}
+  a.card p{margin:0;font-size:13.5px;color:var(--muted)}
+  a.card .go{font-family:var(--font-mono);font-size:12px;color:var(--accent);margin-top:4px}
+  .tip{margin:26px 0 0;font-size:13px;color:var(--muted);background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:13px 16px}
+  .tip code{font-family:var(--font-mono);color:var(--ink);font-size:12.5px}
+</style>
+<main>
+  <p class="eyebrow">Vigno · Learning &amp; Content Management</p>
+  <h1>System flow maps</h1>
+  <p class="lede">Code-level, end-to-end maps of the platform — traced from the actual source. Each step names the exact file, function, and API endpoint that runs. Open either in any browser; use <b>Print → Save as PDF</b> for a PDF copy.</p>
+  <div class="cards">
+    <a class="card" href="user-journey-flow.html">
+      <span class="n">MAP 01</span>
+      <h2>User journey</h2>
+      <p>Register → log in → browse → buy → learn (stream) → play a game through the desktop launcher.</p>
+      <span class="go">Open →</span>
+    </a>
+    <a class="card" href="admin-content-pipeline-flow.html">
+      <span class="n">MAP 02</span>
+      <h2>Admin &amp; content pipeline</h2>
+      <p>Sign in → build the course tree → upload a file → how PDF / video / 3D / game each branch → every admin control.</p>
+      <span class="go">Open →</span>
+    </a>
+  </div>
+  <p class="tip">These are self-contained single-file pages — no server or internet needed. To share as one file, send either <code>.html</code> directly; to get a PDF, open it and press <code>Ctrl/Cmd + P</code> → <b>Save as PDF</b> (choose Landscape for the widest steps).</p>
+</main>
+<script>
+  (function(){var r=document.documentElement;function d(){return window.matchMedia&&window.matchMedia('(prefers-color-scheme:dark)').matches}r.setAttribute('data-theme',r.getAttribute('data-theme')||(d()?'dark':'light'))})();
+</script>

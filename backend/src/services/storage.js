@@ -5,6 +5,7 @@ import { customAlphabet } from 'nanoid'
 import { env } from '../config/env.js'
 import { s3Enabled, putObject, uploadStream, headObject, getObjectStream, getObjectBuffer, deleteObject, presignPutUrl, presignGetUrl } from './s3.js'
 import { cloudFrontEnabled, signCloudFrontUrl } from './cloudfront.js'
+import { cache } from './cache.js'
 
 /**
  * Object storage for all uploaded media (Doc 2 §1, §8).
@@ -125,9 +126,24 @@ export async function createDirectUpload(originalName = '') {
 // Default TTL comfortably covers a long video (one URL serves all range requests).
 export async function createMediaUrl(storageKey, { expiresIn = 14400 } = {}) {
   if (!storageKey) return null
-  if (cloudFrontEnabled()) return signCloudFrontUrl(storageKey, { expiresIn })
-  if (s3Enabled()) return presignGetUrl(storageKey, { expiresIn, contentType: mimeFor(storageKey) })
-  return `http://localhost:${env.port}/api/files/local/${storageKey}`
+  // Local dev (no CDN/S3) → stable proxy URL, nothing to sign or memoize.
+  if (!cloudFrontEnabled() && !s3Enabled()) return `http://localhost:${env.port}/api/files/local/${storageKey}`
+
+  // Memoize the signed URL. Signing bakes a fresh Date.now() expiry into each URL,
+  // so without this the SAME image got a brand-new URL on every response and the
+  // browser re-downloaded every thumbnail on every page load. Returning a STABLE
+  // URL for a window well under its own TTL makes media browser-cacheable and
+  // skips the per-item re-signing cost on list endpoints.
+  const cacheTtl = Math.max(30, Math.min(3600, Math.floor(expiresIn / 4)))
+  const cacheKey = `mediaurl:${expiresIn}:${storageKey}`
+  const hit = cache.get(cacheKey)
+  if (hit !== undefined) return hit
+
+  const url = cloudFrontEnabled()
+    ? signCloudFrontUrl(storageKey, { expiresIn })
+    : await presignGetUrl(storageKey, { expiresIn, contentType: mimeFor(storageKey) })
+  cache.set(cacheKey, url, cacheTtl)
+  return url
 }
 
 // ── Reads ────────────────────────────────────────────────────────────────────

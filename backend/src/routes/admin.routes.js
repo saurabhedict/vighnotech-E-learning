@@ -6,6 +6,7 @@ import * as admin from '../controllers/admin.controller.js'
 import * as lic from '../controllers/license.controller.js'
 import * as settings from '../controllers/settings.controller.js'
 import * as notif from '../controllers/notification.controller.js'
+import * as filt from '../controllers/filters.controller.js'
 
 const router = Router()
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 200 * 1024 * 1024 } })
@@ -56,6 +57,14 @@ router.get('/licenses', lic.adminList)
 router.post('/licenses/issue', validate({ body: lic.adminIssueSchema }), lic.adminIssue)
 router.post('/licenses/:jti/revoke', lic.revoke)
 router.post('/licenses/:jti/unflag', lic.unflag)
+
+// Filters (dynamic categories used to classify courses/programs)
+router.get('/filters', filt.list)
+router.post('/filters', validate({ body: filt.createCategorySchema }), filt.createCategory)
+router.patch('/filters/:id', validate({ body: filt.updateCategorySchema }), filt.updateCategory)
+router.delete('/filters/:id', filt.deleteCategory)
+router.post('/filters/:id/options', validate({ body: filt.addOptionSchema }), filt.addOption)
+router.delete('/filters/:id/options/:optionId', filt.removeOption)
 
 // Broadcast notifications (admin → everyone)
 router.get('/notifications', notif.list)
