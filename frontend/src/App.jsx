@@ -4,25 +4,45 @@ import AppLayout from './components/AppLayout'
 import RequireAdmin from './components/RequireAdmin'
 import Loader from './components/Loader'
 
+// A failed dynamic import almost always means a redeploy changed the content-
+// hashed chunk names while this tab still holds the old index.html. Force ONE
+// full reload to pick up the fresh chunk names. The 10s guard means that if the
+// import fails AGAIN right after reloading, it's a genuine error — let it bubble
+// to the ErrorBoundary instead of looping forever.
+function lazyWithReload(factory) {
+  return lazy(() =>
+    factory().catch((err) => {
+      const KEY = 'chunk-reload-at'
+      const last = Number(sessionStorage.getItem(KEY) || 0)
+      if (Date.now() - last > 10_000) {
+        sessionStorage.setItem(KEY, String(Date.now()))
+        window.location.reload()
+        return new Promise(() => {}) // hang until the reload takes over
+      }
+      throw err
+    })
+  )
+}
+
 // Route-level code splitting: each page is its own chunk, so the initial bundle
 // stays small and admin/3D/etc. only download when visited.
-const Login = lazy(() => import('./pages/Login'))
-const Signup = lazy(() => import('./pages/Signup'))
-const ForgotPassword = lazy(() => import('./pages/ForgotPassword'))
-const Home = lazy(() => import('./pages/Home'))
-const ModuleView = lazy(() => import('./pages/ModuleView'))
-const CourseLearn = lazy(() => import('./pages/CourseWorkspace'))
-const ContentViewer = lazy(() => import('./pages/ContentViewer'))
-const Library = lazy(() => import('./pages/Library'))
-const Favorites = lazy(() => import('./pages/Favorites'))
-const Search = lazy(() => import('./pages/Search'))
-const Browse = lazy(() => import('./pages/Browse'))
-const Wallet = lazy(() => import('./pages/Wallet'))
-const Profile = lazy(() => import('./pages/Profile'))
-const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'))
-const Dashboard = lazy(() => import('./pages/Dashboard'))
-const NotFound = lazy(() => import('./pages/NotFound'))
-const Cart = lazy(() => import('./pages/Cart'))
+const Login = lazyWithReload(() => import('./pages/Login'))
+const Signup = lazyWithReload(() => import('./pages/Signup'))
+const ForgotPassword = lazyWithReload(() => import('./pages/ForgotPassword'))
+const Home = lazyWithReload(() => import('./pages/Home'))
+const ModuleView = lazyWithReload(() => import('./pages/ModuleView'))
+const CourseLearn = lazyWithReload(() => import('./pages/CourseWorkspace'))
+const ContentViewer = lazyWithReload(() => import('./pages/ContentViewer'))
+const Library = lazyWithReload(() => import('./pages/Library'))
+const Favorites = lazyWithReload(() => import('./pages/Favorites'))
+const Search = lazyWithReload(() => import('./pages/Search'))
+const Browse = lazyWithReload(() => import('./pages/Browse'))
+const Wallet = lazyWithReload(() => import('./pages/Wallet'))
+const Profile = lazyWithReload(() => import('./pages/Profile'))
+const AdminDashboard = lazyWithReload(() => import('./pages/admin/AdminDashboard'))
+const Dashboard = lazyWithReload(() => import('./pages/Dashboard'))
+const NotFound = lazyWithReload(() => import('./pages/NotFound'))
+const Cart = lazyWithReload(() => import('./pages/Cart'))
 
 export default function App() {
   return (
