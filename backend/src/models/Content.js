@@ -14,9 +14,14 @@ const contentSchema = new mongoose.Schema(
 
     title: { type: String, required: true, trim: true },
     description: { type: String, default: '' },
-    // pdf | video | 3d | game (matches the frontend viewers)
+    // pdf | video | 3d | game | apk (matches the frontend viewers)
     type: { type: String, enum: CONTENT_TYPES, required: true },
     lane: { type: String, enum: CONTENT_LANES, default: LANES.STREAM },
+
+    // Admin-assigned product code for the Android (APK) lane, e.g. "CFM_ENGINE_V1".
+    // The installed APK sends this to POST /activateapp to identify itself. Unique
+    // across the catalog (enforced by a partial index on non-empty values below).
+    identifier: { type: String, trim: true, default: '' },
 
     isPaid: { type: Boolean, default: false },
     price: { type: Number, default: 0, min: 0 }, // in INR (paise handled at payment time)
@@ -75,6 +80,9 @@ contentSchema.index({ chapterId: 1, published: 1, order: 1 })
 contentSchema.index({ published: 1, isPaid: 1, createdAt: -1 })
 // Full-text index for search (title/description/tags).
 contentSchema.index({ title: 'text', description: 'text', tags: 'text' })
+// Unique app identifier — only indexes non-empty values (partial), so the many
+// non-APK docs with an empty identifier never collide. Fast lookup for /activateapp.
+contentSchema.index({ identifier: 1 }, { unique: true, partialFilterExpression: { identifier: { $gt: '' } } })
 
 // Public catalog shape (no storage internals leaked).
 contentSchema.methods.toCatalogJSON = function toCatalogJSON() {

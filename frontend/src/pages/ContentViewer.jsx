@@ -4,6 +4,7 @@ import { useSelector } from 'react-redux'
 import { useContentItem } from '../hooks/useContent'
 import { useSiteSettings } from '../hooks/useSiteSettings'
 import { discoverApi } from '../api/discoverApi'
+import api from '../api/axiosClient'
 import BuyButton from '../components/BuyButton'
 import FavoriteButton from '../components/FavoriteButton'
 
@@ -53,6 +54,30 @@ export default function ContentViewer() {
     (p) => { discoverApi.saveProgress(contentId, p).catch(() => {}) },
     [contentId]
   )
+
+  // Download-lane APK direct install (Option B): the server decrypts the owned
+  // APK on the fly and streams the installable file; we save it via a blob so the
+  // authenticated request (cookie/bearer) is used rather than a bare link.
+  const [downloadingApk, setDownloadingApk] = useState(false)
+  const handleDownloadApk = useCallback(async () => {
+    if (!contentId) return
+    setDownloadingApk(true)
+    try {
+      const res = await api.get(`/content/${contentId}/download-apk`, { responseType: 'blob' })
+      const url = URL.createObjectURL(new Blob([res.data], { type: 'application/vnd.android.package-archive' }))
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${(item?.title || 'app').replace(/[^a-z0-9._-]+/gi, '_')}.apk`
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      setTimeout(() => URL.revokeObjectURL(url), 4000)
+    } catch (e) {
+      alert(e?.response?.data?.error?.message || e?.message || 'Download failed')
+    } finally {
+      setDownloadingApk(false)
+    }
+  }, [contentId, item])
 
   if (isLoading) return <p className="text-vigno-muted">Opening content…</p>
   if (isError || !item) return <p className="text-red-300">Content not found.</p>
@@ -239,46 +264,55 @@ export default function ContentViewer() {
           </div>
         )}
 
-        {/* Download lane (software / Android apps) → secure launcher */}
+        {/* Download lane → direct install (Android APK) OR desktop launcher (PC games) */}
         {!item.locked && item.requiresLauncher && (
           <div className="py-10 flex flex-col items-center justify-center text-vigno-muted text-center gap-4">
-            <div className="text-5xl">{item.type === 'apk' ? '📱' : '🎮'}</div>
-            <div className="max-w-md">
-              {item.type === 'apk' ? (
-                <>You own this Android app. It’s stored <b>encrypted</b> and locked to your
-                registered device — the embedded <b>LicenseGuard</b> verifies your license before
-                it runs.</>
-              ) : (
-                <>You own this. Download &amp; run it through the secure desktop launcher — the
-                license + device binding are verified before it decrypts.</>
-              )}
-            </div>
-            {launcherDownloadUrl ? (
-              <div className="flex flex-col items-center gap-1.5">
-                <a
-                  href={launcherDownloadUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="bg-vigno-accent text-[#1a0d0f] font-bold px-5 py-2.5 rounded-lg text-sm hover:brightness-110 inline-flex items-center gap-2"
+            {item.type === 'apk' ? (
+              <>
+                <div className="text-5xl">📱</div>
+                <div className="max-w-md">
+                  You own this Android app. Download it to your device and install — it’s bound to
+                  your device and the embedded <b>LicenseGuard</b> verifies your license on launch.
+                </div>
+                <button
+                  onClick={handleDownloadApk}
+                  disabled={downloadingApk}
+                  className="bg-vigno-accent text-[#1a0d0f] font-bold px-5 py-2.5 rounded-lg text-sm hover:brightness-110 inline-flex items-center gap-2 disabled:opacity-60"
                 >
-                  ⬇ {item.type === 'apk' ? 'Get the Vigno Android App' : `Install the Launcher${launcher.version ? ` (v${launcher.version})` : ''}`}
-                </a>
-                <span className="text-xs text-vigno-muted">
-                  {item.type === 'apk' ? (
-                    <>Install the Vigno app on your registered Android device and sign in to download this title.</>
-                  ) : (
-                    <>Already installed? Open <b>Vigno Launcher</b> and sign in to download this title.</>
-                  )}
+                  {downloadingApk ? 'Preparing…' : '⬇ Download APK'}
+                </button>
+                <span className="text-xs text-vigno-muted max-w-md">
+                  On Android, allow <b>“Install unknown apps”</b> for your browser, then open the
+                  downloaded <b>.apk</b>. First launch needs internet to activate this device.
                 </span>
-              </div>
+              </>
             ) : (
-              <span className="text-xs text-vigno-muted">
-                {item.type === 'apk' ? (
-                  <>The Android app delivery isn’t set up yet — an admin can add it under <b>Admin → Site Settings</b>.</>
+              <>
+                <div className="text-5xl">🎮</div>
+                <div className="max-w-md">
+                  You own this. Download &amp; run it through the secure desktop launcher — the
+                  license + device binding are verified before it decrypts.
+                </div>
+                {launcherDownloadUrl ? (
+                  <div className="flex flex-col items-center gap-1.5">
+                    <a
+                      href={launcherDownloadUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="bg-vigno-accent text-[#1a0d0f] font-bold px-5 py-2.5 rounded-lg text-sm hover:brightness-110 inline-flex items-center gap-2"
+                    >
+                      ⬇ Install the Launcher{launcher.version ? ` (v${launcher.version})` : ''}
+                    </a>
+                    <span className="text-xs text-vigno-muted">
+                      Already installed? Open <b>Vigno Launcher</b> and sign in to download this title.
+                    </span>
+                  </div>
                 ) : (
-                  <>The launcher download isn’t set up yet — an admin can add it under <b>Admin → Site Settings → Desktop Launcher</b>.</>
+                  <span className="text-xs text-vigno-muted">
+                    The launcher download isn’t set up yet — an admin can add it under <b>Admin → Site Settings → Desktop Launcher</b>.
+                  </span>
                 )}
-              </span>
+              </>
             )}
           </div>
         )}

@@ -28,6 +28,7 @@ import profileRoutes from './routes/profile.routes.js'
 import settingsRoutes from './routes/settings.routes.js'
 import notificationRoutes from './routes/notification.routes.js'
 import filtersRoutes from './routes/filters.routes.js'
+import appRoutes from './routes/app.routes.js'
 
 export function createApp() {
   const app = express()
@@ -110,6 +111,7 @@ export function createApp() {
   app.use('/api', coursesRoutes) // /courses, /contents/:id
   app.use('/api', discoverRoutes) // /search, /favorites, /progress, /recommended
   app.use('/api', commerceRoutes) // /wallet, /coupons/validate
+  app.use('/api', appRoutes) // /activateapp, /verifyapp, /deregisterapp (Android APK)
   app.use('/api/settings', settingsRoutes) // public branding + footer
   app.use('/api/licenses', licenseRoutes)
   app.use('/api/payments', paymentsRoutes)

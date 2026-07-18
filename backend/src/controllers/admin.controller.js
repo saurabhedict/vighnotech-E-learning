@@ -217,6 +217,7 @@ export const createContentSchema = z.object({
   price: z.number().min(0).optional(),
   externalUrl: z.string().url().optional(),
   order: z.number().int().optional(),
+  identifier: z.string().trim().max(200).optional(), // APK product code (Android lane)
 })
 
 export const createContent = asyncHandler(async (req, res) => {
@@ -240,7 +241,7 @@ export const createContent = asyncHandler(async (req, res) => {
 export const updateContent = asyncHandler(async (req, res) => {
   const content = await Content.findById(req.params.id)
   if (!content) throw notFound('Content not found')
-  const allowed = ['title', 'description', 'type', 'lane', 'isPaid', 'price', 'externalUrl', 'order', 'published', 'tags', 'thumbnail', 'previewText']
+  const allowed = ['title', 'description', 'type', 'lane', 'isPaid', 'price', 'externalUrl', 'order', 'published', 'tags', 'thumbnail', 'previewText', 'identifier']
   for (const k of allowed) if (req.body[k] !== undefined) content[k] = req.body[k]
   // Frontend sends thumbnailUrl; map it to the model field `thumbnail`
   if (req.body.thumbnailUrl !== undefined) {

@@ -341,6 +341,50 @@ export const getDownloadUrl = asyncHandler(async (req, res) => {
   res.json({ url, sizeBytes: stat?.size || content.sizeBytes || 0 })
 })
 
+// GET /content/:id/download-apk — license-gated DIRECT install for the Android
+// (APK) lane. Games have a desktop launcher to decrypt the .enc; Android phones
+// don't, so the server decrypts the stored ciphertext ON THE FLY and streams the
+// installable .apk to the device. Ownership (active license) is required; the
+// object stays encrypted at rest and the plaintext only exists in transit (TLS).
+// Runtime protection is then the in-APK LicenseGuard (online activation).
+export const downloadApk = asyncHandler(async (req, res, next) => {
+  const content = await Content.findById(req.params.id).select('+enc.salt +enc.iv +enc.tag')
+  if (!content) throw notFound('Content not found')
+  if (content.lane !== 'download' || content.type !== 'apk') throw badRequest('Not an APK title')
+
+  if (req.user.role !== 'admin') {
+    const owns = await hasActiveLicense(req.user.id, content._id)
+    if (!owns) throw paymentRequired()
+  }
+  if (!content.storageKey) {
+    if (content.enc?.status === 'encrypting') throw badRequest('This app is still being prepared — try again in a few minutes')
+    throw notFound('No file uploaded for this content')
+  }
+  if (!content.enc?.encrypted || !content.enc?.iv || !content.enc?.tag) throw badRequest('Content is not encrypted (upload a file first)')
+
+  const rs = await readObjectStream(content.storageKey)
+  if (!rs) throw notFound('File missing from storage')
+
+  // AES-256-GCM decrypt: same per-content key the launcher would fetch, derived
+  // server-side here. GCM verifies the auth tag when the stream drains, so a
+  // wrong key / tampered blob makes the pipe error out (never a valid APK).
+  const key = deriveContentKey(content._id.toString(), content.enc.salt)
+  const decipher = crypto.createDecipheriv('aes-256-gcm', key, Buffer.from(content.enc.iv, 'base64'))
+  decipher.setAuthTag(Buffer.from(content.enc.tag, 'base64'))
+
+  const safeName = (content.title || 'app').replace(/[^a-z0-9._-]+/gi, '_').slice(0, 60) || 'app'
+  res.set('Cache-Control', 'private, no-store')
+  res.set('Content-Type', 'application/vnd.android.package-archive')
+  res.set('Content-Disposition', `attachment; filename="${safeName}.apk"`)
+  // GCM ciphertext length == plaintext length (no padding), so sizeBytes is exact.
+  if (content.sizeBytes) res.set('Content-Length', String(content.sizeBytes))
+  audit(req, 'file.download_apk', { targetType: 'Content', targetId: content._id })
+
+  rs.on('error', (e) => { if (res.headersSent) res.destroy(e); else next(e) })
+  decipher.on('error', (e) => { if (res.headersSent) res.destroy(e); else next(badRequest('Decryption failed')) })
+  rs.pipe(decipher).pipe(res)
+})
+
 /**
  * POST /content/:id/key — launcher verifies license + device, gets the
  * decryption key (Doc 2 §6). Patching the launcher's "always true" check is

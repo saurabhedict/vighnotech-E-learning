@@ -489,6 +489,7 @@ function LessonsList({ chapterId, isDark }) {
 
   const [title, setTitle] = useState('')
   const [type, setType] = useState('video')
+  const [identifier, setIdentifier] = useState('') // APK product code (Android lane)
   const [adding, setAdding] = useState(false)
   const [metaOpenId, setMetaOpenId] = useState(null)
   const [uploads, setUploads] = useState({})
@@ -506,8 +507,10 @@ function LessonsList({ chapterId, isDark }) {
         type,
         isPaid: true,
         price: 0,
+        ...(type === 'apk' && identifier.trim() ? { identifier: identifier.trim() } : {}),
       })
       setTitle('')
+      setIdentifier('')
       qc.invalidateQueries({ queryKey: ['admin', 'chapter', chapterId, 'content'] })
     } catch (err) {
       alert(apiErrorMessage(err, 'Failed to add content'))
@@ -692,6 +695,16 @@ function LessonsList({ chapterId, isDark }) {
           <option value="game">Interactive Game</option>
           <option value="apk">Android App (APK)</option>
         </select>
+        {type === 'apk' && (
+          <input
+            type="text"
+            placeholder="App Identifier (e.g. CFM_ENGINE_V1)"
+            value={identifier}
+            onChange={(e) => setIdentifier(e.target.value)}
+            title="Unique product code the installed APK sends to /activateapp"
+            className="min-w-[190px] px-2 py-1 rounded-md bg-vigno-bg2 border border-vigno-line/50 text-xs text-vigno-txt outline-none"
+          />
+        )}
         <button
           type="submit"
           disabled={adding}
@@ -1457,6 +1470,7 @@ function StandaloneResourcesManager({ isDark }) {
 
   const [title, setTitle] = useState('')
   const [type, setType] = useState('video')
+  const [identifier, setIdentifier] = useState('') // APK product code (Android lane)
   const [price, setPrice] = useState('')
   const [adding, setAdding] = useState(false)
   const [metaOpenId, setMetaOpenId] = useState(null)
@@ -1473,9 +1487,11 @@ function StandaloneResourcesManager({ isDark }) {
         title: title.trim(),
         type,
         price: Number(price) || 0,
+        ...(type === 'apk' && identifier.trim() ? { identifier: identifier.trim() } : {}),
       })
       setTitle('')
       setPrice('')
+      setIdentifier('')
       qc.invalidateQueries({ queryKey: ['admin', 'resources'] })
     } catch (err) {
       alert(apiErrorMessage(err, 'Failed to add resource'))
@@ -1569,6 +1585,19 @@ function StandaloneResourcesManager({ isDark }) {
               <option value="apk">Android App (APK)</option>
             </select>
           </div>
+          {type === 'apk' && (
+            <div className="flex flex-col gap-1 w-full">
+              <label className="text-[10px] font-bold text-vigno-muted uppercase tracking-wider">App Identifier</label>
+              <input
+                type="text"
+                placeholder="e.g. CFM_ENGINE_V1"
+                value={identifier}
+                onChange={(e) => setIdentifier(e.target.value)}
+                title="Unique product code the installed APK sends to /activateapp"
+                className="px-3.5 py-2.5 rounded-xl bg-vigno-bg2/60 border border-vigno-line/60 text-sm text-vigno-txt outline-none transition-all w-full"
+              />
+            </div>
+          )}
           <div className="flex flex-col gap-1 w-full">
             <label className="text-[10px] font-bold text-vigno-muted uppercase tracking-wider">Price (INR)</label>
             <div className="relative w-full">
