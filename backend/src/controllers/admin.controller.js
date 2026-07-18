@@ -687,7 +687,7 @@ async function getOrCreateStandaloneChapterId() {
 }
 
 export const createStandaloneResource = asyncHandler(async (req, res) => {
-  const { title, type, price } = req.body
+  const { title, type, price, identifier } = req.body
   const chapterId = await getOrCreateStandaloneChapterId()
   const content = await Content.create({
     chapterId,
@@ -697,6 +697,8 @@ export const createStandaloneResource = asyncHandler(async (req, res) => {
     price: Number(price) || 0,
     courseKey: '', // empty courseKey makes it standalone!
     lane: defaultLaneForType(type),
+    // APK product code (Android lane) — the app sends this to /activateapp.
+    ...(identifier && String(identifier).trim() ? { identifier: String(identifier).trim() } : {}),
   })
   audit(req, 'cms.resource.create', { targetType: 'Content', targetId: content._id })
   res.status(201).json(content)
