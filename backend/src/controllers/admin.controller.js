@@ -17,6 +17,7 @@ import { User } from '../models/User.js'
 import { AuditLog } from '../models/AuditLog.js'
 import { Favorite } from '../models/Favorite.js'
 import { Progress } from '../models/Progress.js'
+import { AppActivation } from '../models/AppActivation.js'
 import { saveBuffer, saveEncryptedBuffer, saveEncryptedFromObject, removeObject, statObject, directUploadSupported, createDirectUpload, createMediaUrl } from '../services/storage.js'
 import { submitHlsJob, mediaConvertEnabled } from '../services/mediaconvert.js'
 import { deriveContentKey, newSalt } from '../services/contentCrypto.js'
@@ -283,6 +284,7 @@ export const deleteContent = asyncHandler(async (req, res) => {
   await Favorite.deleteMany({ contentId })
   await Progress.deleteMany({ contentId })
   await Purchase.deleteMany({ contentId })
+  await AppActivation.deleteMany({ contentId }) // Android activations for this app
 
   cache.del('admin:stats')
 
