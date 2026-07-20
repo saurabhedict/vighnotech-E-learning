@@ -266,7 +266,9 @@ export default function Home() {
 
   // Check if student has purchased any content in this course
   // Admins see every course as unlocked so they can review the full site.
-  const isEnrolled = user?.role === 'admin' || licenses?.some((l) => l.usable && l.content?.courseKey === className)
+  // Admins buy courses like a normal user (no auto-unlock) so the course flows
+  // into their My Learning after purchase. Backend still lets admins preview content.
+  const isEnrolled = licenses?.some((l) => l.usable && l.content?.courseKey === className)
 
   const cartItems = useSelector((s) => s.cart.items)
   const isInCart = cartItems.some((i) => i.id === className)

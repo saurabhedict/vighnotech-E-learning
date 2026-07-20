@@ -53,7 +53,8 @@ export default function ContentCard({ item, disablePopover = false }) {
   const isAdmin = useSelector((s) => s.auth.user?.role) === 'admin'
   const isDark = theme === 'dark'
   const { data: licenses } = useQuery({ queryKey: ['licenses', 'mine'], queryFn: licenseApi.mine })
-  const isEnrolled = isAdmin || (!!item.courseKey && licenses?.some((l) => l.content?.courseKey === item.courseKey))
+  // Admins buy like normal users (no auto-unlock) → purchased items land in My Learning.
+  const isEnrolled = !!item.courseKey && licenses?.some((l) => l.content?.courseKey === item.courseKey)
 
   const [hovered, setHovered] = useState(false)
   const [popoverSide, setPopoverSide] = useState('right')

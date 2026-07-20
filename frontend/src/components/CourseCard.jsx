@@ -134,7 +134,8 @@ export default function CourseCard({ course }) {
   const IconComponent = meta.icon
 
   const { data: licenses } = useQuery({ queryKey: ['licenses', 'mine'], queryFn: licenseApi.mine })
-  const isEnrolled = isAdmin || licenses?.some((l) => l.usable && l.content?.courseKey === courseSlug)
+  // Admins buy like normal users (no auto-unlock) → purchased courses land in My Learning.
+  const isEnrolled = licenses?.some((l) => l.usable && l.content?.courseKey === courseSlug)
 
   const [hovered, setHovered] = useState(false)
   const [popoverSide, setPopoverSide] = useState('right')
