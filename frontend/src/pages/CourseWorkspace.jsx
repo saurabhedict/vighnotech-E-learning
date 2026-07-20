@@ -143,7 +143,7 @@ function ResourceStage({ item, content, isLoading, watermark, onProgress, launch
     if (!active?.id) return
     setDownloadingApk(true)
     try {
-      const res = await api.get(`/content/${active.id}/download-apk`, { responseType: 'blob' })
+      const res = await api.get(`/content/${active.id}/download-apk`, { responseType: 'blob', timeout: 0 })
       const url = URL.createObjectURL(new Blob([res.data], { type: 'application/vnd.android.package-archive' }))
       const a = document.createElement('a')
       a.href = url

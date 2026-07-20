@@ -63,7 +63,7 @@ export default function ContentViewer() {
     if (!contentId) return
     setDownloadingApk(true)
     try {
-      const res = await api.get(`/content/${contentId}/download-apk`, { responseType: 'blob' })
+      const res = await api.get(`/content/${contentId}/download-apk`, { responseType: 'blob', timeout: 0 })
       const url = URL.createObjectURL(new Blob([res.data], { type: 'application/vnd.android.package-archive' }))
       const a = document.createElement('a')
       a.href = url
