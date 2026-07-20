@@ -6,6 +6,7 @@ import { useClassTree, useContentItem } from '../hooks/useContent'
 import { useSiteSettings } from '../hooks/useSiteSettings'
 import { licenseApi } from '../api/licenseApi'
 import { discoverApi } from '../api/discoverApi'
+import api from '../api/axiosClient'
 
 const VideoPlayer = lazy(() => import('../components/VideoPlayer'))
 const PdfViewer = lazy(() => import('../components/PdfViewer'))
@@ -135,6 +136,29 @@ function LauncherPrompt({ active, launcherDownloadUrl, launcherVersion, onHelp }
 function ResourceStage({ item, content, isLoading, watermark, onProgress, launcherDownloadUrl, launcherVersion, onLauncherHelp }) {
   const active = { ...item, ...(content || {}), locked: false }
 
+  // Android apps (.apk) don't use the desktop launcher — they download & install
+  // directly on the device (server decrypts the owned APK on the fly).
+  const [downloadingApk, setDownloadingApk] = useState(false)
+  const downloadApk = useCallback(async () => {
+    if (!active?.id) return
+    setDownloadingApk(true)
+    try {
+      const res = await api.get(`/content/${active.id}/download-apk`, { responseType: 'blob' })
+      const url = URL.createObjectURL(new Blob([res.data], { type: 'application/vnd.android.package-archive' }))
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${(active.title || 'app').replace(/[^a-z0-9._-]+/gi, '_')}.apk`
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      setTimeout(() => URL.revokeObjectURL(url), 4000)
+    } catch (e) {
+      alert(e?.response?.data?.error?.message || e?.message || 'Download failed')
+    } finally {
+      setDownloadingApk(false)
+    }
+  }, [active?.id, active?.title])
+
   if (!item) {
     return <div className="aspect-video bg-black flex items-center justify-center text-white/70">No lessons are available in this course yet.</div>
   }
@@ -167,19 +191,41 @@ function ResourceStage({ item, content, isLoading, watermark, onProgress, launch
         </div>
       )}
 
-      {(active?.type === 'game' || active?.requiresLauncher) && (
+      {/* Android app (.apk): direct download + install on device — NO desktop launcher. */}
+      {active?.type === 'apk' && (
+        <div className="relative aspect-video flex flex-col items-center justify-center text-center px-6 overflow-hidden bg-[#070b14]">
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-emerald-900/40 via-[#070b14]/80 to-[#070b14] pointer-events-none" />
+          <div className="relative z-10 flex flex-col items-center backdrop-blur-md bg-white/5 p-8 rounded-3xl border border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.36)]">
+            <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-emerald-500 to-green-700 text-white flex items-center justify-center shadow-[0_0_40px_rgba(16,185,129,0.5)] mb-6 text-4xl">📱</div>
+            <p className="text-[10px] font-black uppercase tracking-[0.3em] text-emerald-400 mb-3 drop-shadow-md">Android App</p>
+            <h2 className="text-4xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white to-white/70 tracking-tight drop-shadow-sm">{active.title}</h2>
+            <p className="text-sm font-medium text-white/60 mt-4 mb-8 max-w-lg leading-relaxed">Download this Android app and install it on your device. It’s bound to your device and the embedded LicenseGuard verifies your license on launch.</p>
+            <button
+              onClick={downloadApk}
+              disabled={downloadingApk}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-8 py-3.5 text-sm font-bold text-white transition-all hover:scale-105 hover:shadow-[0_0_20px_rgba(16,185,129,0.4)] focus:outline-none disabled:opacity-60"
+            >
+              {downloadingApk ? 'Preparing…' : '⬇ Download APK'}
+            </button>
+            <p className="text-[11px] text-white/50 mt-3 max-w-md">On Android, allow “Install unknown apps” for your browser, then open the downloaded .apk. First launch needs internet to activate this device.</p>
+          </div>
+        </div>
+      )}
+
+      {/* PC software (.exe/game): runs through the secure desktop launcher only. */}
+      {active?.type !== 'apk' && (active?.type === 'game' || active?.requiresLauncher) && (
         <div className="relative aspect-video flex flex-col items-center justify-center text-center px-6 overflow-hidden bg-[#070b14]">
           {/* Ambient background glow */}
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-blue-900/40 via-[#070b14]/80 to-[#070b14] pointer-events-none" />
-          
+
           {/* Glassmorphic card content */}
           <div className="relative z-10 flex flex-col items-center backdrop-blur-md bg-white/5 p-8 rounded-3xl border border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.36)] transition-all hover:bg-white/10">
             <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-700 text-white flex items-center justify-center shadow-[0_0_40px_rgba(59,130,246,0.5)] mb-6 transform hover:scale-110 transition-transform duration-300">
               <Icon name="play" className="w-10 h-10 fill-current ml-1" />
             </div>
-            <p className="text-[10px] font-black uppercase tracking-[0.3em] text-blue-400 mb-3 drop-shadow-md">{active.type === 'apk' ? 'Android App' : 'Simulator'}</p>
+            <p className="text-[10px] font-black uppercase tracking-[0.3em] text-blue-400 mb-3 drop-shadow-md">Simulator</p>
             <h2 className="text-4xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white to-white/70 tracking-tight drop-shadow-sm">{active.title}</h2>
-            <p className="text-sm font-medium text-white/60 mt-4 mb-8 max-w-lg leading-relaxed">{active.type === 'apk' ? 'This Android app is delivered securely and locked to your registered device — the embedded LicenseGuard verifies your license before it runs.' : 'This immersive simulator runs securely via the AeroLearn desktop launcher. Simply select this module to begin.'}</p>
+            <p className="text-sm font-medium text-white/60 mt-4 mb-8 max-w-lg leading-relaxed">This immersive simulator runs securely via the AeroLearn desktop launcher. Simply select this module to begin.</p>
             <LauncherPrompt active={active} launcherDownloadUrl={launcherDownloadUrl} launcherVersion={launcherVersion} onHelp={() => onLauncherHelp(active)} />
           </div>
         </div>
