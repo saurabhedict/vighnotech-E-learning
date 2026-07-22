@@ -703,34 +703,32 @@ export default function Dashboard() {
           <p className="text-sm text-vigno-muted font-medium mt-1">Recommended for you</p>
         </div>
 
-        {/* Filter bar — Tag Filter + Category Filter side by side */}
-        {!isLoading && (allTags.length > 0 || allCategories.length > 0) && (
-          <div className="flex items-center gap-3 flex-wrap">
-            {allTags.length > 0 && (
-              <TagFilterDropdown
-                allTags={allTags}
-                tagCounts={tagCounts}
-                selectedTags={selectedTags}
-                setSelectedTags={setSelectedTags}
-                toggleTag={toggleTag}
-                isDark={isDark}
-                availableCourses={availableCourses}
-              />
-            )}
-            {allCategories.length > 0 && (
-              <CategoryFilterDropdown
-                allCategories={allCategories}
-                categoryCounts={categoryCounts}
-                selectedCategory={selectedCategory}
-                setSelectedCategory={setSelectedCategory}
-                isDark={isDark}
-              />
-            )}
-          </div>
-        )}
-
-        {/* Admin-managed catalog filters — dynamic dropdowns + Apply → /app/browse results page */}
-        <CatalogFilterBar />
+        {/* Filter bar — Tag Filter + Category Filter + admin catalog filters
+            (Select Content Type / Select Training Program + Apply) ALL side by side. */}
+        <div className="flex items-center gap-3 flex-wrap">
+          {!isLoading && allTags.length > 0 && (
+            <TagFilterDropdown
+              allTags={allTags}
+              tagCounts={tagCounts}
+              selectedTags={selectedTags}
+              setSelectedTags={setSelectedTags}
+              toggleTag={toggleTag}
+              isDark={isDark}
+              availableCourses={availableCourses}
+            />
+          )}
+          {!isLoading && allCategories.length > 0 && (
+            <CategoryFilterDropdown
+              allCategories={allCategories}
+              categoryCounts={categoryCounts}
+              selectedCategory={selectedCategory}
+              setSelectedCategory={setSelectedCategory}
+              isDark={isDark}
+            />
+          )}
+          {/* Admin-managed catalog filters — Content Type, Training Program dropdowns + Apply → /app/browse */}
+          <CatalogFilterBar />
+        </div>
 
         {/* No results state */}
         {!isLoading && (selectedTags.size > 0 || selectedCategory) && filteredCourses.length === 0 && (

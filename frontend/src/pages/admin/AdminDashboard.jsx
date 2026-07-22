@@ -935,7 +935,6 @@ const GROUPS = [
     title: 'Content CMS',
     items: [
       { key: 'manage-courses',  label: 'Manage Courses',  icon: <CoursesTabIcon /> },
-      { key: 'filters',         label: 'Filters',         icon: <FilterTabIcon /> },
       { key: 'users',           label: 'Manage Users',    icon: <UsersTabIcon /> },
     ]
   },
@@ -1036,7 +1035,6 @@ export default function AdminDashboard() {
 
         {tab === 'overview'       && <div className="mb-6"><Overview /></div>}
         {tab === 'manage-courses' && <Panel title="Manage Courses — Create, Edit, Resources & CMS" icon={<CoursesTabIcon />}><ManageCoursesPanel /></Panel>}
-        {tab === 'filters'        && <Panel title="Filters — Classify Courses" icon={<FilterTabIcon />}><FiltersPanel /></Panel>}
         {tab === 'users'          && <Panel title="Manage Users" icon={<UsersTabIcon />}><UsersPanel /></Panel>}
         {tab === 'reports'        && <Panel title="Reports & Export" icon={<ReportsIcon />}><ReportsPanel /></Panel>}
         {tab === 'commerce'       && <Panel title="Coupons & Refunds" icon={<CommerceIcon />}><CommercePanel /></Panel>}

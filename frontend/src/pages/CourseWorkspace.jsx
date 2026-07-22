@@ -481,7 +481,7 @@ export default function CourseWorkspace() {
                 <div className="mt-5 h-2 rounded-full bg-vigno-line/40 overflow-hidden relative">
                   <div className="absolute inset-y-0 left-0 bg-gradient-to-r from-vigno-accent to-vigno-accent2 rounded-full transition-all duration-700 ease-out shadow-[0_0_10px_rgba(var(--v-accent),0.5)]" style={{ width: `${progress}%` }} />
                 </div>
-                {units.length > 1 && (
+                {units.length > 0 && (
                   <div className="mt-5">
                     <label htmlFor="unit-jump" className="text-[10px] font-bold text-vigno-muted uppercase tracking-wider block mb-1.5">
                       Jump to submodule
