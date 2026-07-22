@@ -5,7 +5,10 @@ import { setCredentials, logout } from '../store/authSlice'
 // Configured Axios instance for the backend (Express + License Authority).
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000/api',
-  timeout: 12000,
+  // 60s (not 12s): the free-tier backend spins down after idle and can take ~50s
+  // to cold-start. 12s aborted login / Razorpay order / downloads mid-wake. File
+  // upload/download calls override this with timeout:0 (unbounded).
+  timeout: 60000,
   withCredentials: true, // send httpOnly auth/refresh cookies
 })
 
