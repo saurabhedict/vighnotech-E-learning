@@ -73,7 +73,12 @@ export default function ContentViewer() {
       a.remove()
       setTimeout(() => URL.revokeObjectURL(url), 4000)
     } catch (e) {
-      alert(e?.response?.data?.error?.message || e?.message || 'Download failed')
+      // responseType:'blob' means an error body is a Blob — read it to surface the real message.
+      let msg = e?.message || 'Download failed'
+      const d = e?.response?.data
+      if (d instanceof Blob) { try { msg = JSON.parse(await d.text())?.error?.message || msg } catch { /* keep */ } }
+      else if (d?.error?.message) msg = d.error.message
+      alert(msg)
     } finally {
       setDownloadingApk(false)
     }
