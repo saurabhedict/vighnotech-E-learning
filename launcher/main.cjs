@@ -160,7 +160,9 @@ ipcMain.handle('registerDevice', async () => {
 
 ipcMain.handle('library', async () => {
   const r = await api('/licenses/mine', { token: session.token })
-  return (r.data?.licenses || []).filter((l) => l.type === 'download' && l.content)
+  // Only PC software (.exe/.zip). APKs are download-lane too, but they install via
+  // the web portal ("Download APK"), never the desktop launcher.
+  return (r.data?.licenses || []).filter((l) => l.type === 'download' && l.content && l.content.type !== 'apk')
 })
 
 // Stream a URL to disk, reporting progress to the renderer (throttled). Writes to

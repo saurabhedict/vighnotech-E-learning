@@ -3,13 +3,14 @@ import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 
-// Real interactive 3D viewer (drag to orbit, scroll to zoom). Loads a .glb when
-// `src` is provided; otherwise shows a procedural model so the 3D lane is
-// demonstrable without a bundled asset.
+// Interactive 3D viewer — loads a real .glb when `src` is provided (drag to orbit,
+// scroll to zoom). When there's no model, we show a simple placeholder screen
+// instead of a demo shape.
 export default function Model3DViewer({ src, watermark }) {
   const mountRef = useRef(null)
 
   useEffect(() => {
+    if (!src) return // no model → simple screen below, don't spin up WebGL
     const mount = mountRef.current
     const width = mount.clientWidth || 640 // guard against a 0-width first layout pass
     const height = 360
@@ -42,33 +43,22 @@ export default function Model3DViewer({ src, watermark }) {
     let model
     let disposed = false
 
-    if (src) {
-      new GLTFLoader().load(
-        src,
-        (gltf) => {
-          if (disposed) return
-          model = gltf.scene
-          // center + scale to fit
-          const box = new THREE.Box3().setFromObject(model)
-          const size = box.getSize(new THREE.Vector3()).length()
-          const center = box.getCenter(new THREE.Vector3())
-          model.position.sub(center)
-          model.scale.setScalar(2.5 / (size || 1))
-          scene.add(model)
-        },
-        undefined,
-        () => addProcedural()
-      )
-    } else {
-      addProcedural()
-    }
-
-    function addProcedural() {
-      const geo = new THREE.TorusKnotGeometry(0.8, 0.28, 160, 32)
-      const mat = new THREE.MeshStandardMaterial({ color: '#e67e22', metalness: 0.4, roughness: 0.25 })
-      model = new THREE.Mesh(geo, mat)
-      scene.add(model)
-    }
+    new GLTFLoader().load(
+      src,
+      (gltf) => {
+        if (disposed) return
+        model = gltf.scene
+        // center + scale to fit
+        const box = new THREE.Box3().setFromObject(model)
+        const size = box.getSize(new THREE.Vector3()).length()
+        const center = box.getCenter(new THREE.Vector3())
+        model.position.sub(center)
+        model.scale.setScalar(2.5 / (size || 1))
+        scene.add(model)
+      },
+      undefined,
+      () => { /* load failed → leave the scene empty (no demo model) */ }
+    )
 
     let raf
     const animate = () => {
@@ -107,6 +97,19 @@ export default function Model3DViewer({ src, watermark }) {
       if (mount.contains(renderer.domElement)) mount.removeChild(renderer.domElement)
     }
   }, [src])
+
+  // No real model → a simple placeholder screen (no demo shape).
+  if (!src) {
+    return (
+      <div className="rounded-xl overflow-hidden bg-[#241317] flex flex-col items-center justify-center text-center px-6" style={{ height: 360 }}>
+        <svg className="w-12 h-12 text-white/40 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.6">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M21 7.5l-9-5.25L3 7.5m18 0l-9 5.25m9-5.25v9l-9 5.25M3 7.5l9 5.25M3 7.5v9l9 5.25m0-9v9" />
+        </svg>
+        <div className="text-white/70 text-sm font-semibold">3D model</div>
+        <div className="text-white/40 text-xs mt-1">No 3D model uploaded for this item yet.</div>
+      </div>
+    )
+  }
 
   return (
     <div className="relative rounded-xl overflow-hidden">
