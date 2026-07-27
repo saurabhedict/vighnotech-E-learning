@@ -1,5 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSelector } from 'react-redux'
 import { useClassTree, useContentItem } from '../hooks/useContent'
@@ -189,10 +189,6 @@ function ResourceStage({ item, content, isLoading, watermark, onProgress, launch
       {active?.type === '3d' && !active?.requiresLauncher && (
         <div className="bg-black p-4">
           <Model3DViewer src={active.url} watermark={watermark} />
-          <div className="text-center pb-4">
-            <p className="text-sm text-white/60 mt-4">For the full secure animation experience, open it through the desktop launcher.</p>
-            <LauncherPrompt active={active} launcherDownloadUrl={launcherDownloadUrl} launcherVersion={launcherVersion} onHelp={() => onLauncherHelp(active)} />
-          </div>
         </div>
       )}
 
@@ -249,6 +245,7 @@ function ResourceStage({ item, content, isLoading, watermark, onProgress, launch
 
 export default function CourseWorkspace() {
   const { className } = useParams()
+  const [searchParams] = useSearchParams()
   const { data, isLoading, isError } = useClassTree(className)
   const { data: licenses } = useQuery({ queryKey: ['licenses', 'mine'], queryFn: licenseApi.mine })
   const { data: settings } = useSiteSettings()
@@ -257,7 +254,8 @@ export default function CourseWorkspace() {
   const user = useSelector((s) => s.auth.user)
   const isDark = useSelector((s) => s.ui.theme) === 'dark'
   const [activeTab, setActiveTab] = useState('overview')
-  const [activeContentId, setActiveContentId] = useState('')
+  // Open at a specific lesson when arriving via ?content=<id> (e.g. Continue learning).
+  const [activeContentId, setActiveContentId] = useState(() => searchParams.get('content') || '')
   const [launcherHelpItem, setLauncherHelpItem] = useState(null)
   const [openUnits, setOpenUnits] = useState({ 0: true })
   const [openSections, setOpenSections] = useState({ '0-0': true })

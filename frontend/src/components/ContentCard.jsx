@@ -105,7 +105,12 @@ export default function ContentCard({ item, disablePopover = false }) {
     }
   }, [hovered, handleScroll])
 
-  const handleNavigate = () => navigate(`/app/content/${item.id}`)
+  const handleNavigate = () => {
+    // A course lesson opens the course workspace AT that lesson; a standalone
+    // resource opens the standalone viewer.
+    if (item.courseKey) navigate(`/app/${item.courseKey}/learn?content=${item.id}`)
+    else navigate(`/app/content/${item.id}`)
+  }
 
   const resourceGradient = {
     video: 'from-blue-600 to-indigo-850',
