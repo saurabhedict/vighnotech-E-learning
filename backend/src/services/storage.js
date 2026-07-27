@@ -33,6 +33,11 @@ const MIME = {
   '.ts': 'video/mp2t',
   '.glb': 'model/gltf-binary',
   '.apk': 'application/vnd.android.package-archive',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.png': 'image/png',
+  '.webp': 'image/webp',
+  '.gif': 'image/gif',
 }
 const mimeFor = (key) => MIME[path.extname(key).toLowerCase()] || 'application/octet-stream'
 

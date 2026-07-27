@@ -9,8 +9,12 @@ const userSchema = new mongoose.Schema(
     name: { type: String, trim: true, default: '' },
     role: { type: String, enum: USER_ROLES, default: ROLES.USER, index: true },
 
-    // Profile photo, stored as a small cropped data URL (image/jpeg).
+    // Profile photo URL. New uploads go to S3 (served via /api/files/local/<key>);
+    // older avatars may be a Cloudinary URL or an inline data URL (still rendered).
     avatar: { type: String, default: '' },
+    // S3 object key backing the avatar (so we can delete/replace it). Empty for
+    // legacy inline/Cloudinary avatars.
+    avatarStorageKey: { type: String, default: '' },
 
     // Phone (E.164, e.g. +9198…) for SMS / WhatsApp OTP.
     phone: { type: String, trim: true, default: '' },

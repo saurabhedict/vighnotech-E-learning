@@ -7,8 +7,17 @@ import { User } from '../models/User.js'
 import { License } from '../models/License.js'
 import { Purchase } from '../models/Purchase.js'
 import { cookieOpts, ACCESS_COOKIE, REFRESH_COOKIE } from '../utils/tokens.js'
-import { cloudinaryEnabled, uploadAvatar as cloudUploadAvatar, destroyAvatar } from '../services/cloudinary.js'
+import { saveBuffer, removeObject } from '../services/storage.js'
 import { normalizePhone } from '../services/sms.js'
+
+// Decode a validated image data URL into { buffer, ext } for S3 upload.
+function decodeImageDataUrl(dataUrl) {
+  const m = /^data:image\/(png|jpeg|jpg|webp);base64,(.+)$/s.exec(dataUrl || '')
+  if (!m) return null
+  return { buffer: Buffer.from(m[2], 'base64'), ext: m[1] === 'jpeg' ? 'jpg' : m[1] }
+}
+// Stable public URL for a stored object (served via the public file route).
+const publicFileUrl = (req, key) => `${req.protocol}://${req.get('host')}/api/files/local/${key}`
 
 // The client crops/zooms/rotates the photo to a small square and sends it as a
 // JPEG/PNG data URL. We cap the size so the user document stays small.
@@ -22,32 +31,28 @@ export const avatarSchema = z.object({
 export const uploadAvatar = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user.id)
   if (!user) throw unauthorized()
-  // Upload to Cloudinary when configured; if that fails (e.g. account upload
-  // restriction / 403), fall back to storing the image inline so the photo still
-  // saves. If Cloudinary isn't configured at all, store inline directly.
-  let storedVia = 'inline'
-  if (cloudinaryEnabled()) {
-    try {
-      user.avatar = await cloudUploadAvatar(req.body.image, user._id)
-      storedVia = 'cloudinary'
-    } catch (e) {
-      // eslint-disable-next-line no-console
-      console.warn('[avatar] Cloudinary upload failed — storing inline instead:', e?.message)
-      user.avatar = req.body.image
-    }
-  } else {
-    user.avatar = req.body.image
-  }
+  const decoded = decodeImageDataUrl(req.body.image)
+  if (!decoded) throw badRequest('Invalid image data')
+
+  // Store the avatar on S3 (or local disk when S3 isn't configured) — same object
+  // storage as all other media. Served via the public file route as a STABLE URL
+  // (not a presigned link, so it never expires). Replace + free the previous one.
+  const previousKey = user.avatarStorageKey
+  const { storageKey } = await saveBuffer(decoded.buffer, `avatar.${decoded.ext}`)
+  user.avatarStorageKey = storageKey
+  user.avatar = publicFileUrl(req, storageKey)
   await user.save()
-  audit(req, 'profile.avatar.upload', { targetType: 'User', targetId: user._id, meta: { storedVia } })
-  res.json({ ok: true, user: user.toSafeJSON(), storedVia })
+  if (previousKey && previousKey !== storageKey) await removeObject(previousKey)
+  audit(req, 'profile.avatar.upload', { targetType: 'User', targetId: user._id, meta: { storedVia: 's3' } })
+  res.json({ ok: true, user: user.toSafeJSON(), storedVia: 's3' })
 })
 
 export const removeAvatar = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user.id)
   if (!user) throw unauthorized()
-  if (cloudinaryEnabled()) await destroyAvatar(user._id)
+  if (user.avatarStorageKey) await removeObject(user.avatarStorageKey)
   user.avatar = ''
+  user.avatarStorageKey = ''
   await user.save()
   audit(req, 'profile.avatar.remove', { targetType: 'User', targetId: user._id })
   res.json({ ok: true, user: user.toSafeJSON() })
@@ -83,7 +88,7 @@ export const deleteAccount = asyncHandler(async (req, res) => {
     const admins = await User.countDocuments({ role: ROLES.ADMIN })
     if (admins <= 1) throw forbidden('You are the last admin — make someone else an admin before deleting your account')
   }
-  if (cloudinaryEnabled()) await destroyAvatar(user._id).catch(() => {})
+  if (user.avatarStorageKey) await removeObject(user.avatarStorageKey).catch(() => {})
   await Promise.all([
     License.deleteMany({ userId: user._id }),
     Purchase.deleteMany({ userId: user._id }),
