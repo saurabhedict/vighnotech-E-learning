@@ -8,6 +8,7 @@ import { licenseApi } from '../api/licenseApi'
 import { purchaseCourse } from '../lib/buy'
 import { commerceApi } from '../api/commerceApi'
 import Breadcrumb from '../components/Breadcrumb'
+import CatalogFilterBar from '../components/CatalogFilterBar'
 import { addCartItem, removeCartItem } from '../store/cartSlice'
 
 // ── SVG Lesson Icons (Formal / Clean) ─────────────────────────────────────────
@@ -424,6 +425,15 @@ export default function Home() {
                 </div>
               ))}
             </div>
+          </div>
+
+          {/* Filters (test) — the same catalog filter buttons as the dashboard, on
+              every course curriculum. Open the dropdowns (they list the admin's
+              Content Type / Training Program options) and press Apply → it navigates
+              to Browse with your selections, so you can confirm the buttons work. */}
+          <div className="mb-6 rounded-2xl border border-vigno-line/50 bg-vigno-card/40 p-4">
+            <p className="text-xs font-bold text-vigno-muted uppercase tracking-wider mb-3">Filter resources</p>
+            <CatalogFilterBar />
           </div>
 
           {/* Curriculum accordion */}
