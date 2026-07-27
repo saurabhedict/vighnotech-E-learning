@@ -122,6 +122,21 @@ function CourseFilterPicker({ selected = [], onChange }) {
       if (newest) onChange([...selected, newest.id]) // auto-select what you just created
     } catch { /* ignore */ }
   }
+  const removeOption = async (catId, optId, label) => {
+    if (!window.confirm(`Delete option "${label}"?`)) return
+    try {
+      await adminApi.removeFilterOption(catId, optId)
+      onChange(selected.filter((x) => x !== optId)) // drop it from this course's selection too
+      qc.invalidateQueries({ queryKey: ['admin', 'filters'] })
+    } catch { alert('Failed to delete option') }
+  }
+  const removeCategory = async (catId, name) => {
+    if (!window.confirm(`Delete the entire "${name}" category and all its options? This removes it from every course's filters.`)) return
+    try {
+      await adminApi.deleteFilterCategory(catId)
+      qc.invalidateQueries({ queryKey: ['admin', 'filters'] })
+    } catch { alert('Failed to delete category') }
+  }
 
   if (!cats) return null
   if (cats.length === 0) return <p className="text-xs text-vigno-muted">No filters yet — create categories in Admin → Filters.</p>
@@ -130,15 +145,25 @@ function CourseFilterPicker({ selected = [], onChange }) {
     <div className="space-y-3">
       {cats.map((cat) => (
         <div key={cat.id}>
-          <div className="text-[10px] font-bold text-vigno-muted uppercase tracking-wider mb-1.5">{cat.name}</div>
+          <div className="text-[10px] font-bold text-vigno-muted uppercase tracking-wider mb-1.5 flex items-center gap-2">
+            <span>{cat.name}</span>
+            <button type="button" onClick={() => removeCategory(cat.id, cat.name)} title="Delete this category and all its options"
+              className="normal-case font-semibold text-red-400/70 hover:text-red-400">Delete category</button>
+          </div>
           <div className="flex flex-wrap gap-1.5 items-center">
             {cat.options.map((o) => {
               const on = selected.includes(o.id)
               return (
-                <button type="button" key={o.id} onClick={() => toggle(o.id)}
-                  className={'text-xs px-2.5 py-1 rounded-full border transition-all ' + (on ? 'bg-vigno-accent text-vigno-bg1 border-vigno-accent font-semibold' : 'bg-vigno-bg2/60 border-vigno-line/60 text-vigno-muted hover:text-vigno-txt')}>
-                  {o.label}
-                </button>
+                <span key={o.id} className={'inline-flex items-center rounded-full border transition-all ' + (on ? 'bg-vigno-accent border-vigno-accent' : 'bg-vigno-bg2/60 border-vigno-line/60')}>
+                  <button type="button" onClick={() => toggle(o.id)}
+                    className={'text-xs pl-2.5 pr-1 py-1 ' + (on ? 'text-vigno-bg1 font-semibold' : 'text-vigno-muted hover:text-vigno-txt')}>
+                    {o.label}
+                  </button>
+                  <button type="button" onClick={() => removeOption(cat.id, o.id, o.label)} title="Delete this option"
+                    className={'text-[11px] leading-none pr-2 pl-0.5 py-1 ' + (on ? 'text-vigno-bg1/70 hover:text-white' : 'text-vigno-muted/50 hover:text-red-400')}>
+                    ✕
+                  </button>
+                </span>
               )
             })}
             {addingTo === cat.id ? (
