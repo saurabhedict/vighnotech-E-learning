@@ -38,7 +38,8 @@ export default function Login() {
 
   const finish = (user, token) => {
     dispatch(setCredentials({ user, token }))
-    navigate(user.role === 'admin' ? '/app/admin' : '/app')
+    // Clients land straight in their granted courses (My Learning); no catalog.
+    navigate(user.role === 'admin' ? '/app/admin' : user.role === 'client' ? '/app/library' : '/app')
   }
 
   const submit = async (e) => {

@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import AppLayout from './components/AppLayout'
 import RequireAdmin from './components/RequireAdmin'
+import RequireNotClient from './components/RequireNotClient'
 import Loader from './components/Loader'
 
 // A failed dynamic import almost always means a redeploy changed the content-
@@ -52,14 +53,14 @@ export default function App() {
         <Route path="/signup" element={<Signup />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/app" element={<AppLayout />}>
-          <Route index element={<Dashboard />} />
+          <Route index element={<RequireNotClient><Dashboard /></RequireNotClient>} />
           <Route path="library" element={<Library />} />
-          <Route path="favorites" element={<Favorites />} />
-          <Route path="search" element={<Search />} />
-          <Route path="browse" element={<Browse />} />
-          <Route path="wallet" element={<Wallet />} />
+          <Route path="favorites" element={<RequireNotClient><Favorites /></RequireNotClient>} />
+          <Route path="search" element={<RequireNotClient><Search /></RequireNotClient>} />
+          <Route path="browse" element={<RequireNotClient><Browse /></RequireNotClient>} />
+          <Route path="wallet" element={<RequireNotClient><Wallet /></RequireNotClient>} />
           <Route path="profile" element={<Profile />} />
-          <Route path="cart" element={<Cart />} />
+          <Route path="cart" element={<RequireNotClient><Cart /></RequireNotClient>} />
           <Route path="admin" element={<RequireAdmin><AdminDashboard /></RequireAdmin>} />
           <Route path="content/:contentId" element={<ContentViewer />} />
           <Route path=":className" element={<Home />} />

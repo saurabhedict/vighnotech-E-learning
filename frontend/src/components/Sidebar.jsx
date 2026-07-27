@@ -1,8 +1,10 @@
 import { NavLink, useParams } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
+import { useQuery } from '@tanstack/react-query'
 import { setSelectedClass, toggleSidebar } from '../store/uiSlice'
 import { useClasses } from '../hooks/useContent'
 import { useSiteSettings } from '../hooks/useSiteSettings'
+import { licenseApi } from '../api/licenseApi'
 
 export default function Sidebar() {
   const { className } = useParams()
@@ -15,7 +17,14 @@ export default function Sidebar() {
   const brandName = settings?.brand?.name || 'Aerolearn'
   const logoEmoji = settings?.brand?.logoEmoji ?? '✈'
   const isAdmin = user?.role === 'admin'
+  const isClient = user?.role === 'client'
   const isDark = theme === 'dark'
+
+  // Clients see ONLY courses granted to them → filter the nav list to those they
+  // hold a usable license for (course slug === courseKey).
+  const { data: myLicenses } = useQuery({ queryKey: ['licenses', 'mine'], queryFn: licenseApi.mine, enabled: isClient })
+  const licensedKeys = new Set((myLicenses || []).filter((l) => l.usable).map((l) => l.content?.courseKey).filter(Boolean))
+  const visibleClasses = isClient ? (classes || []).filter((c) => licensedKeys.has(c)) : classes
 
   const base = [
     'aero-sidebar flex-none flex flex-col sticky top-0 h-screen overflow-hidden',
@@ -106,12 +115,14 @@ export default function Sidebar() {
       ].join(' ')}>
         <span className="flex-1 text-center bg-vigno-accent text-vigno-accent-txt font-bold rounded-lg py-1.5 shadow-sm">Ground</span>
         <span className="flex-1 text-center text-vigno-muted/50 rounded-lg py-1.5 cursor-not-allowed" title="Coming soon">Flight</span>
-        <NavLink to="/app/favorites" className={({ isActive }) =>
-          `flex-1 text-center rounded-lg py-1.5 transition-all ${isActive
-            ? 'bg-vigno-accent text-vigno-accent-txt font-bold shadow-sm'
-            : isDark ? 'text-vigno-muted hover:bg-white/10' : 'text-vigno-muted hover:bg-vigno-line/40'
-          }`
-        }>Wishlist</NavLink>
+        {!isClient && (
+          <NavLink to="/app/favorites" className={({ isActive }) =>
+            `flex-1 text-center rounded-lg py-1.5 transition-all ${isActive
+              ? 'bg-vigno-accent text-vigno-accent-txt font-bold shadow-sm'
+              : isDark ? 'text-vigno-muted hover:bg-white/10' : 'text-vigno-muted hover:bg-vigno-line/40'
+            }`
+          }>Wishlist</NavLink>
+        )}
       </div>
 
       {/* Admin link — only for admin users */}
@@ -142,7 +153,10 @@ export default function Sidebar() {
 
       {/* Course list */}
       <nav className="flex flex-col gap-0.5">
-        {classes?.map((c) => (
+        {isClient && visibleClasses?.length === 0 && (
+          <div className="text-sm text-vigno-muted px-2 py-2">No courses assigned yet.</div>
+        )}
+        {visibleClasses?.map((c) => (
           <NavLink
             key={c}
             to={`/app/${c}`}

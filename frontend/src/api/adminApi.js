@@ -74,6 +74,26 @@ export const adminApi = {
     return api.delete(`/admin/users/${id}`).then((r) => r.data)
   },
 
+  // ── Clients (admin-provisioned accounts + direct course grants) ──────────────
+  createClient(payload) {
+    return api.post('/admin/clients', payload).then((r) => r.data)
+  },
+  listClients() {
+    return api.get('/admin/clients').then((r) => r.data.items)
+  },
+  deleteClient(id) {
+    return api.delete(`/admin/clients/${id}`).then((r) => r.data)
+  },
+  grantCourse(id, payload) {
+    return api.post(`/admin/clients/${id}/grant`, payload).then((r) => r.data)
+  },
+  listClientGrants(id) {
+    return api.get(`/admin/clients/${id}/grants`).then((r) => r.data.items)
+  },
+  revokeGrant(id, courseSlug) {
+    return api.post(`/admin/clients/${id}/revoke`, { courseSlug }).then((r) => r.data)
+  },
+
   // ── Tree / content browse ───────────────────────────────────────────────────
   listNodes(params = {}) {
     return api.get('/admin/nodes', { params }).then((r) => r.data.nodes)

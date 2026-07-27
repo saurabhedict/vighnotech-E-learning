@@ -5,7 +5,9 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 // Account roles (RBAC).
-export const ROLES = { USER: 'user', ADMIN: 'admin' }
+//   client = admin-provisioned account: no payment, sees ONLY courses the admin
+//   granted it (with a validity date). Same login page; role routes the view.
+export const ROLES = { USER: 'user', ADMIN: 'admin', CLIENT: 'client' }
 export const USER_ROLES = Object.values(ROLES)
 
 // Delivery lanes (HLD §6): stream = in-browser/signed-URL, download = launcher.

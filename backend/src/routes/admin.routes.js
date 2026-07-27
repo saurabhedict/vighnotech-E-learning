@@ -3,6 +3,7 @@ import multer from 'multer'
 import { validate } from '../middleware/validate.js'
 import { requireAuth, requireRole } from '../middleware/auth.js'
 import * as admin from '../controllers/admin.controller.js'
+import * as client from '../controllers/client.controller.js'
 import * as lic from '../controllers/license.controller.js'
 import * as settings from '../controllers/settings.controller.js'
 import * as notif from '../controllers/notification.controller.js'
@@ -27,6 +28,14 @@ router.get('/reports/:type/export', admin.exportReportHandler)
 router.get('/users', admin.listUsers)
 router.patch('/users/:id/role', validate({ body: admin.setUserRoleSchema }), admin.setUserRole)
 router.delete('/users/:id', admin.deleteUser)
+
+// Clients (admin-provisioned accounts + direct course grants with a validity date)
+router.post('/clients', validate({ body: client.createClientSchema }), client.createClient)
+router.get('/clients', client.listClients)
+router.delete('/clients/:id', client.deleteClient)
+router.post('/clients/:id/grant', validate({ body: client.grantCourseSchema }), client.grantCourse)
+router.get('/clients/:id/grants', client.listClientGrants)
+router.post('/clients/:id/revoke', validate({ body: client.revokeGrantSchema }), client.revokeGrant)
 
 // Content tree (CMS)
 router.get('/nodes', admin.listNodes)

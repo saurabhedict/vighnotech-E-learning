@@ -9,6 +9,7 @@ import UsersPanel from './UsersPanel'
 import ReportsPanel from './ReportsPanel'
 import CommercePanel from './CommercePanel'
 import SettingsPanel from './SettingsPanel'
+import ClientsPanel from './ClientsPanel'
 
 
 // ── Shared style helpers ──────────────────────────────────────────────────────
@@ -936,6 +937,7 @@ const GROUPS = [
     items: [
       { key: 'manage-courses',  label: 'Manage Courses',  icon: <CoursesTabIcon /> },
       { key: 'users',           label: 'Manage Users',    icon: <UsersTabIcon /> },
+      { key: 'clients',         label: 'Clients',         icon: <UsersTabIcon /> },
     ]
   },
   {
@@ -1036,6 +1038,7 @@ export default function AdminDashboard() {
         {tab === 'overview'       && <div className="mb-6"><Overview /></div>}
         {tab === 'manage-courses' && <Panel title="Manage Courses — Create, Edit, Resources & CMS" icon={<CoursesTabIcon />}><ManageCoursesPanel /></Panel>}
         {tab === 'users'          && <Panel title="Manage Users" icon={<UsersTabIcon />}><UsersPanel /></Panel>}
+        {tab === 'clients'        && <Panel title="Clients — Provisioned Accounts & Course Grants" icon={<UsersTabIcon />}><ClientsPanel /></Panel>}
         {tab === 'reports'        && <Panel title="Reports & Export" icon={<ReportsIcon />}><ReportsPanel /></Panel>}
         {tab === 'commerce'       && <Panel title="Coupons & Refunds" icon={<CommerceIcon />}><CommercePanel /></Panel>}
         {tab === 'licenses'       && <Panel title="Licenses — All Users & Actions" icon={<LicenseTabIcon />}><LicensesPanel /></Panel>}

@@ -33,10 +33,11 @@ function buildToken(license) {
  * Mint a license after a verified purchase. Reuses an existing active license
  * for the same (user, content) when present, else creates one.
  */
-export async function issueLicense({ userId, content, deviceId = null }) {
+export async function issueLicense({ userId, content, deviceId = null, expiresAt = null }) {
   const type = content.lane || 'stream'
-  const ttlMs = ms(env.license.ttl)
   const now = Date.now()
+  // Custom expiry (admin client-grant "validity date") overrides the default TTL.
+  const exp = expiresAt ? new Date(expiresAt) : new Date(now + ms(env.license.ttl))
 
   // Reuse the freshest existing active row (whether or not it is currently
   // expired) so re-issue/re-purchase refreshes ONE license instead of creating
@@ -46,7 +47,7 @@ export async function issueLicense({ userId, content, deviceId = null }) {
   })
 
   if (license) {
-    license.expiresAt = new Date(now + ttlMs)
+    license.expiresAt = exp
     if (deviceId) license.deviceId = deviceId
     license.kid = keystore.activeKid()
     license.issuedAt = new Date(now)
@@ -61,7 +62,7 @@ export async function issueLicense({ userId, content, deviceId = null }) {
       deviceId: deviceId || null,
       kid: keystore.activeKid(),
       issuedAt: new Date(now),
-      expiresAt: new Date(now + ttlMs),
+      expiresAt: exp,
     })
   }
 

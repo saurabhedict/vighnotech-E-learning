@@ -14,7 +14,7 @@ import SmartSearchBar from './SmartSearchBar'
 import { paymentsApi } from '../api/paymentsApi'
 import { removeCartItem, clearCart } from '../store/cartSlice'
 import { purchaseCourse, purchaseContent } from '../lib/buy'
-function NavPanel({ open, onClose, user, isAdmin, isDark, settings, onLogout }) {
+function NavPanel({ open, onClose, user, isAdmin, isClient, isDark, settings, onLogout }) {
   const panelRef = useRef(null)
   const extraLinks = settings?.header?.extraLinks || []
 
@@ -92,10 +92,10 @@ function NavPanel({ open, onClose, user, isAdmin, isDark, settings, onLogout }) 
           {(
             <>
               <p className={`text-[10px] font-semibold uppercase tracking-widest px-4 py-2 ${isDark ? 'text-vigno-muted/50' : 'text-vigno-muted/60'}`}>Navigation</p>
-              {navLink('/app', 'Home', true)}
+              {!isClient && navLink('/app', 'Home', true)}
               {navLink('/app/library', 'My Learning')}
-              {navLink('/app/favorites', 'Wishlist')}
-              {navLink('/app/wallet', 'Wallet')}
+              {!isClient && navLink('/app/favorites', 'Wishlist')}
+              {!isClient && navLink('/app/wallet', 'Wallet')}
               {navLink('/app/profile', 'Profile')}
 
               {extraLinks.filter(l => l.label).map((l, i) =>
@@ -145,6 +145,7 @@ export default function Navbar() {
 
   const isDark = theme === 'dark'
   const isAdmin = user?.role === 'admin'
+  const isClient = user?.role === 'client' // clients: only their granted courses, no catalog/buy
 
   const doLogout = async () => {
     await authApi.logout()
@@ -165,14 +166,14 @@ export default function Navbar() {
       ].join(' ')}>
 
         {/* Brand — same as the user side */}
-        <NavLink to="/app" className="flex items-center shrink-0">
+        <NavLink to={isClient ? '/app/library' : '/app'} className="flex items-center shrink-0">
           <span style={{ fontFamily: "'Caveat', cursive" }} className="text-3xl font-bold select-none text-vigno-txt">
             {brandName}
           </span>
         </NavLink>
 
         {/* Search — grows to fill middle (mic + live suggestions) */}
-        {showSearch && <SmartSearchBar variant="navbar" className="flex-1 max-w-xl mx-4 hidden sm:block" />}
+        {showSearch && !isClient && <SmartSearchBar variant="navbar" className="flex-1 max-w-xl mx-4 hidden sm:block" />}
 
         <div className="flex items-center gap-4">
           {/* My learning — same as the user side */}
@@ -208,7 +209,7 @@ export default function Navbar() {
           )}
 
           {/* Wishlist Link */}
-          {(
+          {!isClient && (
             <NavLink to="/app/favorites" className="text-vigno-muted hover:text-vigno-txt transition-colors p-1" title="Wishlist">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
@@ -217,7 +218,7 @@ export default function Navbar() {
           )}
 
           {/* Wallet Link */}
-          {(
+          {!isClient && (
             <NavLink to="/app/wallet" className="text-vigno-muted hover:text-vigno-txt transition-colors p-1 relative" title="Wallet">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                 <rect x="3" y="5" width="18" height="14" rx="2" />
@@ -232,7 +233,7 @@ export default function Navbar() {
           )}
 
           {/* Cart Icon */}
-          {(
+          {!isClient && (
             <button
               onClick={() => navigate('/app/cart')}
               className="text-vigno-muted hover:text-vigno-txt transition-colors p-1 relative cursor-pointer focus:outline-none"
@@ -269,6 +270,7 @@ export default function Navbar() {
         onClose={() => setPanelOpen(false)}
         user={user}
         isAdmin={isAdmin}
+        isClient={isClient}
         isDark={isDark}
         settings={settings}
         onLogout={doLogout}
