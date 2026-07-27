@@ -59,7 +59,11 @@ function ClientRow({ client, courses, onDeleted }) {
             <div className="flex flex-wrap items-end gap-2">
               <select value={courseSlug} onChange={(e) => setCourseSlug(e.target.value)} className={input}>
                 <option value="">Select course…</option>
-                {(courses || []).map((c) => <option key={c} value={c}>{c.replace(/_/g, ' ')}</option>)}
+                {(courses || []).map((c) => {
+                  const slug = typeof c === 'string' ? c : (c?.slug || c?.courseKey || '')
+                  const label = typeof c === 'string' ? c.replace(/_/g, ' ') : (c?.name || String(slug).replace(/_/g, ' '))
+                  return <option key={slug} value={slug}>{label}</option>
+                })}
               </select>
               <div className="flex flex-col">
                 <label className="text-[10px] text-vigno-muted mb-0.5">Valid until (blank = default)</label>

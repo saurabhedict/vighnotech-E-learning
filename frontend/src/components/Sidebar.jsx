@@ -24,7 +24,10 @@ export default function Sidebar() {
   // hold a usable license for (course slug === courseKey).
   const { data: myLicenses } = useQuery({ queryKey: ['licenses', 'mine'], queryFn: licenseApi.mine, enabled: isClient })
   const licensedKeys = new Set((myLicenses || []).filter((l) => l.usable).map((l) => l.content?.courseKey).filter(Boolean))
-  const visibleClasses = isClient ? (classes || []).filter((c) => licensedKeys.has(c)) : classes
+  // /courses returns course objects (name/slug/meta for cards) OR strings (offline
+  // fallback) — normalize to a slug so the list works with either shape.
+  const slugOf = (c) => (typeof c === 'string' ? c : (c?.slug || c?.courseKey || ''))
+  const visibleClasses = isClient ? (classes || []).filter((c) => licensedKeys.has(slugOf(c))) : classes
 
   const base = [
     'aero-sidebar flex-none flex flex-col sticky top-0 h-screen overflow-hidden',
@@ -156,17 +159,21 @@ export default function Sidebar() {
         {isClient && visibleClasses?.length === 0 && (
           <div className="text-sm text-vigno-muted px-2 py-2">No courses assigned yet.</div>
         )}
-        {visibleClasses?.map((c) => (
-          <NavLink
-            key={c}
-            to={`/app/${c}`}
-            onClick={() => dispatch(setSelectedClass(c))}
-            className={({ isActive }) => navItemCls(isActive || c === className)}
-          >
-            {c.replace(/_/g, ' ')}
-            <span className="text-vigno-muted">›</span>
-          </NavLink>
-        ))}
+        {visibleClasses?.map((c) => {
+          const slug = slugOf(c)
+          const label = typeof c === 'string' ? c.replace(/_/g, ' ') : (c?.name || String(slug).replace(/_/g, ' '))
+          return (
+            <NavLink
+              key={slug}
+              to={`/app/${slug}`}
+              onClick={() => dispatch(setSelectedClass(slug))}
+              className={({ isActive }) => navItemCls(isActive || slug === className)}
+            >
+              {label}
+              <span className="text-vigno-muted">›</span>
+            </NavLink>
+          )
+        })}
       </nav>
     </aside>
   )
