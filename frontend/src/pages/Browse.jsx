@@ -34,9 +34,10 @@ export default function Browse() {
 
   const matches = useMemo(() => {
     if (!Array.isArray(courses)) return []
+    const visible = courses.filter((c) => !c?.meta?.clientOnly) // hide client-only from the public catalog
     const catIds = Object.keys(byCat)
-    if (catIds.length === 0) return courses
-    return courses.filter((c) => {
+    if (catIds.length === 0) return visible
+    return visible.filter((c) => {
       const cf = Array.isArray(c?.meta?.filters) ? c.meta.filters.map(String) : []
       // Course must satisfy every selected category (AND), matching any of its options (OR).
       return catIds.every((catId) => byCat[catId].some((oid) => cf.includes(String(oid))))

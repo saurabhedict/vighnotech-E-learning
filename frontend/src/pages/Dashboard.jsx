@@ -574,6 +574,7 @@ export default function Dashboard() {
   // Filter out already purchased courses
   const availableCourses = courses?.filter((course) => {
     const courseSlug = typeof course === 'string' ? course : course.slug
+    if (course && typeof course === 'object' && course.meta?.clientOnly) return false // hide client-only from the public catalog
     return !purchasedCourseKeys.has(courseSlug)
   }) || []
 

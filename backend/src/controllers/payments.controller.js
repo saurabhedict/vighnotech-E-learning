@@ -369,6 +369,7 @@ export const createCourseOrder = asyncHandler(async (req, res) => {
   const { courseSlug, couponCode } = req.body
   const course = await TreeNode.findOne({ kind: 'course', slug: courseSlug })
   if (!course) throw notFound('Course not found')
+  if (course.meta?.clientOnly) throw forbidden('This course is not available for purchase')
 
   // A course unlocks by issuing one license per published lesson (matched on
   // courseKey). If there are none, the purchase would "succeed" but unlock
@@ -455,6 +456,7 @@ export const walletPayCourse = asyncHandler(async (req, res) => {
   const { courseSlug, couponCode } = req.body
   const course = await TreeNode.findOne({ kind: 'course', slug: courseSlug })
   if (!course) throw notFound('Course not found')
+  if (course.meta?.clientOnly) throw forbidden('This course is not available for purchase')
 
   const lessonCount = await Content.countDocuments({ courseKey: courseSlug, published: true })
   if (!lessonCount) throw badRequest('This course has no published lessons to unlock yet. Add content to the course before selling it.')

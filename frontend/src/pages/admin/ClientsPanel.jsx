@@ -62,7 +62,8 @@ function ClientRow({ client, courses, onDeleted }) {
                 {(courses || []).map((c) => {
                   const slug = typeof c === 'string' ? c : (c?.slug || c?.courseKey || '')
                   const label = typeof c === 'string' ? c.replace(/_/g, ' ') : (c?.name || String(slug).replace(/_/g, ' '))
-                  return <option key={slug} value={slug}>{label}</option>
+                  const clientOnly = typeof c === 'object' && c?.meta?.clientOnly
+                  return <option key={slug} value={slug}>{label}{clientOnly ? ' — client-only' : ''}</option>
                 })}
               </select>
               <div className="flex flex-col">

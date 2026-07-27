@@ -1112,6 +1112,7 @@ function CurriculumBuilder({ course, onBack, isDark }) {
     Array.isArray(course.meta?.targetAudience) ? course.meta.targetAudience.join('\n') : (course.meta?.targetAudience || '')
   )
   const [filterSel, setFilterSel] = useState(Array.isArray(course.meta?.filters) ? course.meta.filters : [])
+  const [clientOnly, setClientOnly] = useState(!!course.meta?.clientOnly) // hidden from public catalog; grant to clients only
   const [savingSettings, setSavingSettings] = useState(false)
   const [settingsMsg, setSettingsMsg] = useState(null)
 
@@ -1171,6 +1172,7 @@ function CurriculumBuilder({ course, onBack, isDark }) {
         price: Number(price) || 0,
         tags: parsedTags,
         filters: filterSel,
+        clientOnly,
         category: category.trim(),
         thumbnail: thumbnail.trim(),
       }
@@ -1398,6 +1400,15 @@ function CurriculumBuilder({ course, onBack, isDark }) {
             <label className="text-xs text-vigno-muted font-bold block">Catalog Filters — how users find this course (Content Type, Training Program…)</label>
             <CourseFilterPicker selected={filterSel} onChange={setFilterSel} />
           </div>
+
+          {/* Client-only: hide from the public catalog; only grantable to clients. */}
+          <label className="flex items-start gap-2.5 p-3 rounded-lg bg-vigno-bg2/50 border border-vigno-line/50 cursor-pointer">
+            <input type="checkbox" checked={clientOnly} onChange={(e) => setClientOnly(e.target.checked)} className="accent-vigno-accent w-4 h-4 mt-0.5" />
+            <span>
+              <span className="text-sm font-bold text-vigno-txt block">Client-only course</span>
+              <span className="text-[11px] text-vigno-muted">Hidden from the public catalog (Home/Browse/search). Only appears when you grant it to a client under Admin → Clients.</span>
+            </span>
+          </label>
 
           <div className="space-y-1">
             <label className="text-xs text-vigno-muted font-bold block">Course Detailed Description</label>

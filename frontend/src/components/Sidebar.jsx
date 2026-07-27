@@ -27,7 +27,9 @@ export default function Sidebar() {
   // /courses returns course objects (name/slug/meta for cards) OR strings (offline
   // fallback) — normalize to a slug so the list works with either shape.
   const slugOf = (c) => (typeof c === 'string' ? c : (c?.slug || c?.courseKey || ''))
-  const visibleClasses = isClient ? (classes || []).filter((c) => licensedKeys.has(slugOf(c))) : classes
+  const visibleClasses = isClient
+    ? (classes || []).filter((c) => licensedKeys.has(slugOf(c))) // clients: only granted courses (incl. client-only)
+    : (classes || []).filter((c) => typeof c === 'string' || !c?.meta?.clientOnly) // hide client-only from the public catalog
 
   const base = [
     'aero-sidebar flex-none flex flex-col sticky top-0 h-screen overflow-hidden',
