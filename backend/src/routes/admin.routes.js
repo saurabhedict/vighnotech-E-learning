@@ -36,6 +36,8 @@ router.delete('/clients/:id', client.deleteClient)
 router.post('/clients/:id/grant', validate({ body: client.grantCourseSchema }), client.grantCourse)
 router.get('/clients/:id/grants', client.listClientGrants)
 router.post('/clients/:id/revoke', validate({ body: client.revokeGrantSchema }), client.revokeGrant)
+router.post('/clients/:id/grant-resource', validate({ body: client.grantResourceSchema }), client.grantResource)
+router.post('/clients/:id/revoke-resource', validate({ body: client.revokeResourceSchema }), client.revokeResource)
 
 // Content tree (CMS)
 router.get('/nodes', admin.listNodes)

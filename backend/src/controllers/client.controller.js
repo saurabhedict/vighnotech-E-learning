@@ -92,26 +92,43 @@ export const grantCourse = asyncHandler(async (req, res) => {
   res.json({ ok: true, courseSlug, courseName: course.name, grantedLessons: lessons.length, expiresAt: exp })
 })
 
-// ── GET /admin/clients/:id/grants — courses granted to a client ─────────────
+// ── GET /admin/clients/:id/grants — courses AND standalone resources granted to a client ─────
 export const listClientGrants = asyncHandler(async (req, res) => {
   const client = await User.findOne({ _id: req.params.id, role: ROLES.CLIENT })
   if (!client) throw notFound('Client not found')
 
-  const licenses = await License.find({ userId: client._id, status: 'active' }).populate('contentId', 'title courseKey').lean()
+  const licenses = await License.find({ userId: client._id, status: 'active' }).populate('contentId', 'title courseKey type').lean()
+
+  // Group by courseKey (non-empty = course content, empty = standalone resource)
   const byCourse = {}
+  const resourceGrants = []
+
   for (const l of licenses) {
-    const key = l.contentId?.courseKey || '(standalone)'
-    if (!byCourse[key]) byCourse[key] = { courseSlug: key, lessons: 0, expiresAt: l.expiresAt }
-    byCourse[key].lessons++
-    if (new Date(l.expiresAt) < new Date(byCourse[key].expiresAt)) byCourse[key].expiresAt = l.expiresAt // earliest = course validity
+    const courseKey = l.contentId?.courseKey
+    if (!courseKey) {
+      // Standalone resource grant — one license per resource content doc
+      resourceGrants.push({
+        licenseId: l._id,
+        contentId: l.contentId?._id,
+        title: l.contentId?.title || '(deleted)',
+        type: l.contentId?.type,
+        expiresAt: l.expiresAt,
+        expired: new Date(l.expiresAt).getTime() <= Date.now(),
+      })
+    } else {
+      if (!byCourse[courseKey]) byCourse[courseKey] = { courseSlug: courseKey, lessons: 0, expiresAt: l.expiresAt }
+      byCourse[courseKey].lessons++
+      if (new Date(l.expiresAt) < new Date(byCourse[courseKey].expiresAt)) byCourse[courseKey].expiresAt = l.expiresAt
+    }
   }
-  const items = await Promise.all(
+
+  const courseGrants = await Promise.all(
     Object.values(byCourse).map(async (g) => {
       const course = await TreeNode.findOne({ kind: 'course', slug: g.courseSlug }).select('name').lean()
       return { ...g, courseName: course?.name || g.courseSlug, expired: new Date(g.expiresAt).getTime() <= Date.now() }
     })
   )
-  res.json({ items })
+  res.json({ items: courseGrants, resourceGrants })
 })
 
 // ── POST /admin/clients/:id/revoke — revoke a granted course ────────────────
@@ -127,4 +144,41 @@ export const revokeGrant = asyncHandler(async (req, res) => {
   )
   audit(req, 'client.revoke', { targetType: 'User', targetId: client._id, meta: { courseSlug, revoked: r.modifiedCount } })
   res.json({ ok: true, courseSlug, revoked: r.modifiedCount })
+})
+
+// ── POST /admin/clients/:id/grant-resource — grant a standalone resource to a client ─
+export const grantResourceSchema = z.object({
+  contentId: z.string().trim().min(1),
+  expiresAt: z.string().trim().min(1).optional(),
+})
+export const grantResource = asyncHandler(async (req, res) => {
+  const client = await User.findOne({ _id: req.params.id, role: ROLES.CLIENT })
+  if (!client) throw notFound('Client not found')
+
+  const { contentId } = req.body
+  const exp = parseExpiry(req.body.expiresAt)
+
+  const content = await Content.findById(contentId)
+  if (!content) throw notFound('Resource not found')
+  // Must be a standalone resource (empty courseKey)
+  if (content.courseKey) throw badRequest('This content belongs to a course — use the course grant instead')
+
+  await issueLicense({ userId: client._id, content, expiresAt: exp || undefined })
+
+  audit(req, 'client.grantResource', { targetType: 'User', targetId: client._id, meta: { contentId, title: content.title, expiresAt: exp } })
+  res.json({ ok: true, contentId, title: content.title, expiresAt: exp })
+})
+
+// ── POST /admin/clients/:id/revoke-resource — revoke a standalone resource grant ─────
+export const revokeResourceSchema = z.object({ contentId: z.string().trim().min(1) })
+export const revokeResource = asyncHandler(async (req, res) => {
+  const client = await User.findOne({ _id: req.params.id, role: ROLES.CLIENT })
+  if (!client) throw notFound('Client not found')
+  const { contentId } = req.body
+  const r = await License.updateMany(
+    { userId: client._id, contentId, status: 'active' },
+    { $set: { status: 'revoked', revokedAt: new Date(), revokedReason: 'client_resource_grant_revoked' } }
+  )
+  audit(req, 'client.revokeResource', { targetType: 'User', targetId: client._id, meta: { contentId, revoked: r.modifiedCount } })
+  res.json({ ok: true, contentId, revoked: r.modifiedCount })
 })

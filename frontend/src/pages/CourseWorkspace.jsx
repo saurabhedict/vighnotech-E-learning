@@ -62,7 +62,7 @@ function LauncherHelpModal({ active, onClose, launcherDownloadUrl, launcherVersi
 
         <div className="mt-5 space-y-4 text-sm leading-6 text-vigno-muted">
           <p>
-            This resource runs through the secure AeroLearn desktop launcher. The launcher signs you in,
+             This resource runs through the secure Vighnesh Inc. desktop launcher. The launcher signs you in,
             verifies your course license, binds the resource to your device, and then downloads or opens it securely.
           </p>
           <div className="rounded-xl border border-vigno-line/60 bg-white/5 p-4">
@@ -226,7 +226,7 @@ function ResourceStage({ item, content, isLoading, watermark, onProgress, launch
             </div>
             <p className="text-[10px] font-black uppercase tracking-[0.3em] text-blue-400 mb-3 drop-shadow-md">Simulator</p>
             <h2 className="text-4xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white to-white/70 tracking-tight drop-shadow-sm">{active.title}</h2>
-            <p className="text-sm font-medium text-white/60 mt-4 mb-8 max-w-lg leading-relaxed">This immersive simulator runs securely via the AeroLearn desktop launcher. Simply select this module to begin.</p>
+            <p className="text-sm font-medium text-white/60 mt-4 mb-8 max-w-lg leading-relaxed">This immersive simulator runs securely via the Vighnesh Inc. desktop launcher. Simply select this module to begin.</p>
             <LauncherPrompt active={active} launcherDownloadUrl={launcherDownloadUrl} launcherVersion={launcherVersion} onHelp={() => onLauncherHelp(active)} />
           </div>
         </div>
@@ -320,7 +320,7 @@ export default function CourseWorkspace() {
   const totalMinutes = lessons.reduce((sum, item) => sum + (item.type === 'video' ? (item.durationSec ? Math.round(item.durationSec / 60) : 12) : 6), 0)
   const completedCount = lessons.filter((lesson) => completionMap[lesson.id]).length
   const progress = lessons.length ? Math.round((completedCount / lessons.length) * 100) : 0
-  const watermark = user?.email || 'aerolearn'
+  const watermark = user?.email || 'vighneshinc'
   const launcher = settings?.launcher || {}
   const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000/api'
   const launcherDownloadUrl = launcher.url || (launcher.hasInstaller ? `${apiBase}/settings/launcher-download` : '')

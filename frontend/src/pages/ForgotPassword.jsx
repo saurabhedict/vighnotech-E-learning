@@ -7,7 +7,7 @@ import { useSiteSettings } from '../hooks/useSiteSettings'
 export default function ForgotPassword() {
   const navigate = useNavigate()
   const { data: settings } = useSiteSettings()
-  const brandName = settings?.brand?.name || 'Aerolearn'
+  const brandName = settings?.brand?.name || 'Vighnesh Inc.'
   const logoEmoji = settings?.brand?.logoEmoji ?? '✈'
   const [step, setStep] = useState(1)
   const [email, setEmail] = useState('')

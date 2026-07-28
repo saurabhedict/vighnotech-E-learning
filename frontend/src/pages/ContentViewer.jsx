@@ -87,7 +87,7 @@ export default function ContentViewer() {
   if (isLoading) return <p className="text-vigno-muted">Opening content…</p>
   if (isError || !item) return <p className="text-red-300">Content not found.</p>
 
-  const watermark = user?.email || 'aerolearn'
+  const watermark = user?.email || 'vighneshinc'
   const isAdmin = user?.role === 'admin'
   const backTo = isAdmin ? '/app/admin' : (className && moduleId ? `/app/${className}/module/${moduleId}` : '/app/library')
   const backLabel = isAdmin ? 'Back to Admin Dashboard' : (className && moduleId ? 'Back to module' : 'Back to library')
@@ -125,7 +125,7 @@ export default function ContentViewer() {
             )}
 
             <div className="text-xs text-vigno-muted flex flex-wrap gap-x-4 gap-y-1 pt-1.5 font-medium">
-              <p>Created by <span className="text-vigno-accent2 font-bold hover:underline cursor-pointer">AeroLearn Experts</span></p>
+              <p>Created by <span className="text-vigno-accent2 font-bold hover:underline cursor-pointer">Vighnesh Inc. Experts</span></p>
               <p>·</p>
               <p>Last updated June 2026</p>
               <p>·</p>

@@ -371,7 +371,7 @@ export default function Cart() {
                           {item.title}
                         </h3>
                         <p className="text-xs text-vigno-muted/80 mt-1">
-                          By {item.instructor || 'AeroLearn Instructor Panel'}
+                          By {item.instructor || 'Vighnesh Inc. Instructor Panel'}
                         </p>
                         
                         {/* Ratings stars */}

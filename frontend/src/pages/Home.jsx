@@ -358,7 +358,7 @@ export default function Home() {
   const listPrice = Number(meta.price) || 659
   const finalAmount = appliedCoupon ? appliedCoupon.finalAmount : listPrice
 
-  const dynamicInstructor = meta.instructor || 'AeroLearn Experts'
+  const dynamicInstructor = meta.instructor || 'Vighnesh Inc. Experts'
   const dynamicTags = Array.isArray(meta.tags) && meta.tags.length > 0 
     ? meta.tags 
     : (meta.tags && typeof meta.tags === 'string'
@@ -427,14 +427,6 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Filters (test) — the same catalog filter buttons as the dashboard, on
-              every course curriculum. Open the dropdowns (they list the admin's
-              Content Type / Training Program options) and press Apply → it navigates
-              to Browse with your selections, so you can confirm the buttons work. */}
-          <div className="mb-6 rounded-2xl border border-vigno-line/50 bg-vigno-card/40 p-4">
-            <p className="text-xs font-bold text-vigno-muted uppercase tracking-wider mb-3">Filter resources</p>
-            <CatalogFilterBar />
-          </div>
 
           {/* Curriculum accordion */}
           <div id="curriculum-accordion-section" className="scroll-mt-16">
