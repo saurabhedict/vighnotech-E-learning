@@ -1,0 +1,522 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vigno — End-to-End System Flow</title>
+<style>
+  :root {
+    --bg:#eef1f5; --panel:#ffffff; --panel-2:#f7f9fb;
+    --ink:#0f172a; --muted:#5b6675; --faint:#8a94a3;
+    --line:#e0e5ec; --rail:#c3cdda; --accent:#2456e6;
+    --fe:#1d4ed8;  --fe-bg:rgba(37,99,235,.10);  --fe-bd:rgba(37,99,235,.28);
+    --api:#6d28d9; --api-bg:rgba(124,58,237,.10); --api-bd:rgba(124,58,237,.28);
+    --svc:#0e7490; --svc-bg:rgba(14,116,144,.11); --svc-bd:rgba(14,116,144,.30);
+    --data:#a45a08;--data-bg:rgba(217,119,6,.13); --data-bd:rgba(217,119,6,.32);
+    --app:#be123c; --app-bg:rgba(225,29,72,.10);  --app-bd:rgba(225,29,72,.28);
+    --font-sans:'Segoe UI Variable','Segoe UI',system-ui,-apple-system,Roboto,Helvetica,Arial,sans-serif;
+    --font-mono:ui-monospace,'Cascadia Code','JetBrains Mono','SF Mono',Menlo,Consolas,monospace;
+    --maxw:1080px;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --bg:#080d18; --panel:#0e1626; --panel-2:#0b1220;
+      --ink:#e7ecf3; --muted:#93a1b5; --faint:#63748c;
+      --line:#1c2740; --rail:#2c3a54; --accent:#5b8cff;
+      --fe:#7aa7ff;  --fe-bg:rgba(96,165,250,.14);  --fe-bd:rgba(96,165,250,.30);
+      --api:#b49bff; --api-bg:rgba(167,139,250,.15); --api-bd:rgba(167,139,250,.32);
+      --svc:#37d5ee; --svc-bg:rgba(34,211,238,.13);  --svc-bd:rgba(34,211,238,.30);
+      --data:#fbbf24;--data-bg:rgba(251,191,36,.14); --data-bd:rgba(251,191,36,.32);
+      --app:#fb7a90; --app-bg:rgba(251,113,133,.15); --app-bd:rgba(251,113,133,.32);
+    }
+  }
+  :root[data-theme="light"]{
+    --bg:#eef1f5; --panel:#ffffff; --panel-2:#f7f9fb; --ink:#0f172a; --muted:#5b6675; --faint:#8a94a3;
+    --line:#e0e5ec; --rail:#c3cdda; --accent:#2456e6;
+    --fe:#1d4ed8;--fe-bg:rgba(37,99,235,.10);--fe-bd:rgba(37,99,235,.28);
+    --api:#6d28d9;--api-bg:rgba(124,58,237,.10);--api-bd:rgba(124,58,237,.28);
+    --svc:#0e7490;--svc-bg:rgba(14,116,144,.11);--svc-bd:rgba(14,116,144,.30);
+    --data:#a45a08;--data-bg:rgba(217,119,6,.13);--data-bd:rgba(217,119,6,.32);
+    --app:#be123c;--app-bg:rgba(225,29,72,.10);--app-bd:rgba(225,29,72,.28);
+  }
+  :root[data-theme="dark"]{
+    --bg:#080d18; --panel:#0e1626; --panel-2:#0b1220; --ink:#e7ecf3; --muted:#93a1b5; --faint:#63748c;
+    --line:#1c2740; --rail:#2c3a54; --accent:#5b8cff;
+    --fe:#7aa7ff;--fe-bg:rgba(96,165,250,.14);--fe-bd:rgba(96,165,250,.30);
+    --api:#b49bff;--api-bg:rgba(167,139,250,.15);--api-bd:rgba(167,139,250,.32);
+    --svc:#37d5ee;--svc-bg:rgba(34,211,238,.13);--svc-bd:rgba(34,211,238,.30);
+    --data:#fbbf24;--data-bg:rgba(251,191,36,.14);--data-bd:rgba(251,191,36,.32);
+    --app:#fb7a90;--app-bg:rgba(251,113,133,.15);--app-bd:rgba(251,113,133,.32);
+  }
+
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-sans);
+    line-height:1.5;-webkit-font-smoothing:antialiased;}
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 22px}
+
+  /* ---- top bar ---- */
+  .topbar{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--bg) 88%,transparent);
+    backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+  .topbar .wrap{display:flex;align-items:center;justify-content:space-between;height:52px;gap:16px}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:700;letter-spacing:-.01em}
+  .brand .mk{width:22px;height:22px;border-radius:5px;background:var(--accent);position:relative;flex:none}
+  .brand .mk::after{content:"";position:absolute;inset:5px;border:2px solid var(--bg);border-radius:2px}
+  .brand small{color:var(--muted);font-weight:500;letter-spacing:.02em}
+  .toggle{font-family:var(--font-mono);font-size:12px;color:var(--muted);background:var(--panel);
+    border:1px solid var(--line);border-radius:7px;padding:6px 11px;cursor:pointer;display:flex;gap:7px;align-items:center}
+  .toggle:hover{border-color:var(--rail);color:var(--ink)}
+  .toggle:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+  /* ---- hero ---- */
+  header.hero{padding:46px 0 26px}
+  .eyebrow{font-family:var(--font-mono);font-size:12px;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--accent);font-weight:600;margin:0 0 14px}
+  h1{font-size:clamp(30px,5vw,46px);line-height:1.04;letter-spacing:-.025em;margin:0 0 16px;
+    font-weight:800;text-wrap:balance}
+  .lede{font-size:17px;color:var(--muted);max-width:64ch;margin:0}
+  .lede b{color:var(--ink);font-weight:600}
+
+  /* ---- legend ---- */
+  .legend{display:flex;flex-wrap:wrap;gap:9px;margin:24px 0 8px}
+  .lg{display:inline-flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted);
+    background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:5px 12px 5px 8px}
+  .lg .tag{margin:0}
+  .howto{font-size:13.5px;color:var(--muted);margin:16px 0 0;padding:13px 16px;background:var(--panel-2);
+    border:1px solid var(--line);border-radius:10px}
+  .howto code{font-family:var(--font-mono);color:var(--ink);font-size:12.5px}
+
+  /* ---- journey ribbon ---- */
+  nav.ribbon{margin:30px 0 8px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);
+    padding:16px 0}
+  nav.ribbon ol{list-style:none;display:flex;gap:8px;margin:0;padding:0;overflow-x:auto;scrollbar-width:thin}
+  nav.ribbon a{flex:1 0 auto;min-width:150px;display:flex;flex-direction:column;gap:3px;text-decoration:none;
+    padding:11px 14px;border-radius:10px;background:var(--panel);border:1px solid var(--line);color:var(--ink);
+    transition:border-color .15s,transform .15s}
+  nav.ribbon a:hover{border-color:var(--accent);transform:translateY(-2px)}
+  nav.ribbon .n{font-family:var(--font-mono);font-size:12px;color:var(--accent);font-weight:700}
+  nav.ribbon .t{font-weight:650;font-size:14px;letter-spacing:-.01em}
+  nav.ribbon .s{font-size:11.5px;color:var(--faint)}
+  nav.ribbon .arrow{align-self:center;color:var(--rail);flex:none;font-family:var(--font-mono)}
+
+  /* ---- stages ---- */
+  main{padding:8px 0 40px}
+  section.stage{padding:40px 0 8px;scroll-margin-top:64px}
+  .stage-head{display:flex;gap:16px;align-items:baseline;margin:0 0 6px}
+  .stage-num{font-family:var(--font-mono);font-weight:800;font-size:15px;color:var(--bg);
+    background:var(--accent);width:30px;height:30px;border-radius:8px;display:grid;place-items:center;flex:none;
+    transform:translateY(4px)}
+  .stage-title{font-size:23px;font-weight:750;letter-spacing:-.02em;margin:0}
+  .stage-what{color:var(--muted);font-size:14.5px;margin:2px 0 0}
+  .stage-body{margin-top:20px;background:var(--panel);border:1px solid var(--line);border-radius:14px;
+    padding:22px 22px 24px}
+  .subhead{font-family:var(--font-mono);font-size:11.5px;letter-spacing:.12em;text-transform:uppercase;
+    color:var(--faint);font-weight:600;margin:22px 0 12px}
+  .subhead:first-child{margin-top:2px}
+
+  /* ---- chain of steps ---- */
+  ol.chain{list-style:none;margin:0;padding:0}
+  li.step{display:grid;grid-template-columns:46px 1fr;gap:15px;padding-bottom:16px;position:relative}
+  li.step:last-child{padding-bottom:0}
+  .rail{display:flex;flex-direction:column;align-items:center;position:relative}
+  .rail::before{content:"";position:absolute;top:24px;bottom:-16px;left:50%;width:2px;
+    transform:translateX(-50%);background:var(--rail)}
+  li.step:last-child .rail::before{display:none}
+  .tag{font-family:var(--font-mono);font-size:10.5px;font-weight:700;letter-spacing:.04em;
+    min-width:42px;height:22px;padding:0 6px;border-radius:6px;display:inline-flex;align-items:center;
+    justify-content:center;border:1px solid transparent;position:relative;z-index:1}
+  .tag.fe{color:var(--fe);background:var(--fe-bg);border-color:var(--fe-bd)}
+  .tag.api{color:var(--api);background:var(--api-bg);border-color:var(--api-bd)}
+  .tag.svc{color:var(--svc);background:var(--svc-bg);border-color:var(--svc-bd)}
+  .tag.data{color:var(--data);background:var(--data-bg);border-color:var(--data-bd)}
+  .tag.app{color:var(--app);background:var(--app-bg);border-color:var(--app-bd)}
+
+  .step-body{padding-top:1px;min-width:0}
+  .call{font-family:var(--font-mono);font-size:13px;line-height:1.5;word-break:break-word}
+  .call .path{color:var(--muted)}
+  .call .fn{font-weight:700;color:var(--ink)}
+  .call .sep{color:var(--rail);padding:0 3px}
+  .fe .fn,.step-body.fe .fn{color:inherit}
+  .wire{display:inline-flex;align-items:center;gap:7px;font-family:var(--font-mono);font-size:11.5px;
+    margin-top:7px;padding:3px 9px;border-radius:6px;border:1px dashed var(--accent);color:var(--accent);
+    background:color-mix(in srgb,var(--accent) 7%,transparent);font-weight:600}
+  .wire .m{font-weight:800;letter-spacing:.02em}
+  .note{font-size:13.5px;color:var(--muted);margin:6px 0 0}
+  .note b{color:var(--ink);font-weight:600}
+  .store{font-family:var(--font-mono);font-size:11.5px;color:var(--data);background:var(--data-bg);
+    border:1px solid var(--data-bd);border-radius:6px;padding:2px 7px;display:inline-block;margin-top:7px}
+
+  /* ---- security callout ---- */
+  .vault{margin:34px 0 8px;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--panel)}
+  .vault h3{margin:0;padding:16px 22px;font-size:16px;font-weight:750;letter-spacing:-.01em;
+    border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px}
+  .vault h3 .lk{font-family:var(--font-mono);color:var(--svc)}
+  .vgrid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line)}
+  .vcell{background:var(--panel);padding:18px 22px}
+  .vcell h4{margin:0 0 7px;font-size:13px;font-family:var(--font-mono);letter-spacing:.04em;
+    text-transform:uppercase;color:var(--faint);font-weight:600}
+  .vcell p{margin:0;font-size:13.5px;color:var(--muted)}
+  .vcell code{font-family:var(--font-mono);font-size:12px;color:var(--ink);background:var(--panel-2);
+    padding:1px 5px;border-radius:4px}
+
+  footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--faint);font-size:13px}
+  footer code{font-family:var(--font-mono);color:var(--muted)}
+
+  @media (max-width:640px){
+    li.step{grid-template-columns:42px 1fr;gap:11px}
+    .vgrid{grid-template-columns:1fr}
+    .stage-body{padding:18px 15px 20px}
+  }
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="topbar">
+  <div class="wrap">
+    <div class="brand"><span class="mk"></span>Vigno <small>· system flow</small></div>
+    <button class="toggle" id="themeBtn" aria-label="Toggle theme"><span id="themeIcon">◐</span><span id="themeLbl">Theme</span></button>
+  </div>
+</div>
+
+<header class="hero">
+  <div class="wrap">
+    <p class="eyebrow">Registration → Learning → Playing a game</p>
+    <h1>How one user flows through the whole platform</h1>
+    <p class="lede">A code-level map of the Learning &amp; Content Management system — from the moment a person signs up, through browsing and buying a course, streaming lessons in the browser, to launching a licensed game through the desktop app. Every step names the <b>exact file, function, and API endpoint</b> that runs, in order.</p>
+
+    <div class="legend" aria-label="Layer legend">
+      <span class="lg"><span class="tag fe">FE</span>Frontend · React in the browser</span>
+      <span class="lg"><span class="tag api">API</span>Backend route + controller · Express</span>
+      <span class="lg"><span class="tag svc">SVC</span>Backend service · crypto / license / storage</span>
+      <span class="lg"><span class="tag data">DATA</span>Storage · MongoDB, S3/CloudFront, disk</span>
+      <span class="lg"><span class="tag app">APP</span>Desktop launcher · Electron</span>
+    </div>
+    <p class="howto">How to read it: each step shows a <b>layer tag</b>, then <code>path/to/file.ext › function()</code>, and — when the call crosses the network — a dashed <code>METHOD /api/…</code> pill. Steps run top-to-bottom down the connector line. Amber <code>disk / DB</code> chips mark where data comes to rest.</p>
+  </div>
+</header>
+
+<nav class="ribbon" aria-label="Journey stages">
+  <div class="wrap">
+    <ol>
+      <li><a href="#s1"><span class="n">01</span><span class="t">Register</span><span class="s">Create an account</span></a></li>
+      <li class="arrow" aria-hidden="true">→</li>
+      <li><a href="#s2"><span class="n">02</span><span class="t">Log in</span><span class="s">Session + auth guard</span></a></li>
+      <li class="arrow" aria-hidden="true">→</li>
+      <li><a href="#s3"><span class="n">03</span><span class="t">Browse</span><span class="s">Course catalog + tree</span></a></li>
+      <li class="arrow" aria-hidden="true">→</li>
+      <li><a href="#s4"><span class="n">04</span><span class="t">Buy</span><span class="s">Payment → licenses</span></a></li>
+      <li class="arrow" aria-hidden="true">→</li>
+      <li><a href="#s5"><span class="n">05</span><span class="t">Learn</span><span class="s">Stream a lesson</span></a></li>
+      <li class="arrow" aria-hidden="true">→</li>
+      <li><a href="#s6"><span class="n">06</span><span class="t">Play a game</span><span class="s">Launcher + decrypt</span></a></li>
+    </ol>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <!-- STAGE 1 -->
+  <section class="stage" id="s1">
+    <div class="stage-head">
+      <span class="stage-num">1</span>
+      <div><h2 class="stage-title">Register — create an account</h2>
+      <p class="stage-what">The visitor fills the sign-up form; the server hashes the password, saves the user, and hands back a session.</p></div>
+    </div>
+    <div class="stage-body">
+      <ol class="chain">
+        <li class="step"><div class="rail"><span class="tag fe">FE</span></div><div class="step-body">
+          <div class="call"><span class="path">frontend/src/pages/</span><span class="fn">Signup.jsx</span><span class="sep">›</span><span class="fn">submit()</span></div>
+          <p class="note">Validates the password rules (length, upper, number, symbol) client-side, then calls the signup API.</p></div></li>
+
+        <li class="step"><div class="rail"><span class="tag fe">FE</span></div><div class="step-body">
+          <div class="call"><span class="path">frontend/src/api/</span><span class="fn">authApi.js</span><span class="sep">›</span><span class="fn">signup()</span></div>
+          <div class="wire"><span class="m">POST</span> /api/auth/signup</div>
+          <p class="note">Sends <b>email, password, name, phone</b> through the shared axios client.</p></div></li>
+
+        <li class="step"><div class="rail"><span class="tag api">API</span></div><div class="step-body">
+          <div class="call"><span class="path">backend/src/routes/</span><span class="fn">auth.routes.js</span><span class="sep">→</span><span class="path">controllers/</span><span class="fn">auth.controller.js</span><span class="sep">›</span><span class="fn">signup()</span></div>
+          <p class="note">Passes through <code>authLimiter</code> (rate limit) and <code>validate(signupSchema)</code>; rejects duplicate emails with a <b>conflict</b>.</p></div></li>
+
+        <li class="step"><div class="rail"><span class="tag data">DATA</span></div><div class="step-body">
+          <div class="call"><span class="path">backend/src/models/</span><span class="fn">User.js</span><span class="sep">›</span><span class="fn">setPassword()</span> <span class="sep">·</span> <span class="fn">user.save()</span></div>
+          <p class="note">Hashes with <b>bcrypt (cost 12)</b> and writes the user document.</p>
+          <span class="store">MongoDB · users</span></div></li>
+
+        <li class="step"><div class="rail"><span class="tag svc">SVC</span></div><div class="step-body">
+          <div class="call"><span class="path">backend/src/utils/</span><span class="fn">tokens.js</span><span class="sep">›</span><span class="fn">signAccessToken()</span> + <span class="fn">signRefreshToken()</span></div>
+          <p class="note">Via the controller's <code>issueSession()</code>: sets httpOnly cookies <code>vigno_at</code> / <code>vigno_rt</code> and returns <code>{ user, token }</code>.</p></div></li>
+
+        <li class="step"><div class="rail"><span class="tag fe">FE</span></div><div class="step-body">
+          <div class="call"><span class="path">frontend/src/store/</span><span class="fn">authSlice.js</span><span class="sep">›</span><span class="fn">setCredentials()</span></div>
+          <p class="note">Persists the session to <code>localStorage['vigno.auth']</code> and advances to the OTP verify screen (<b>VerifyContact</b>).</p></div></li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- STAGE 2 -->
+  <section class="stage" id="s2">
+    <div class="stage-head">
+      <span class="stage-num">2</span>
+      <div><h2 class="stage-title">Log in — session &amp; the auth guard</h2>
+      <p class="stage-what">Password is checked, a single active session is enforced, and every later request is verified by middleware.</p></div>
+    </div>
+    <div class="stage-body">
+      <div class="subhead">Signing in</div>
+      <ol class="chain">
+        <li class="step"><div class="rail"><span class="tag fe">FE</span></div><div class="step-body">
+          <div class="call"><span class="path">frontend/src/pages/</span><span class="fn">Login.jsx</span><span class="sep">›</span><span class="fn">submit()</span><span class="sep">→</span><span class="path">api/</span><span class="fn">authApi.js</span><span class="sep">›</span><span class="fn">login()</span></div>
+          <div class="wire"><span class="m">POST</span> /api/auth/login</div></div></li>
+
+        <li class="step"><div class="rail"><span class="tag api">API</span></div><div class="step-body">
+          <div class="call"><span class="path">backend/src/controllers/</span><span class="fn">auth.controller.js</span><span class="sep">›</span><span class="fn">login()</span></div>
+          <p class="note">Loads the user with <code>+passwordHash</code> and checks <code>User.comparePassword()</code> (<b>bcrypt</b>). If 2FA is on → returns <code>{ twoFARequired, challenge }</code> and stops (second step: <code>verify2fa()</code>).</p></div></li>
+
+        <li class="step"><div class="rail"><span class="tag data">DATA</span></div><div class="step-body">
+          <div class="call"><span class="path">models/</span><span class="fn">User.js</span><span class="sep">·</span><span class="fn">findByIdAndUpdate($inc tokenVersion)</span></div>
+          <p class="note"><b>Single active session:</b> bumping <code>tokenVersion</code> instantly invalidates any other logged-in session. Then <code>issueSession()</code> re-issues tokens + cookies.</p></div></li>
+
+        <li class="step"><div class="rail"><span class="tag fe">FE</span></div><div class="step-body">
+          <div class="call"><span class="path">store/</span><span class="fn">authSlice.js</span><span class="sep">›</span><span class="fn">setCredentials()</span><span class="sep">→</span><span class="fn">navigate()</span></div>
+          <p class="note">Lands on <code>/app</code> (or <code>/app/admin</code> for admins).</p></div></li>
+      </ol>
+
+      <div class="subhead">On every request after login</div>
+      <ol class="chain">
+        <li class="step"><div class="rail"><span class="tag fe">FE</span></div><div class="step-body">
+          <div class="call"><span class="path">frontend/src/api/</span><span class="fn">axiosClient.js</span><span class="sep">·</span><span class="fn">request interceptor</span></div>
+          <p class="note">Attaches <code>Authorization: Bearer &lt;token&gt;</code> and sends cookies (<code>withCredentials</code>). On a 401 it silently calls <code>POST /auth/refresh</code> once and replays the request.</p></div></li>
+
+        <li class="step"><div class="rail"><span class="tag api">API</span></div><div class="step-body">
+          <div class="call"><span class="path">backend/src/middleware/</span><span class="fn">auth.js</span><span class="sep">›</span><span class="fn">requireAuth()</span><span class="sep">→</span><span class="fn">verifyAccessToken()</span></div>
+          <p class="note">Reads the token (cookie first, then Bearer), verifies the JWT, re-checks <code>tokenVersion</code>, and sets <code>req.user = {'{ id, role, email }'}</code>. <code>requireRole('admin')</code> gates admin routes.</p></div></li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- STAGE 3 -->
+  <section class="stage" id="s3">
+    <div class="stage-head">
+      <span class="stage-num">3</span>
+      <div><h2 class="stage-title">Browse — the course catalog</h2>
+      <p class="stage-what">The home/dashboard asks for the list of courses and the nested tree of one course.</p></div>
+    </div>
+    <div class="stage-body">
+      <ol class="chain">
+        <li class="step"><div class="rail"><span class="tag fe">FE</span></div><div class="step-body">
+          <div class="call"><span class="path">frontend/src/pages/</span><span class="fn">Dashboard.jsx</span> / <span class="fn">Home.jsx</span><span class="sep">→</span><span class="path">hooks/</span><span class="fn">useContent.js</span><span class="sep">›</span><span class="fn">useClasses()</span> / <span class="fn">useClassTree()</span></div>
+          <p class="note">React-Query hooks that cache the catalog and the selected course's tree.</p></div></li>
+
+        <li class="step"><div class="rail"><span class="tag fe">FE</span></div><div class="step-body">
+          <div class="call"><span class="path">frontend/src/api/</span><span class="fn">mockApi.js</span><span class="sep">›</span><span class="fn">fetchClasses()</span> / <span class="fn">fetchClassTree()</span></div>
+          <div class="wire"><span class="m">GET</span> /api/courses &nbsp;·&nbsp; /api/courses/:slug/tree</div></div></li>
+
+        <li class="step"><div class="rail"><span class="tag api">API</span></div><div class="step-body">
+          <div class="call"><span class="path">backend/src/controllers/</span><span class="fn">courses.controller.js</span><span class="sep">›</span><span class="fn">listCourses()</span> / <span class="fn">courseTree()</span></div></div></li>
+
+        <li class="step"><div class="rail"><span class="tag svc">SVC</span></div><div class="step-body">
+          <div class="call"><span class="path">backend/src/services/</span><span class="fn">contentTree.js</span><span class="sep">›</span><span class="fn">listCourseSlugs()</span> / <span class="fn">getCourseTree()</span></div>
+          <p class="note">Assembles subjects → modules → chapters → items in a few batched queries and returns <code>{ course, tree }</code>.</p>
+          <span class="store">MongoDB · treenodes + contents</span></div></li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- STAGE 4 -->
+  <section class="stage" id="s4">
+    <div class="stage-head">
+      <span class="stage-num">4</span>
+      <div><h2 class="stage-title">Buy — payment turns into licenses</h2>
+      <p class="stage-what">A course order is created, paid (Razorpay or the dev/free path), verified, and a license is issued for every lesson.</p></div>
+    </div>
+    <div class="stage-body">
+      <ol class="chain">
+        <li class="step"><div class="rail"><span class="tag fe">FE</span></div><div class="step-body">
+          <div class="call"><span class="path">frontend/src/pages/</span><span class="fn">Home.jsx</span><span class="sep">›</span><span class="fn">handleBuyCourse()</span><span class="sep">→</span><span class="path">lib/</span><span class="fn">buy.js</span><span class="sep">›</span><span class="fn">purchaseCourse()</span></div></div></li>
+
+        <li class="step"><div class="rail"><span class="tag fe">FE</span></div><div class="step-body">
+          <div class="call"><span class="path">frontend/src/api/</span><span class="fn">paymentsApi.js</span><span class="sep">›</span><span class="fn">createCourseOrder()</span></div>
+          <div class="wire"><span class="m">POST</span> /api/payments/order-course</div></div></li>
+
+        <li class="step"><div class="rail"><span class="tag api">API</span></div><div class="step-body">
+          <div class="call"><span class="path">backend/src/controllers/</span><span class="fn">payments.controller.js</span><span class="sep">›</span><span class="fn">createCourseOrder()</span></div>
+          <p class="note">Refuses a course with no published lessons, applies the coupon, and creates a <b>Purchase</b>.</p></div></li>
+
+        <li class="step"><div class="rail"><span class="tag svc">SVC</span></div><div class="step-body">
+          <div class="call"><span class="path">backend/src/services/</span><span class="fn">payments.js</span><span class="sep">›</span><span class="fn">createOrder()</span></div>
+          <p class="note">Real Razorpay order, or the built-in <code>isMock()</code> gateway when no keys are set. ₹0 (100%-off) skips the gateway entirely.</p></div></li>
+
+        <li class="step"><div class="rail"><span class="tag fe">FE</span></div><div class="step-body">
+          <div class="call"><span class="path">Razorpay checkout</span> (live) — else free/mock <span class="sep">→</span><span class="path">api/</span><span class="fn">paymentsApi.js</span><span class="sep">›</span><span class="fn">verifyCourse()</span></div>
+          <div class="wire"><span class="m">POST</span> /api/payments/verify-course</div></div></li>
+
+        <li class="step"><div class="rail"><span class="tag api">API</span></div><div class="step-body">
+          <div class="call"><span class="path">controllers/</span><span class="fn">payments.controller.js</span><span class="sep">›</span><span class="fn">verifyCoursePayment()</span><span class="sep">→</span><span class="path">services/</span><span class="fn">payments.js</span><span class="sep">›</span><span class="fn">verifyPaymentSignature()</span></div></div></li>
+
+        <li class="step"><div class="rail"><span class="tag svc">SVC</span></div><div class="step-body">
+          <div class="call"><span class="path">backend/src/services/</span><span class="fn">licenseAuthority.js</span><span class="sep">›</span><span class="fn">issueLicense()</span> <span class="path">— once per lesson</span></div>
+          <p class="note">Writes a <b>License</b> per published lesson (matched on <code>courseKey</code>) and marks the <b>Purchase</b> paid.</p>
+          <span class="store">MongoDB · licenses + purchases</span></div></li>
+
+        <li class="step"><div class="rail"><span class="tag fe">FE</span></div><div class="step-body">
+          <div class="call"><span class="path">frontend/src/api/</span><span class="fn">licenseApi.js</span><span class="sep">›</span><span class="fn">mine()</span><span class="sep">→</span><span class="fn">license.controller.js › mine()</span></div>
+          <div class="wire"><span class="m">GET</span> /api/licenses/mine</div>
+          <p class="note">The course page re-reads licenses; <code>isEnrolled</code> flips true and the curriculum unlocks — "Start Learning".</p></div></li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- STAGE 5 -->
+  <section class="stage" id="s5">
+    <div class="stage-head">
+      <span class="stage-num">5</span>
+      <div><h2 class="stage-title">Learn — stream a lesson in the browser</h2>
+      <p class="stage-what">Opening a paid lesson checks ownership, mints a short-lived signed media URL, and streams it into a locked-down viewer.</p></div>
+    </div>
+    <div class="stage-body">
+      <ol class="chain">
+        <li class="step"><div class="rail"><span class="tag fe">FE</span></div><div class="step-body">
+          <div class="call"><span class="path">frontend/src/pages/</span><span class="fn">ContentViewer.jsx</span><span class="sep">→</span><span class="path">hooks/</span><span class="fn">useContent.js</span><span class="sep">›</span><span class="fn">useContentItem()</span><span class="sep">→</span><span class="path">api/</span><span class="fn">mockApi.js</span><span class="sep">›</span><span class="fn">fetchContent()</span></div>
+          <div class="wire"><span class="m">GET</span> /api/contents/:id</div></div></li>
+
+        <li class="step"><div class="rail"><span class="tag api">API</span></div><div class="step-body">
+          <div class="call"><span class="path">backend/src/controllers/</span><span class="fn">courses.controller.js</span><span class="sep">›</span><span class="fn">getContent()</span></div>
+          <p class="note">Computes <code>accessible = !isPaid || owned</code>. Not owned → <code>{ locked:true }</code> (no media). Download lane → <code>{ requiresLauncher:true }</code>.</p></div></li>
+
+        <li class="step"><div class="rail"><span class="tag svc">SVC</span></div><div class="step-body">
+          <div class="call"><span class="path">backend/src/services/</span><span class="fn">licenseAuthority.js</span><span class="sep">›</span><span class="fn">hasActiveLicense()</span></div>
+          <p class="note">The ownership gate — looks up an active, unexpired license (admins bypass).</p></div></li>
+
+        <li class="step"><div class="rail"><span class="tag svc">SVC</span></div><div class="step-body">
+          <div class="call"><span class="path">services/</span><span class="fn">signedUrl.js</span><span class="sep">›</span><span class="fn">buildHlsUrl()</span> / <span class="fn">buildStreamUrl()</span> <span class="sep">+</span> <span class="fn">storage.js › createMediaUrl()</span></div>
+          <p class="note">Mints an HMAC <b>signed-URL token</b> (short-lived, bound to this content) — for video: an HLS master playlist; for pdf/3d: a signed object URL.</p></div></li>
+
+        <li class="step"><div class="rail"><span class="tag api">API</span></div><div class="step-body">
+          <div class="call"><span class="path">routes/</span><span class="fn">files.routes.js</span><span class="sep">→</span><span class="path">controllers/</span><span class="fn">files.controller.js</span><span class="sep">›</span><span class="fn">streamFile()</span> / <span class="fn">streamHlsAsset()</span></div>
+          <div class="wire"><span class="m">GET</span> /api/files/:id/stream · /hls/:asset</div>
+          <p class="note"><code>verifySignedToken()</code>, HTTP range (206), and a per-user <b>PDF watermark</b> (<code>addPdfWatermark</code>) before bytes go out.</p></div></li>
+
+        <li class="step"><div class="rail"><span class="tag data">DATA</span></div><div class="step-body">
+          <div class="call"><span class="fn">S3 / CloudFront</span> <span class="path">(or local disk fallback)</span></div>
+          <p class="note">The actual media objects; CloudFront-signed segments for adaptive HLS.</p></div></li>
+
+        <li class="step"><div class="rail"><span class="tag fe">FE</span></div><div class="step-body">
+          <div class="call"><span class="path">frontend/src/components/</span><span class="fn">VideoPlayer.jsx</span> · <span class="fn">PdfViewer.jsx</span> · <span class="fn">Model3DViewer.jsx</span></div>
+          <p class="note"><b>hls.js</b> / <b>pdfjs</b> / <b>three.js</b> render inside the page with a drifting email watermark; right-click and downloads are blocked.</p></div></li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- STAGE 6 -->
+  <section class="stage" id="s6">
+    <div class="stage-head">
+      <span class="stage-num">6</span>
+      <div><h2 class="stage-title">Play a game — the desktop launcher</h2>
+      <p class="stage-what">Games ship as encrypted files. The Electron app signs in, binds the device, downloads the encrypted bundle, unlocks a one-time key, decrypts in memory, and runs the game.</p></div>
+    </div>
+    <div class="stage-body">
+
+      <div class="subhead">Prepared once — encrypted at rest (admin upload)</div>
+      <ol class="chain">
+        <li class="step"><div class="rail"><span class="tag api">API</span></div><div class="step-body">
+          <div class="call"><span class="path">backend/src/controllers/</span><span class="fn">admin.controller.js</span><span class="sep">›</span><span class="fn">uploadContentFile()</span></div></div></li>
+        <li class="step"><div class="rail"><span class="tag svc">SVC</span></div><div class="step-body">
+          <div class="call"><span class="path">services/</span><span class="fn">contentCrypto.js</span><span class="sep">›</span><span class="fn">deriveContentKey()</span> / <span class="fn">newSalt()</span> <span class="sep">→</span> <span class="fn">storage.js › saveEncryptedBuffer()</span></div>
+          <p class="note"><b>AES-256-GCM</b> encrypts the game; the object is stored opaque with <code>enc = {'{ iv, tag, salt }'}</code>. The key is <b>never stored</b> — it is re-derivable from a server secret + salt.</p>
+          <span class="store">S3 · obj_&lt;id&gt;.enc</span></div></li>
+      </ol>
+
+      <div class="subhead">Launch &amp; sign in</div>
+      <ol class="chain">
+        <li class="step"><div class="rail"><span class="tag app">APP</span></div><div class="step-body">
+          <div class="call"><span class="path">launcher/</span><span class="fn">main.cjs</span><span class="sep">›</span><span class="fn">createWindow()</span> <span class="sep">·</span> <span class="fn">preload.cjs</span></div>
+          <p class="note">Electron main process; the preload bridge exposes <code>window.vigno.*</code> with <code>contextIsolation</code> on, <code>nodeIntegration</code> off.</p></div></li>
+
+        <li class="step"><div class="rail"><span class="tag app">APP</span></div><div class="step-body">
+          <div class="call"><span class="path">launcher/</span><span class="fn">renderer.js</span> login <span class="sep">→</span> <span class="fn">main.cjs › ipcMain('login')</span></div>
+          <div class="wire"><span class="m">POST</span> /api/auth/login &nbsp;→&nbsp; auth.controller.js › login()</div>
+          <p class="note">Same auth as the web; ES256 access token kept in the process's in-memory <code>session</code>. (2FA → <code>ipcMain('verify2fa')</code>.)</p></div></li>
+
+        <li class="step"><div class="rail"><span class="tag app">APP</span></div><div class="step-body">
+          <div class="call"><span class="path">launcher/</span><span class="fn">main.cjs › ipcMain('registerDevice')</span> <span class="sep">·</span> <span class="fn">fingerprint()</span></div>
+          <div class="wire"><span class="m">POST</span> /api/devices/register &nbsp;→&nbsp; devices.controller.js › registerDevice()</div>
+          <p class="note">Registers a hardware fingerprint; the returned <code>deviceId</code> binds this machine to the license.</p></div></li>
+      </ol>
+
+      <div class="subhead">Library &amp; download the encrypted game</div>
+      <ol class="chain">
+        <li class="step"><div class="rail"><span class="tag app">APP</span></div><div class="step-body">
+          <div class="call"><span class="path">launcher/</span><span class="fn">renderer.js › showLibrary()</span> <span class="sep">→</span> <span class="fn">main.cjs › ipcMain('library')</span></div>
+          <div class="wire"><span class="m">GET</span> /api/licenses/mine &nbsp;→&nbsp; license.controller.js › mine()</div>
+          <p class="note">Lists the user's licenses and keeps only the <b>download-lane</b> (game) ones.</p></div></li>
+
+        <li class="step"><div class="rail"><span class="tag app">APP</span></div><div class="step-body">
+          <div class="call"><span class="path">launcher/</span><span class="fn">main.cjs › ipcMain('download')</span> <span class="sep">→</span> <span class="fn">streamToDisk()</span></div>
+          <div class="wire"><span class="m">GET</span> /api/content/:id/download-url &nbsp;→&nbsp; files.controller.js › getDownloadUrl()</div>
+          <p class="note">License-gated presigned URL to the <b>still-encrypted</b> object; streamed to disk (fallback: <code>GET /:id/download → downloadEncrypted()</code>).</p>
+          <span class="store">disk · userData/vigno/downloads/&lt;id&gt;.enc</span></div></li>
+      </ol>
+
+      <div class="subhead">Unlock — runs on every "Play"</div>
+      <ol class="chain">
+        <li class="step"><div class="rail"><span class="tag app">APP</span></div><div class="step-body">
+          <div class="call"><span class="path">launcher/</span><span class="fn">main.cjs › play()</span> <span class="path">— refresh license</span></div>
+          <div class="wire"><span class="m">POST</span> /api/licenses/:jti/refresh &nbsp;→&nbsp; license.controller.js › refresh()</div>
+          <p class="note"><code>licenseAuthority.js › reissueToken()</code> mints a fresh <b>ES256</b> license token (signed by <code>keystore.js</code>, P-256). Online-only, memory-only.</p></div></li>
+
+        <li class="step"><div class="rail"><span class="tag app">APP</span></div><div class="step-body">
+          <div class="call"><span class="path">main.cjs › play()</span> <span class="path">— verify</span></div>
+          <div class="wire"><span class="m">POST</span> /api/licenses/verify &nbsp;→&nbsp; license.controller.js › verify()</div>
+          <p class="note"><code>licenseAuthority.js › verifyToken()</code> checks signature + expiry + DB revocation + <b>device binding</b>.</p></div></li>
+
+        <li class="step"><div class="rail"><span class="tag app">APP</span></div><div class="step-body">
+          <div class="call"><span class="path">main.cjs › play()</span> <span class="path">— get the one-time key</span></div>
+          <div class="wire"><span class="m">POST</span> /api/content/:id/key &nbsp;→&nbsp; files.controller.js › getDecryptionKey()</div>
+          <p class="note">Re-verifies the token, binds the device on first use, then <code>contentCrypto.js › deriveContentKey()</code> returns <code>{'{ key, iv, tag, alg:aes-256-gcm, expiresInSec:300 }'}</code>. Mismatched devices trip <code>flagIfShared()</code> anti-sharing.</p></div></li>
+
+        <li class="step"><div class="rail"><span class="tag app">APP</span></div><div class="step-body">
+          <div class="call"><span class="path">main.cjs › play()</span> <span class="path">— device-bound in-game token</span></div>
+          <div class="wire"><span class="m">POST</span> /api/content/:id/game-license &nbsp;→&nbsp; files.controller.js › getGameLicense()</div>
+          <p class="note"><code>gameLicense.js › signGameToken()</code> issues an <b>RSA-SHA256</b> token bound to the Windows <code>MachineGuid</code>, written into the game's <code>_Data</code> for the in-game LicenseGuard.</p></div></li>
+      </ol>
+
+      <div class="subhead">Decrypt &amp; run — nothing sensitive touches the disk</div>
+      <ol class="chain">
+        <li class="step"><div class="rail"><span class="tag app">APP</span></div><div class="step-body">
+          <div class="call"><span class="path">launcher/</span><span class="fn">main.cjs › decryptToFile()</span></div>
+          <p class="note"><b>AES-256-GCM</b> streaming (<code>createDecipheriv</code> + <code>setAuthTag</code>) turns <code>&lt;id&gt;.enc</code> into <code>__title.zip</code> in a temp dir; the GCM tag rejects any tampering or wrong key.</p>
+          <span class="store">disk · os.tmpdir()/vigno-game-* (transient)</span></div></li>
+
+        <li class="step"><div class="rail"><span class="tag app">APP</span></div><div class="step-body">
+          <div class="call"><span class="path">main.cjs › </span><span class="fn">extractZip()</span> <span class="sep">→</span> <span class="fn">findGameExe()</span> <span class="sep">→</span> <span class="fn">child_process.spawn()</span></div>
+          <p class="note"><b>yauzl</b> unzips (zip-slip guarded), locates the Unity <code>&lt;name&gt;.exe</code> + <code>&lt;name&gt;_Data</code>, and launches it.</p></div></li>
+
+        <li class="step"><div class="rail"><span class="tag app">APP</span></div><div class="step-body">
+          <div class="call"><span class="path">main.cjs — </span><span class="fn">cleanup</span> on exit / quit / logout</div>
+          <p class="note">The decrypted temp dir is wiped when the game closes; keys and license tokens live only in memory. <b>Only the encrypted <code>.enc</code> ever persists.</b></p></div></li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- SECURITY / DATA -->
+  <div class="vault">
+    <h3><span class="lk">▣</span> The security model at a glance</h3>
+    <div class="vgrid">
+      <div class="vcell"><h4>Two token systems</h4><p><b>Stream lane</b> uses short-lived <b>HMAC signed-URL</b> tokens (<code>signedUrl.js</code>). <b>Download lane</b> uses <b>ES256 JWT</b> license tokens signed by a P-256 key in <code>keystore.js</code> (<code>licenseAuthority.js</code>).</p></div>
+      <div class="vcell"><h4>Encryption</h4><p>Everything at rest is <b>AES-256-GCM</b>. The per-content key is <b>derived, never stored</b> — <code>deriveContentKey(id, salt)</code> from a server secret + per-file salt — and only released after license + device checks.</p></div>
+      <div class="vcell"><h4>Device binding &amp; anti-sharing</h4><p>A game license binds to a registered <code>deviceId</code> on first use; the in-game token adds the Windows <code>MachineGuid</code>. Reuse on other machines trips <code>flagIfShared()</code> and can flag the license for an admin.</p></div>
+      <div class="vcell"><h4>What lives where</h4><p><b>On disk:</b> only the encrypted <code>.enc</code>. <b>In memory only:</b> session token, license token, decryption key. <b>Transient:</b> the decrypted game in a temp dir while it runs.</p></div>
+    </div>
+  </div>
+
+  <footer>
+    Traced from source across <code>frontend/src</code>, <code>backend/src</code>, and <code>launcher/</code>. Each step names the file, function, and endpoint that actually executes — read a stage top-to-bottom to follow one request across every layer.
+  </footer>
+</main>
+
+<script>
+  (function(){
+    var root=document.documentElement, btn=document.getElementById('themeBtn'),
+        lbl=document.getElementById('themeLbl');
+    function sysDark(){return window.matchMedia&&window.matchMedia('(prefers-color-scheme:dark)').matches;}
+    function cur(){return root.getAttribute('data-theme')|| (sysDark()?'dark':'light');}
+    function apply(t){root.setAttribute('data-theme',t); lbl.textContent = t==='dark'?'Dark':'Light';}
+    apply(cur());
+    btn.addEventListener('click',function(){apply(cur()==='dark'?'light':'dark');});
+  })();
+</script>

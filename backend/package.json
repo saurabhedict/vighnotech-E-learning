@@ -1,0 +1,53 @@
+{
+  "name": "vigno-smart-class-server",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Vigno Smart Class — backend API + License Authority (Express + MongoDB + ES256 signed licenses). Implements the Xbox/PlayStation account-owns-a-license model per the HLD/LLD.",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "dev": "node --watch src/index.js",
+    "start": "node src/index.js",
+    "seed": "node src/seed/seed.js",
+    "keys:gen": "node src/scripts/genKeys.js",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@aws-sdk/client-mediaconvert": "^3.1065.0",
+    "@aws-sdk/client-s3": "^3.1065.0",
+    "@aws-sdk/cloudfront-signer": "^3.1064.0",
+    "@aws-sdk/lib-storage": "^3.1067.0",
+    "@aws-sdk/s3-request-presigner": "^3.1065.0",
+    "@vigno/shared": "file:../shared",
+    "all": "^0.0.0",
+    "bcryptjs": "^2.4.3",
+    "cloudinary": "^2.10.0",
+    "compression": "^1.8.1",
+    "cookie-parser": "^1.4.6",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "exceljs": "^4.4.0",
+    "express": "^4.19.2",
+    "express-mongo-sanitize": "^2.2.0",
+    "express-rate-limit": "^7.4.0",
+    "helmet": "^7.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.5.1",
+    "morgan": "^1.10.0",
+    "multer": "^2.1.1",
+    "nanoid": "^5.0.7",
+    "nodemailer": "^8.0.10",
+    "otplib": "^12.0.1",
+    "pdf-lib": "^1.17.1",
+    "pdfkit": "^0.18.0",
+    "qrcode": "^1.5.4",
+    "razorpay": "^2.9.4",
+    "twilio": "^6.0.2",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "mongodb-memory-server": "^10.0.0",
+    "vitest": "^4.1.8"
+  }
+}

@@ -1,0 +1,366 @@
+import { useState } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { adminApi } from '../../api/adminApi'
+import { apiErrorMessage } from '../../api/authApi'
+import { useClasses } from '../../hooks/useContent'
+
+const input = 'px-3 py-2 rounded-lg bg-vigno-bg2 border border-vigno-line/60 text-sm text-vigno-txt outline-none focus:border-vigno-accent/60 transition-colors'
+const btn = 'px-4 py-2 rounded-lg bg-vigno-accent text-vigno-bg1 font-bold text-sm hover:brightness-110 disabled:opacity-60 transition-all active:scale-95'
+const fmtDate = (d) => (d ? new Date(d).toLocaleDateString() : '—')
+const tomorrow = () => { const d = new Date(); d.setDate(d.getDate() + 1); return d.toISOString().slice(0, 10) }
+
+const TYPE_ICON = {
+  pdf: '📄', video: '🎬', '3d': '🧊', game: '🎮', apk: '📱',
+  image: '🖼️', audio: '🎵', quiz: '📝', link: '🔗',
+}
+const TYPE_LABEL = {
+  pdf: 'PDF', video: 'Video', '3d': '3D Model', game: 'Simulator',
+  apk: 'Android App', image: 'Image', audio: 'Audio', quiz: 'Quiz', link: 'Link',
+}
+
+// ── Client row ────────────────────────────────────────────────────────────────
+function ClientRow({ client, courses, resources, onDeleted }) {
+  const qc = useQueryClient()
+  const [open, setOpen] = useState(false)
+  const [tab, setTab] = useState('courses') // 'courses' | 'resources'
+
+  // Course grant state
+  const [courseSlug, setCourseSlug] = useState('')
+  const [courseValidity, setCourseValidity] = useState('')
+  const [courseMsg, setCourseMsg] = useState(null)
+
+  // Resource grant state
+  const [resourceId, setResourceId] = useState('')
+  const [resourceValidity, setResourceValidity] = useState('')
+  const [resourceMsg, setResourceMsg] = useState(null)
+
+  const grantsQ = useQuery({
+    queryKey: ['admin', 'client', client.id, 'grants'],
+    queryFn: () => adminApi.listClientGrants(client.id),
+    enabled: open,
+  })
+
+  const courseGrants = grantsQ.data?.items || []
+  const resourceGrants = grantsQ.data?.resourceGrants || []
+
+  const grantCourse = useMutation({
+    mutationFn: () => adminApi.grantCourse(client.id, { courseSlug, expiresAt: courseValidity ? `${courseValidity}T23:59:59` : undefined }),
+    onSuccess: (r) => {
+      setCourseMsg({ ok: true, text: `Granted "${r.courseName}" (${r.grantedLessons} lessons)${r.expiresAt ? ' until ' + fmtDate(r.expiresAt) : ' (no expiry)'}` })
+      setCourseSlug(''); setCourseValidity('')
+      qc.invalidateQueries({ queryKey: ['admin', 'client', client.id, 'grants'] })
+      qc.invalidateQueries({ queryKey: ['admin', 'clients'] })
+    },
+    onError: (e) => setCourseMsg({ ok: false, text: apiErrorMessage(e, 'Grant failed') }),
+  })
+
+  const revokeCourse = useMutation({
+    mutationFn: (slug) => adminApi.revokeGrant(client.id, slug),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin', 'client', client.id, 'grants'] })
+      qc.invalidateQueries({ queryKey: ['admin', 'clients'] })
+    },
+  })
+
+  const grantResource = useMutation({
+    mutationFn: () => adminApi.grantResource(client.id, { contentId: resourceId, expiresAt: resourceValidity ? `${resourceValidity}T23:59:59` : undefined }),
+    onSuccess: (r) => {
+      setResourceMsg({ ok: true, text: `Granted "${r.title}"${r.expiresAt ? ' until ' + fmtDate(r.expiresAt) : ' (no expiry)'}` })
+      setResourceId(''); setResourceValidity('')
+      qc.invalidateQueries({ queryKey: ['admin', 'client', client.id, 'grants'] })
+      qc.invalidateQueries({ queryKey: ['admin', 'clients'] })
+    },
+    onError: (e) => setResourceMsg({ ok: false, text: apiErrorMessage(e, 'Grant failed') }),
+  })
+
+  const revokeResource = useMutation({
+    mutationFn: (contentId) => adminApi.revokeResource(client.id, contentId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin', 'client', client.id, 'grants'] })
+      qc.invalidateQueries({ queryKey: ['admin', 'clients'] })
+    },
+  })
+
+  const totalGrants = courseGrants.length + resourceGrants.length
+
+  return (
+    <div className={`rounded-2xl border transition-all duration-200 ${open ? 'border-vigno-accent/40 bg-vigno-card/70 shadow-lg shadow-vigno-accent/5' : 'border-vigno-line/50 bg-vigno-card/40 hover:border-vigno-line/80'}`}>
+      {/* Row header */}
+      <div className="flex items-center justify-between gap-3 p-4">
+        <button onClick={() => setOpen((v) => !v)} className="flex-1 text-left min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="w-8 h-8 rounded-full bg-vigno-accent/15 flex items-center justify-center text-vigno-accent font-extrabold text-sm shrink-0">
+              {(client.name || client.email || '?')[0].toUpperCase()}
+            </div>
+            <div className="min-w-0">
+              <span className="font-bold text-sm text-vigno-txt">{client.name || '(no name)'}</span>
+              <span className="text-vigno-muted font-normal text-sm"> · {client.email}</span>
+            </div>
+          </div>
+          <div className="text-xs text-vigno-muted mt-1 ml-10">
+            {client.activeLicenses} active grant{client.activeLicenses === 1 ? '' : 's'} · added {fmtDate(client.createdAt)}
+          </div>
+        </button>
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            onClick={() => setOpen((v) => !v)}
+            className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg transition-all ${open ? 'bg-vigno-accent/15 text-vigno-accent' : 'bg-vigno-bg2 text-vigno-muted hover:text-vigno-accent hover:bg-vigno-accent/10'}`}
+          >
+            {open ? (
+              <>
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14" /></svg>
+                Close
+              </>
+            ) : (
+              <>
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+                Manage
+              </>
+            )}
+          </button>
+          <button
+            onClick={() => { if (window.confirm(`Delete client ${client.email} and all their grants?`)) adminApi.deleteClient(client.id).then(onDeleted) }}
+            className="flex items-center gap-1.5 text-xs font-bold text-red-400 hover:text-red-300 hover:bg-red-400/10 px-3 py-1.5 rounded-lg transition-all"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>
+            Delete
+          </button>
+        </div>
+      </div>
+
+      {open && (
+        <div className="border-t border-vigno-line/40 p-4 space-y-5">
+          {/* Tabs */}
+          <div className="flex items-center gap-1 bg-vigno-bg2/60 rounded-xl p-1 w-fit">
+            <button
+              onClick={() => setTab('courses')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${tab === 'courses' ? 'bg-vigno-accent text-vigno-bg1 shadow' : 'text-vigno-muted hover:text-vigno-txt'}`}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" /></svg>
+              Courses
+              {courseGrants.length > 0 && (
+                <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full ${tab === 'courses' ? 'bg-vigno-bg1/20' : 'bg-vigno-accent/15 text-vigno-accent'}`}>{courseGrants.length}</span>
+              )}
+            </button>
+            <button
+              onClick={() => setTab('resources')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${tab === 'resources' ? 'bg-vigno-accent text-vigno-bg1 shadow' : 'text-vigno-muted hover:text-vigno-txt'}`}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>
+              Individual Resources
+              {resourceGrants.length > 0 && (
+                <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full ${tab === 'resources' ? 'bg-vigno-bg1/20' : 'bg-vigno-accent/15 text-vigno-accent'}`}>{resourceGrants.length}</span>
+              )}
+            </button>
+          </div>
+
+          {grantsQ.isLoading && (
+            <div className="flex items-center gap-2 text-xs text-vigno-muted">
+              <div className="w-3 h-3 border-2 border-vigno-accent/40 border-t-vigno-accent rounded-full animate-spin" />
+              Loading grants…
+            </div>
+          )}
+
+          {/* ── COURSES TAB ── */}
+          {tab === 'courses' && !grantsQ.isLoading && (
+            <div className="space-y-5">
+              {/* Grant a course */}
+              <div className="rounded-xl bg-vigno-bg2/40 border border-vigno-line/40 p-4 space-y-3">
+                <p className="text-[11px] font-extrabold text-vigno-muted uppercase tracking-widest">Grant a course</p>
+                <div className="flex flex-wrap items-end gap-3">
+                  <select value={courseSlug} onChange={(e) => setCourseSlug(e.target.value)} className={input}>
+                    <option value="">Select course…</option>
+                    {(courses || []).map((c) => {
+                      const slug = typeof c === 'string' ? c : (c?.slug || c?.courseKey || '')
+                      const label = typeof c === 'string' ? c.replace(/_/g, ' ') : (c?.name || String(slug).replace(/_/g, ' '))
+                      const clientOnly = typeof c === 'object' && c?.meta?.clientOnly
+                      return <option key={slug} value={slug}>{label}{clientOnly ? ' — client-only' : ''}</option>
+                    })}
+                  </select>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[10px] text-vigno-muted font-semibold">Valid until (blank = default)</label>
+                    <input type="date" min={tomorrow()} value={courseValidity} onChange={(e) => setCourseValidity(e.target.value)} className={input} />
+                  </div>
+                  <button
+                    disabled={!courseSlug || grantCourse.isPending}
+                    onClick={() => { setCourseMsg(null); grantCourse.mutate() }}
+                    className={btn}
+                  >
+                    {grantCourse.isPending ? 'Granting…' : 'Grant Course'}
+                  </button>
+                </div>
+                {courseMsg && <p className={`text-xs ${courseMsg.ok ? 'text-green-400' : 'text-red-400'}`}>{courseMsg.text}</p>}
+              </div>
+
+              {/* Granted courses list */}
+              <div>
+                <p className="text-[11px] font-extrabold text-vigno-muted uppercase tracking-widest mb-3">Granted courses</p>
+                {courseGrants.length === 0 && <p className="text-xs text-vigno-muted italic">No courses granted yet.</p>}
+                <div className="space-y-2">
+                  {courseGrants.map((g) => (
+                    <div key={g.courseSlug} className="flex items-center justify-between gap-3 text-sm px-4 py-3 rounded-xl bg-vigno-bg2/60 border border-vigno-line/40">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-8 h-8 rounded-lg bg-vigno-accent/10 flex items-center justify-center text-vigno-accent shrink-0">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" /></svg>
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-bold text-vigno-txt truncate">{g.courseName}</p>
+                          <p className="text-xs text-vigno-muted">{g.lessons} lesson{g.lessons === 1 ? '' : 's'}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3 shrink-0">
+                        <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${g.expired ? 'bg-red-500/15 text-red-400' : 'bg-green-500/15 text-green-400'}`}>
+                          {g.expired ? '✕ Expired' : `✓ Until ${fmtDate(g.expiresAt)}`}
+                        </span>
+                        <button
+                          onClick={() => revokeCourse.mutate(g.courseSlug)}
+                          className="text-xs font-bold text-red-400 hover:text-red-300 hover:bg-red-400/10 px-2.5 py-1 rounded-lg transition-all"
+                        >
+                          Revoke
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── RESOURCES TAB ── */}
+          {tab === 'resources' && !grantsQ.isLoading && (
+            <div className="space-y-5">
+              {/* Grant a resource */}
+              <div className="rounded-xl bg-vigno-bg2/40 border border-vigno-line/40 p-4 space-y-3">
+                <p className="text-[11px] font-extrabold text-vigno-muted uppercase tracking-widest">Grant an individual resource</p>
+                <div className="flex flex-wrap items-end gap-3">
+                  <select value={resourceId} onChange={(e) => setResourceId(e.target.value)} className={input + ' min-w-[260px]'}>
+                    <option value="">Select resource…</option>
+                    {(resources || []).map((r) => (
+                      <option key={r._id} value={r._id}>
+                        {TYPE_ICON[r.type] || '📦'} {r.title} — {TYPE_LABEL[r.type] || r.type}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[10px] text-vigno-muted font-semibold">Valid until (blank = default)</label>
+                    <input type="date" min={tomorrow()} value={resourceValidity} onChange={(e) => setResourceValidity(e.target.value)} className={input} />
+                  </div>
+                  <button
+                    disabled={!resourceId || grantResource.isPending}
+                    onClick={() => { setResourceMsg(null); grantResource.mutate() }}
+                    className={btn}
+                  >
+                    {grantResource.isPending ? 'Granting…' : 'Grant Resource'}
+                  </button>
+                </div>
+                {resourceMsg && <p className={`text-xs ${resourceMsg.ok ? 'text-green-400' : 'text-red-400'}`}>{resourceMsg.text}</p>}
+              </div>
+
+              {/* Granted resources list */}
+              <div>
+                <p className="text-[11px] font-extrabold text-vigno-muted uppercase tracking-widest mb-3">Granted resources</p>
+                {resourceGrants.length === 0 && <p className="text-xs text-vigno-muted italic">No individual resources granted yet.</p>}
+                <div className="space-y-2">
+                  {resourceGrants.map((g) => (
+                    <div key={g.contentId?.toString() || g.licenseId} className="flex items-center justify-between gap-3 text-sm px-4 py-3 rounded-xl bg-vigno-bg2/60 border border-vigno-line/40">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-8 h-8 rounded-lg bg-vigno-accent/10 flex items-center justify-center text-base shrink-0">
+                          {TYPE_ICON[g.type] || '📦'}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-bold text-vigno-txt truncate">{g.title}</p>
+                          <p className="text-xs text-vigno-muted">{TYPE_LABEL[g.type] || g.type || 'Resource'}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3 shrink-0">
+                        <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${g.expired ? 'bg-red-500/15 text-red-400' : 'bg-green-500/15 text-green-400'}`}>
+                          {g.expired ? '✕ Expired' : `✓ Until ${fmtDate(g.expiresAt)}`}
+                        </span>
+                        <button
+                          onClick={() => revokeResource.mutate(g.contentId?.toString())}
+                          className="text-xs font-bold text-red-400 hover:text-red-300 hover:bg-red-400/10 px-2.5 py-1 rounded-lg transition-all"
+                        >
+                          Revoke
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Main panel ────────────────────────────────────────────────────────────────
+export default function ClientsPanel() {
+  const qc = useQueryClient()
+  const { data: courses } = useClasses()
+  const { data: resources } = useQuery({
+    queryKey: ['admin', 'resources'],
+    queryFn: () => adminApi.listResources(),
+  })
+  const clientsQ = useQuery({ queryKey: ['admin', 'clients'], queryFn: adminApi.listClients })
+
+  const [email, setEmail] = useState('')
+  const [name, setName] = useState('')
+  const [password, setPassword] = useState('')
+  const [msg, setMsg] = useState(null)
+
+  const create = useMutation({
+    mutationFn: () => adminApi.createClient({ email: email.trim(), name: name.trim(), password }),
+    onSuccess: () => {
+      setMsg({ ok: true, text: `Client "${email.trim()}" created.` })
+      setEmail(''); setName(''); setPassword('')
+      qc.invalidateQueries({ queryKey: ['admin', 'clients'] })
+    },
+    onError: (e) => setMsg({ ok: false, text: apiErrorMessage(e, 'Could not create client') }),
+  })
+
+  return (
+    <div className="space-y-6">
+      <p className="text-sm text-vigno-muted leading-relaxed">
+        Clients are admin-provisioned accounts (no payment). They log in on the normal login page and see
+        <b className="text-vigno-txt"> only the courses and resources you grant them</b>, each with a validity date.
+        Grant expires → access ends. If a resource or course is deleted, its grant is automatically removed.
+      </p>
+
+      {/* Create client */}
+      <div className="rounded-2xl border border-vigno-line/50 bg-vigno-card/40 p-5">
+        <h3 className="text-xs font-extrabold text-vigno-accent uppercase tracking-widest mb-4">Create a client login</h3>
+        <div className="flex flex-wrap items-end gap-3">
+          <input placeholder="Client email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} className={input + ' min-w-[220px]'} />
+          <input placeholder="Name (optional)" value={name} onChange={(e) => setName(e.target.value)} className={input} />
+          <input placeholder="Password (min 6)" type="text" value={password} onChange={(e) => setPassword(e.target.value)} className={input} />
+          <button disabled={!email.trim() || password.length < 6 || create.isPending} onClick={() => { setMsg(null); create.mutate() }} className={btn}>
+            {create.isPending ? 'Creating…' : 'Create client'}
+          </button>
+        </div>
+        {msg && <p className={`text-sm mt-3 ${msg.ok ? 'text-green-400' : 'text-red-400'}`}>{msg.text}</p>}
+      </div>
+
+      {/* Clients list */}
+      <div>
+        <h3 className="text-xs font-extrabold text-vigno-accent uppercase tracking-widest mb-3">
+          Clients ({clientsQ.data?.length || 0})
+        </h3>
+        {clientsQ.isLoading && <p className="text-sm text-vigno-muted">Loading…</p>}
+        {clientsQ.data?.length === 0 && <p className="text-sm text-vigno-muted">No clients yet — create one above.</p>}
+        <div className="space-y-2">
+          {clientsQ.data?.map((c) => (
+            <ClientRow
+              key={c.id}
+              client={c}
+              courses={courses}
+              resources={resources}
+              onDeleted={() => qc.invalidateQueries({ queryKey: ['admin', 'clients'] })}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}

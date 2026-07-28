@@ -1,0 +1,56 @@
+{
+  "name": "vigno-launcher",
+  "version": "0.8.0",
+  "private": true,
+  "description": "Vigno Smart Class desktop launcher (download lane) — login, device binding, encrypted download, license+device verify, fetch key, streaming decrypt + extract + run, offline grace.",
+  "main": "main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder"
+  },
+  "devDependencies": {
+    "electron": "^31.0.0",
+    "electron-builder": "^24.13.3"
+  },
+  "dependencies": {
+    "yauzl": "^3.4.0"
+  },
+  "build": {
+    "appId": "in.vigno.launcher",
+    "productName": "Vigno Launcher",
+    "asar": true,
+    "files": [
+      "main.cjs",
+      "preload.cjs",
+      "renderer.js",
+      "index.html"
+    ],
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "artifactName": "VignoLauncher-Setup-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true
+    },
+    "mac": {
+      "target": [
+        "dmg"
+      ],
+      "category": "public.app-category.education"
+    },
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "category": "Education"
+    }
+  }
+}

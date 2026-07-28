@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Vighnesh Inc. — An E-Immersive Learning Platform</title>
+    <meta
+      name="description"
+      content="Vighnesh Inc. — an e-immersive learning platform: pilot ground school, interactive 3D, video lessons, and licensed simulator software delivered via encrypted streaming and a device-locked desktop launcher."
+    />
+    <meta name="theme-color" content="#ffffff" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+
+    <!-- TODO: replace https://aerolearn.example with your real production domain
+         (used by canonical, og:url, og:image, robots.txt and sitemap.xml). -->
+    <link rel="canonical" href="https://aerolearn.example/" />
+
+    <!-- Open Graph — link previews in social / chat apps -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Vighnesh Inc." />
+    <meta property="og:title" content="Vighnesh Inc. — An E-Immersive Learning Platform" />
+    <meta property="og:description" content="Secure aviation training: ground school, interactive 3D, video lessons, and licensed simulator software." />
+    <meta property="og:url" content="https://aerolearn.example/" />
+    <meta property="og:image" content="https://aerolearn.example/og-image.png" />
+
+    <!-- Twitter card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Vighnesh Inc. — An E-Immersive Learning Platform" />
+    <meta name="twitter:description" content="Secure aviation training: ground school, interactive 3D, video lessons, and licensed simulator software." />
+    <meta name="twitter:image" content="https://aerolearn.example/og-image.png" />
+    <style>
+      /* Boot splash — painted instantly on first load, before the app's JS/CSS
+         bundle downloads. React replaces #root's children when it mounts, so this
+         disappears on its own once the app is ready. Self-contained (no external
+         CSS) so it animates immediately. Mirrors .vigno-* in src/index.css. */
+      #boot-splash {
+        position: fixed; inset: 0; z-index: 9999;
+        display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+        background: #ffffff;
+        font-family: 'Red Hat Text', 'Segoe UI', system-ui, Arial, sans-serif;
+      }
+      #boot-splash .spinner {
+        width: 40px; height: 40px; border-radius: 50%;
+        border: 3px solid rgba(0, 51, 204, 0.18);
+        border-top-color: #0033cc;
+        animation: bs-spin 0.7s linear infinite;
+      }
+      #boot-splash .txt { color: #6a6f73; font-size: 0.85rem; font-weight: 500; letter-spacing: .03em; font-family: 'Red Hat Text', system-ui, sans-serif; }
+      @keyframes bs-spin { to { transform: rotate(360deg); } }
+      @media (prefers-reduced-motion: reduce) { #boot-splash .spinner { animation-duration: 2s; } }
+    </style>
+  </head>
+  <body>
+    <div id="root">
+      <div id="boot-splash">
+        <div class="spinner"></div>
+        <div class="txt">Loading…</div>
+      </div>
+    </div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>

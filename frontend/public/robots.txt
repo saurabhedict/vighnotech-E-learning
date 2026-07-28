@@ -1,0 +1,7 @@
+# AeroLearn — the app is auth-gated; only the public marketing/auth pages are
+# crawlable. Everything under /app/* requires login and renders nothing to a crawler.
+User-agent: *
+Disallow: /app/
+
+# TODO: replace https://aerolearn.example with your real production domain.
+Sitemap: https://aerolearn.example/sitemap.xml

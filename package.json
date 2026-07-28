@@ -1,0 +1,20 @@
+{
+  "name": "vigno-smart-class",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Vigno Smart Class — license-based learning platform (frontend + backend + shared). Xbox/PlayStation account-owns-a-license model on a MERN stack.",
+  "scripts": {
+    "install:all": "npm --prefix backend install && npm --prefix frontend install",
+    "dev:backend": "npm --prefix backend run dev",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "seed": "npm --prefix backend run seed",
+    "test:api": "node backend/src/scripts/smoketest.js",
+    "build": "npm --prefix frontend run build"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "mongodb": "^7.2.0"
+  }
+}
