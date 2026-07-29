@@ -35,7 +35,11 @@ export const env = {
   license: {
     keyDir: process.env.LICENSE_KEY_DIR || './keys',
     activeKid: process.env.LICENSE_ACTIVE_KID || 'vigno-key-2026',
-    ttl: process.env.LICENSE_TTL || '7d',
+    // Default lifetime of a PURCHASED license — must be long, because a purchase is
+    // permanent. A short value silently expires OWNERSHIP: the old 7d default made
+    // bought APKs/games/courses read as "not purchased" (402) a week after buying.
+    // Admin client-grants pass their own validity date, so they're unaffected.
+    ttl: process.env.LICENSE_TTL || '3650d', // ~10 years ≈ permanent
     // Distinct secrets for two trust domains: signing stream URLs vs deriving
     // content decryption keys. Reusing one secret widens blast radius.
     signedUrlSecret: process.env.SIGNED_URL_SECRET || 'dev-signed-url-secret',
