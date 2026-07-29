@@ -51,7 +51,7 @@ export default function Login() {
       if (res.twoFARequired) {
         setChallenge(res.challenge); setMethod(res.method)
         // Demo/staging: server returns the code when email delivery isn't configured.
-        if (res.devCode) { setCode(res.devCode); setNotice(`Demo code: ${res.devCode} (email delivery isn't configured) — filled in below.`) }
+        if (res.devCode) { setCode(res.devCode); setNotice(`Your code: ${res.devCode} — filled in below.`) }
       }
       else finish(res.user, res.token)
     } catch (err) {

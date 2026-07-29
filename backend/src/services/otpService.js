@@ -24,30 +24,27 @@ export async function issueOtp({ email, userId, purpose, channel = 'email', to }
 
   const dest = to || email
   // `viaConsole` = the delivery provider for this channel isn't configured, so the
-  // code was only logged to the server console (never reached the user). Callers
-  // use this to surface the code in the API response on non-prod deployments.
-  let viaConsole
-  try {
+  // code was only logged to the server console. Callers may use this hint.
+  const viaConsole = channel === 'email' ? !env.email.configured : !env.sms.configured
+
+  // Deliver in the BACKGROUND. A slow or timing-out SMTP/Twilio handshake must NEVER
+  // make the user wait on "Sending…", so we do NOT await it — the OTP is already
+  // persisted (above) and the request returns immediately. Delivery failures are
+  // logged; non-prod callers also return the code so the flow never stalls.
+  const deliver = async () => {
     if (channel === 'sms') {
       await sendSms(dest, `Your ${env.app.name} verification code is ${code}. It expires in ${env.otp.ttlMin} min.`)
-      viaConsole = !env.sms.configured
     } else if (channel === 'whatsapp') {
       await sendWhatsApp(dest, `Your ${env.app.name} verification code is *${code}*. It expires in ${env.otp.ttlMin} min.`)
-      viaConsole = !env.sms.configured
     } else {
       await sendMail(otpEmail(dest, code, purpose))
-      viaConsole = !env.email.configured
     }
-  } catch (err) {
-    // The delivery provider errored (bad SMTP creds, Twilio failure, etc.). Outside
-    // production we don't hard-fail the flow — treat it like the console fallback so
-    // the caller can surface the code and verification/2FA/registration still work
-    // on a demo deploy. In production we rethrow so the user is told delivery failed.
-    if (env.isProd) throw err
-    // eslint-disable-next-line no-console
-    console.warn(`[otp] ${channel} delivery failed: ${err?.message} — surfacing code (non-prod)`)
-    viaConsole = true
   }
+  deliver().catch((err) => {
+    // eslint-disable-next-line no-console
+    console.warn(`[otp] ${channel} delivery failed: ${err?.message}`)
+  })
+
   return { code, viaConsole }
 }
 

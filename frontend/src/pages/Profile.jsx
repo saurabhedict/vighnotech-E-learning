@@ -153,7 +153,7 @@ function EmailVerification() {
   )
 }
 
-function TwoFactor() {
+function TwoFactor({ onVerifyEmail }) {
   const dispatch = useDispatch()
   const user = useSelector((s) => s.auth.user)
   const [setup, setSetup] = useState(null) // { qr, secret }
@@ -257,7 +257,7 @@ function TwoFactor() {
             </div>
             {user?.emailVerified
               ? <button onClick={enableEmail} disabled={loading} className={btn}>{loading ? '…' : 'Enable'}</button>
-              : <span className="text-xs text-vigno-accent2 whitespace-nowrap">Verify email first</span>}
+              : <button type="button" onClick={onVerifyEmail} className="text-xs font-semibold text-vigno-accent2 hover:underline whitespace-nowrap">Verify email first →</button>}
           </div>
         </div>
       ) : (
@@ -546,7 +546,7 @@ export default function Profile() {
       </section>
 
       {modal === 'password' && <Modal title="Change Password" onClose={close}><ChangePassword /></Modal>}
-      {modal === '2fa' && <Modal title="Two-Factor Authentication" width={460} onClose={close}><TwoFactor /></Modal>}
+      {modal === '2fa' && <Modal title="Two-Factor Authentication" width={460} onClose={close}><TwoFactor onVerifyEmail={() => setModal('verify')} /></Modal>}
       {modal === 'devices' && <Modal title="My Devices" width={460} onClose={close}><Devices /></Modal>}
       {modal === 'verify' && <Modal title="Verify Account" onClose={close}><VerifyContact defaultPhone={user?.phone || ''} onVerified={close} /></Modal>}
       {modal === 'addPhone' && <Modal title={user?.phone ? 'Edit Phone Number' : 'Add Phone Number'} overflowVisible onClose={close}><AddPhone /></Modal>}

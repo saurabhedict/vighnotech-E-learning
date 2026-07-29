@@ -93,8 +93,8 @@ export const signup = asyncHandler(async (req, res) => {
   )
 
   const to = channel === 'sms' ? normPhone : email
-  const { code, viaConsole } = await issueOtp({ email, purpose: 'signup', channel, to })
-  const devCode = viaConsole && !env.isProd ? code : undefined
+  const { code } = await issueOtp({ email, purpose: 'signup', channel, to })
+  const devCode = !env.isProd ? code : undefined
   audit(req, 'auth.signup.start', { meta: { email, channel } })
   res.status(200).json({
     verificationRequired: true,
@@ -150,8 +150,8 @@ export const resendSignupOtp = asyncHandler(async (req, res) => {
   if (!pending) throw badRequest('No pending registration found — please sign up again.')
   const channel = pending.channel || 'email'
   const to = channel === 'sms' ? pending.phone : email
-  const { code, viaConsole } = await issueOtp({ email, purpose: 'signup', channel, to })
-  const devCode = viaConsole && !env.isProd ? code : undefined
+  const { code } = await issueOtp({ email, purpose: 'signup', channel, to })
+  const devCode = !env.isProd ? code : undefined
   res.json({ ok: true, channel, sentTo: channel === 'sms' ? maskPhone(to) : maskEmail(email), ...(devCode ? { devCode } : {}) })
 })
 
@@ -168,10 +168,10 @@ export const login = asyncHandler(async (req, res) => {
     const challenge = sign2faChallenge(user)
     let devCode
     if (user.twoFAMethod === 'email') {
-      const { code, viaConsole } = await issueOtp({ userId: user._id, email: user.email, purpose: 'login_2fa', channel: 'email' })
-      // Demo/staging convenience: with no SMTP configured the code can't reach the
-      // inbox, so return it here (never in real production).
-      if (viaConsole && !env.isProd) devCode = code
+      const { code } = await issueOtp({ userId: user._id, email: user.email, purpose: 'login_2fa', channel: 'email' })
+      // Demo/staging convenience: surface the code so sign-in never depends on email
+      // delivery (never in real production).
+      if (!env.isProd) devCode = code
     }
     audit(req, 'auth.login.2fa_required', { targetType: 'User', targetId: user._id })
     return res.json({ twoFARequired: true, method: user.twoFAMethod, challenge, ...(devCode ? { devCode } : {}) })
@@ -326,11 +326,11 @@ export const sendEmailVerification = asyncHandler(async (req, res) => {
     return res.json({ ok: true, alreadyVerified: true })
   }
 
-  const { code, viaConsole } = await issueOtp({ userId: user._id, email: user.email, purpose: 'email_verify', channel, to })
+  const { code } = await issueOtp({ userId: user._id, email: user.email, purpose: 'email_verify', channel, to })
   audit(req, 'auth.verify.send', { targetType: 'User', targetId: user._id, meta: { channel } })
-  // Demo/staging convenience: when the email/SMS provider isn't configured the
-  // code only hits the server console, so surface it here (never in real prod).
-  const devCode = viaConsole && !env.isProd ? code : undefined
+  // Demo/staging convenience: surface the code so verification never depends on
+  // email/SMS delivery (never in real production).
+  const devCode = !env.isProd ? code : undefined
   res.json({ ok: true, channel, sentTo: channel === 'email' ? maskEmail(to) : maskPhone(to), ...(devCode ? { devCode } : {}) })
 })
 

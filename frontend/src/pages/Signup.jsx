@@ -73,7 +73,7 @@ export default function Signup() {
       const r = await authApi.signup(form.email, form.password, form.name, fullPhone(), otpMethod)
       setSentTo(r.sentTo || '')
       setOtp('')
-      if (r.devCode) { setOtp(r.devCode); setInfo(`Demo code: ${r.devCode} (${otpMethod} delivery isn't configured on this server) — filled in below.`) }
+      if (r.devCode) { setOtp(r.devCode); setInfo(`Your code: ${r.devCode} — filled in below.`) }
       else setInfo(`We sent a 6-digit code via ${otpMethod}${r.sentTo ? ` to ${r.sentTo}` : ''}.`)
       setStep(2)
     } catch (err) {
@@ -101,7 +101,7 @@ export default function Signup() {
     setResending(true)
     try {
       const r = await authApi.resendSignupOtp(form.email)
-      if (r.devCode) { setOtp(r.devCode); setInfo(`Demo code: ${r.devCode} — filled in below.`) }
+      if (r.devCode) { setOtp(r.devCode); setInfo(`Your code: ${r.devCode} — filled in below.`) }
       else setInfo(`Code re-sent${r.sentTo ? ` to ${r.sentTo}` : ''}.`)
     } catch (err) {
       setOtpError(apiErrorMessage(err, 'Could not resend the code'))
