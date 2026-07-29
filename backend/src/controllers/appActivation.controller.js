@@ -74,16 +74,34 @@ export const activateAppSchema = z.object({
 export const activateApp = asyncHandler(async (req, res) => {
   const { email, password, identifier, deviceId } = req.body
 
+  // Diagnostic: log EXACTLY what the installed APK reports so identifier mismatches
+  // (whitespace / case / wrong build) are visible in the server logs.
+  // eslint-disable-next-line no-console
+  console.log(`[activateapp] email=${normEmail(email)} identifier=${JSON.stringify(identifier)} device=${String(deviceId).slice(0, 12)}`)
+
   // 1) Authenticate the account.
   const user = await User.findOne({ email: normEmail(email) }).select('+passwordHash')
-  if (!user || !(await user.comparePassword(password))) throw unauthorized('Invalid email or password')
+  if (!user || !(await user.comparePassword(password))) {
+    // eslint-disable-next-line no-console
+    console.warn(`[activateapp] 401 bad credentials for ${normEmail(email)}`)
+    throw unauthorized('Invalid email or password')
+  }
 
   // 2) Resolve the app by its admin-assigned identifier.
   const content = await Content.findOne({ identifier: identifier.trim(), type: 'apk', published: true })
-  if (!content) throw notFound('Unknown app identifier')
+  if (!content) {
+    const apks = await Content.find({ type: 'apk', published: true }).select('title identifier').lean()
+    // eslint-disable-next-line no-console
+    console.warn(`[activateapp] 404 no published apk with identifier ${JSON.stringify(identifier.trim())}. Existing apk identifiers: ${JSON.stringify(apks.map((a) => ({ title: a.title, identifier: a.identifier })))}`)
+    throw notFound('Unknown app identifier')
+  }
 
   // 3) Confirm this account owns (purchased) the app.
-  if (!(await hasActiveLicense(user._id, content._id))) throw paymentRequired('This app is not purchased on your account')
+  if (!(await hasActiveLicense(user._id, content._id))) {
+    // eslint-disable-next-line no-console
+    console.warn(`[activateapp] 402 ${normEmail(email)} has no active license for "${content.title}" (${content._id})`)
+    throw paymentRequired('This app is not purchased on your account')
+  }
 
   // 4) Single-device lock: block a DIFFERENT device while one is active.
   let act = await AppActivation.findOne({ userId: user._id, contentId: content._id })
