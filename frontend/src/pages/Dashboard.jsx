@@ -6,7 +6,7 @@ import { useClasses } from '../hooks/useContent'
 import { discoverApi } from '../api/discoverApi'
 import ContentCard from '../components/ContentCard'
 import CourseCard from '../components/CourseCard'
-import CatalogTagFilter from '../components/CatalogTagFilter'
+import FilterSidebar from '../components/FilterSidebar'
 import { licenseApi } from '../api/licenseApi'
 
 
@@ -664,11 +664,10 @@ export default function Dashboard() {
   const theme = useSelector((s) => s.ui.theme)
   const isDark = theme === 'dark'
   const { data: courses, isLoading, isError } = useClasses()
-  const [selectedTags, setSelectedTags] = useState(new Set())
-  const [selectedCategory, setSelectedCategory] = useState('')
-  const [resSelectedTags, setResSelectedTags] = useState(new Set())
-  const [resSelectedCategory, setResSelectedCategory] = useState('')
-  const [resSelectedType, setResSelectedType] = useState('')
+  // One unified filter selection driven by the left FilterSidebar. Applied to BOTH
+  // sections: tags → courses(meta.filters)+resources(filters); cats → courses;
+  // types → resources.
+  const [flt, setFlt] = useState({ tags: new Set(), cats: new Set(), types: new Set() })
 
   const { data: progressItems, isLoading: isProgressLoading } = useQuery({
     queryKey: ['progress', 'mine', { limit: 4 }],
@@ -757,34 +756,20 @@ export default function Dashboard() {
     return counts
   }, [availableCourses])
 
-  // Apply tag filtering — show courses matching ANY selected tag
+  // Apply the shared filters to courses: Category (meta.category) + Tags (meta.filters).
   const filteredCourses = useMemo(() => {
     let result = availableCourses
-    // Category filter (single-select)
-    if (selectedCategory) {
-      result = result.filter((course) => {
-        if (!course || typeof course !== 'object' || !course.meta) return false
-        return (course.meta.category || '').trim() === selectedCategory
-      })
+    if (flt.cats.size > 0) {
+      result = result.filter((course) => flt.cats.has((course?.meta?.category || '').trim()))
     }
-    // Catalog filter tags (multi-select) — match on the course's filter option IDs.
-    if (selectedTags.size > 0) {
+    if (flt.tags.size > 0) {
       result = result.filter((course) => {
         const cf = Array.isArray(course?.meta?.filters) ? course.meta.filters.map(String) : []
-        return cf.some((id) => selectedTags.has(id))
+        return cf.some((id) => flt.tags.has(id))
       })
     }
     return result
-  }, [availableCourses, selectedTags, selectedCategory])
-
-  const toggleTag = (tag) => {
-    setSelectedTags(prev => {
-      const next = new Set(prev)
-      if (next.has(tag)) next.delete(tag)
-      else next.add(tag)
-      return next
-    })
-  }
+  }, [availableCourses, flt])
 
   const availableResources = useMemo(() => {
     return standaloneResources?.filter((item) => !purchasedResourceIds.has(item.id)) || []
@@ -845,31 +830,20 @@ export default function Dashboard() {
     return counts
   }, [availableResources])
 
+  // Apply the shared filters to resources: Type (item.type) + Tags (item.filters).
   const filteredResources = useMemo(() => {
     let result = availableResources
-    if (resSelectedCategory) {
-      result = result.filter(item => (item.meta?.category || '').trim() === resSelectedCategory)
+    if (flt.types.size > 0) {
+      result = result.filter((item) => flt.types.has(item.type))
     }
-    if (resSelectedType) {
-      result = result.filter(item => item.type === resSelectedType)
-    }
-    if (resSelectedTags.size > 0) {
+    if (flt.tags.size > 0) {
       result = result.filter((item) => {
         const rf = Array.isArray(item.filters) ? item.filters.map(String) : []
-        return rf.some((id) => resSelectedTags.has(id))
+        return rf.some((id) => flt.tags.has(id))
       })
     }
     return result
-  }, [availableResources, resSelectedCategory, resSelectedTags, resSelectedType])
-
-  const toggleResTag = (tag) => {
-    setResSelectedTags(prev => {
-      const next = new Set(prev)
-      if (next.has(tag)) next.delete(tag)
-      else next.add(tag)
-      return next
-    })
-  }
+  }, [availableResources, flt])
 
   // Purchased standalone resources — show in "My Resources" section for quick access
   const purchasedResources = licenses?.filter(
@@ -896,6 +870,11 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {/* Catalog with a static, collapsible LEFT filter panel (all filters combined) */}
+      <div className="flex flex-col lg:flex-row gap-6 items-start">
+        <FilterSidebar categories={allCategories} types={resAllTypes} selected={flt} onApply={setFlt} isDark={isDark} />
+        <div className="flex-1 min-w-0 space-y-8">
+
       {/* Courses List Section */}
       <section className="space-y-4">
         <div>
@@ -903,30 +882,14 @@ export default function Dashboard() {
           <p className="text-sm text-vigno-muted font-medium mt-1">Recommended for you</p>
         </div>
 
-        {/* Filter bar — Tag Filter + Category Filter side by side */}
-        {!isLoading && (
-          <div className="flex items-center gap-3 flex-wrap">
-            <CatalogTagFilter selected={selectedTags} onApply={setSelectedTags} isDark={isDark} />
-            {allCategories.length > 0 && (
-              <CategoryFilterDropdown
-                allCategories={allCategories}
-                categoryCounts={categoryCounts}
-                selectedCategory={selectedCategory}
-                setSelectedCategory={setSelectedCategory}
-                isDark={isDark}
-              />
-            )}
-          </div>
-        )}
-
         {/* No results state */}
-        {!isLoading && (selectedTags.size > 0 || selectedCategory) && filteredCourses.length === 0 && (
+        {!isLoading && (flt.tags.size > 0 || flt.cats.size > 0) && filteredCourses.length === 0 && (
           <div className={`py-10 text-center rounded-2xl border-2 border-dashed ${
             isDark ? 'border-vigno-line/30 bg-vigno-bg2/20' : 'border-slate-200 bg-slate-50/50'
           }`}>
             <p className="text-vigno-muted text-sm font-medium">No courses match the selected filters.</p>
             <button
-              onClick={() => { setSelectedTags(new Set()); setSelectedCategory('') }}
+              onClick={() => setFlt({ tags: new Set(), cats: new Set(), types: new Set() })}
               className="mt-3 text-xs font-bold text-vigno-accent hover:underline"
             >
               Clear all filters
@@ -966,30 +929,6 @@ export default function Dashboard() {
             <p className="text-sm text-vigno-muted font-medium mt-1">Choose among independent topics</p>
           </div>
 
-          <div className="flex items-center gap-3 flex-wrap">
-            {!showResourcesLoading && (
-              <CatalogTagFilter selected={resSelectedTags} onApply={setResSelectedTags} isDark={isDark} />
-            )}
-            {!showResourcesLoading && resAllCategories.length > 0 && (
-              <CategoryFilterDropdown
-                allCategories={resAllCategories}
-                categoryCounts={resCategoryCounts}
-                selectedCategory={resSelectedCategory}
-                setSelectedCategory={setResSelectedCategory}
-                isDark={isDark}
-              />
-            )}
-            {!showResourcesLoading && resAllTypes.length > 0 && (
-              <TypeFilterDropdown
-                allTypes={resAllTypes}
-                typeCounts={resTypeCounts}
-                selectedType={resSelectedType}
-                setSelectedType={setResSelectedType}
-                isDark={isDark}
-              />
-            )}
-          </div>
-
           {showResourcesLoading && (
             <div className="flex gap-6 overflow-x-auto pb-4 pt-1 -mx-4 px-4 scrollbar-none">
               {[...Array(4)].map((_, i) => (
@@ -1007,8 +946,8 @@ export default function Dashboard() {
           )}
         </section>
       )}
-
-
+        </div>
+      </div>
 
       {/* Continue Watching Section */}
       {progressItems && progressItems.length > 0 && (
