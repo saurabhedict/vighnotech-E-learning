@@ -244,6 +244,9 @@ export const updateContent = asyncHandler(async (req, res) => {
   if (!content) throw notFound('Content not found')
   const allowed = ['title', 'description', 'type', 'lane', 'isPaid', 'price', 'externalUrl', 'order', 'published', 'tags', 'thumbnail', 'previewText', 'identifier']
   for (const k of allowed) if (req.body[k] !== undefined) content[k] = req.body[k]
+  // The APK activation lookup matches on a trimmed identifier — store it trimmed so
+  // a stray space pasted into the CMS can never cause a "404 unknown identifier".
+  if (req.body.identifier !== undefined) content.identifier = String(req.body.identifier).trim()
   // Frontend sends thumbnailUrl; map it to the model field `thumbnail`
   if (req.body.thumbnailUrl !== undefined) {
     const newThumbnail = req.body.thumbnailUrl || ''

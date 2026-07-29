@@ -803,6 +803,7 @@ function LessonDetailsEditor({ lesson, onSave }) {
   const [desc, setDesc] = useState(lesson.description || '')
   const [previewText, setPreviewText] = useState(lesson.previewText || '')
   const [thumb, setThumb] = useState(lesson.thumbnailUrl || '')
+  const [identifier, setIdentifier] = useState(lesson.identifier || '') // APK activation code
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState('')
 
@@ -823,6 +824,19 @@ function LessonDetailsEditor({ lesson, onSave }) {
   return (
     <div className="bg-black/20 p-3 rounded-lg border border-vigno-line/40 text-xs space-y-3">
       <h4 className="font-bold uppercase tracking-wider text-[10px] text-vigno-accent">Lesson Meta Settings</h4>
+      {lesson.type === 'apk' && (
+        <div className="space-y-1.5 bg-vigno-accent/5 border border-vigno-accent/30 rounded-lg p-2.5">
+          <label className="text-vigno-accent block font-bold text-[10px] uppercase tracking-wider">App Identifier — required for APK activation</label>
+          <input
+            type="text"
+            value={identifier}
+            onChange={(e) => setIdentifier(e.target.value)}
+            placeholder="e.g. CFM_ENGINE_V1"
+            className="w-full px-2 py-1 rounded-md bg-vigno-bg2 border border-vigno-line/50 outline-none font-mono"
+          />
+          <p className="text-[9px] text-vigno-muted">Must EXACTLY match the code the installed .apk reports on login (case-sensitive, no spaces). Check the server logs for <span className="font-mono">[activateapp] identifier=…</span> to see what your app sends.</p>
+        </div>
+      )}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <div className="space-y-1.5">
           <label className="text-vigno-muted block font-semibold text-[10px]">Description</label>
@@ -891,7 +905,7 @@ function LessonDetailsEditor({ lesson, onSave }) {
 
       <div className="flex justify-end pt-1">
         <button
-          onClick={() => onSave({ description: desc, previewText, thumbnailUrl: thumb })}
+          onClick={() => onSave({ description: desc, previewText, thumbnailUrl: thumb, ...(lesson.type === 'apk' ? { identifier: identifier.trim() } : {}) })}
           className="bg-vigno-accent text-vigno-bg1 font-extrabold px-3 py-1.5 rounded-lg text-[11px] flex items-center gap-1.5"
         >
           <CheckIcon className="w-3.5 h-3.5" />
