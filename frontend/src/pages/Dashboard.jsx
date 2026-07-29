@@ -6,6 +6,7 @@ import { useClasses } from '../hooks/useContent'
 import { discoverApi } from '../api/discoverApi'
 import ContentCard from '../components/ContentCard'
 import CourseCard from '../components/CourseCard'
+import CatalogTagFilter from '../components/CatalogTagFilter'
 import { licenseApi } from '../api/licenseApi'
 
 
@@ -766,16 +767,11 @@ export default function Dashboard() {
         return (course.meta.category || '').trim() === selectedCategory
       })
     }
-    // Tag filter (multi-select)
+    // Catalog filter tags (multi-select) — match on the course's filter option IDs.
     if (selectedTags.size > 0) {
       result = result.filter((course) => {
-        if (!course || typeof course !== 'object' || !course.meta) return false
-        const tags = Array.isArray(course.meta.tags)
-          ? course.meta.tags
-          : typeof course.meta.tags === 'string' && course.meta.tags
-          ? course.meta.tags.split(',').map(t => t.trim()).filter(Boolean)
-          : []
-        return tags.some(t => selectedTags.has(t))
+        const cf = Array.isArray(course?.meta?.filters) ? course.meta.filters.map(String) : []
+        return cf.some((id) => selectedTags.has(id))
       })
     }
     return result
@@ -859,8 +855,8 @@ export default function Dashboard() {
     }
     if (resSelectedTags.size > 0) {
       result = result.filter((item) => {
-        const tags = Array.isArray(item.meta?.tags) ? item.meta.tags : (typeof item.meta?.tags === 'string' && item.meta.tags ? item.meta.tags.split(',').map(t => t.trim()).filter(Boolean) : [])
-        return tags.some(t => resSelectedTags.has(t))
+        const rf = Array.isArray(item.filters) ? item.filters.map(String) : []
+        return rf.some((id) => resSelectedTags.has(id))
       })
     }
     return result
@@ -908,19 +904,9 @@ export default function Dashboard() {
         </div>
 
         {/* Filter bar — Tag Filter + Category Filter side by side */}
-        {!isLoading && (allTags.length > 0 || allCategories.length > 0) && (
+        {!isLoading && (
           <div className="flex items-center gap-3 flex-wrap">
-            {allTags.length > 0 && (
-              <TagFilterDropdown
-                allTags={allTags}
-                tagCounts={tagCounts}
-                selectedTags={selectedTags}
-                setSelectedTags={setSelectedTags}
-                toggleTag={toggleTag}
-                isDark={isDark}
-                availableCourses={availableCourses}
-              />
-            )}
+            <CatalogTagFilter selected={selectedTags} onApply={setSelectedTags} isDark={isDark} />
             {allCategories.length > 0 && (
               <CategoryFilterDropdown
                 allCategories={allCategories}
@@ -981,15 +967,8 @@ export default function Dashboard() {
           </div>
 
           <div className="flex items-center gap-3 flex-wrap">
-            {!showResourcesLoading && resAllTags.length > 0 && (
-              <TagFilterDropdown
-                allTags={resAllTags}
-                tagCounts={resTagCounts}
-                selectedTags={resSelectedTags}
-                setSelectedTags={setResSelectedTags}
-                toggleTag={toggleResTag}
-                isDark={isDark}
-              />
+            {!showResourcesLoading && (
+              <CatalogTagFilter selected={resSelectedTags} onApply={setResSelectedTags} isDark={isDark} />
             )}
             {!showResourcesLoading && resAllCategories.length > 0 && (
               <CategoryFilterDropdown
