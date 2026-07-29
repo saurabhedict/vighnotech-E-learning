@@ -80,7 +80,7 @@ const DEFAULT_SECTIONS = [
       { label: 'Link Five', url: '#' },
     ],
     phones: ['+91 77200 25900'],
-    emails: ['contact@aerolearn.in'],
+    emails: ['contact@vighneshinc.in'],
   },
   {
     type: 'links',
@@ -129,7 +129,7 @@ export default function Footer() {
   // Format dynamic copyright line
   const copyright = (f.copyright || '© {year} {brandName}. All rights reserved.')
     .replace('{year}', new Date().getFullYear().toString())
-    .replace('{brandName}', brand.name || 'Aerolearn')
+    .replace('{brandName}', brand.name || 'Vighnesh Inc.')
 
   return (
     <footer className="bg-[#e6f2ff] text-black border-t border-black/10 pt-16 pb-12 mt-16">
@@ -139,7 +139,7 @@ export default function Footer() {
           <div className="lg:col-span-6 flex flex-col space-y-6">
             <div>
               <span style={{ fontFamily: "'Caveat', cursive" }} className="text-4xl font-bold text-black select-none">
-                {brand.name || 'Aerolearn'}
+                {brand.name || 'Vighnesh Inc.'}
               </span>
             </div>
             <p className="text-base text-black max-w-md">

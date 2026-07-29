@@ -47,7 +47,7 @@ export default function UdemyHoverPopover({
         price: Number(price),
         type: isCourse ? 'course' : 'resource',
         thumbnail: thumbnail || '',
-        instructor: instructor || 'AeroLearn Instructor Panel',
+        instructor: instructor || 'Vighnesh Inc. Instructor Panel',
         rating: rating || (isCourse ? '4.7' : '4.8'),
         ratingCount: ratingCount || (isCourse ? '12,450' : '8,200'),
         oldPrice: oldPrice || ''

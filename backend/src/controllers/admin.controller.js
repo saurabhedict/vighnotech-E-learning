@@ -757,6 +757,10 @@ export const listStandaloneResources = asyncHandler(async (req, res) => {
 export const deleteStandaloneResource = asyncHandler(async (req, res) => {
   const content = await Content.findByIdAndDelete(req.params.id)
   if (!content) throw notFound('Resource not found')
+  // Cascade: remove any client-grant licenses, favorites, progress for this resource
+  await License.deleteMany({ contentId: content._id })
+  await Favorite.deleteMany({ contentId: content._id })
+  await Progress.deleteMany({ contentId: content._id })
   audit(req, 'cms.resource.delete', { targetType: 'Content', targetId: req.params.id })
   res.json({ ok: true })
 })

@@ -4,6 +4,7 @@ import { useDispatch, useSelector } from 'react-redux'
 import { setCredentials } from '../store/authSlice'
 import { authApi, apiErrorMessage } from '../api/authApi'
 import { useSiteSettings } from '../hooks/useSiteSettings'
+import logoIcon from '../assets/logo-icon.svg'
 
 export default function Login() {
   const navigate = useNavigate()
@@ -11,9 +12,8 @@ export default function Login() {
   const theme = useSelector((s) => s.ui.theme)
   const isDark = theme === 'dark'
   const { data: settings } = useSiteSettings()
-  const brandName = settings?.brand?.name || 'Aerolearn'
-  const tagline = settings?.brand?.tagline || 'Aviation Training Platform'
-  const logoEmoji = settings?.brand?.logoEmoji ?? '✈'
+  const brandName = settings?.brand?.name || 'Vighnesh Inc.'
+  const tagline = settings?.brand?.tagline || 'An E-Immersive Learning Platform'
   const greeting = settings?.auth?.loginGreeting || 'Welcome back'
   const loginSubtitle = settings?.auth?.loginSubtitle || 'Sign in to continue'
 
@@ -85,10 +85,9 @@ export default function Login() {
 
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center gap-2 mb-2">
-            <span style={{ fontFamily: "'Caveat', cursive" }} className="text-4xl font-bold select-none text-vigno-txt">{brandName}</span>
-          </div>
-          <p className="text-vigno-muted text-xs tracking-widest uppercase">{tagline}</p>
+          <img src={logoIcon} alt={brandName} className="w-14 h-14 mx-auto mb-3 select-none" draggable={false} />
+          <h1 className="text-2xl font-bold text-vigno-txt tracking-tight">{brandName}</h1>
+          <p className="text-vigno-muted text-xs tracking-widest uppercase mt-1">{tagline}</p>
         </div>
 
         {/* Card */}
@@ -99,9 +98,6 @@ export default function Login() {
             : { background: '#ffffff' }
           }
         >
-          {/* Accent stripe */}
-          <div className="h-1 w-full" style={{ background: 'linear-gradient(90deg, #4da6ff, #f0c040, #4da6ff)' }} />
-
           <div className="p-8">
             {!challenge ? (
               <>
@@ -129,8 +125,17 @@ export default function Login() {
                         onChange={e => setPassword(e.target.value)} autoComplete="current-password"
                         className={inputCls + ' pr-10'} />
                       <button type="button" onClick={() => setShowPass(p => !p)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-vigno-muted hover:text-vigno-accent2 transition-colors text-xs">
-                        {showPass ? '🙈' : '👁'}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-vigno-muted hover:text-vigno-accent2 transition-colors flex items-center justify-center">
+                        {showPass ? (
+                          <svg className="w-5 h-5" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.822 7.822L21 21m-2.228-2.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" />
+                          </svg>
+                        ) : (
+                          <svg className="w-5 h-5" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                          </svg>
+                        )}
                       </button>
                     </div>
                     <div className="text-right mt-1">

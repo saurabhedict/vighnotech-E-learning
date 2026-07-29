@@ -310,7 +310,7 @@ export default function Library() {
                       const courseMeta = courseData.meta || {}
                       const courseName = courseData.name || key.replace(/_/g, ' ')
                       const meta = COURSE_META[key] || { rating: '4.5', reviews: '1,204' }
-                      const instructorName = courseMeta.instructor || 'AeroLearn Experts'
+                      const instructorName = courseMeta.instructor || 'Vighnesh Inc. Experts'
                       const thumbnail = courseMeta.thumbnail
                       
                       return (
@@ -454,7 +454,7 @@ export default function Library() {
                                 {item.title}
                               </h3>
                               <p className="text-sm text-vigno-muted/90 font-medium truncate">
-                                by <span className="text-vigno-accent font-semibold">AeroLearn Resource</span>
+                                by <span className="text-vigno-accent font-semibold">Vighnesh Inc. Resource</span>
                               </p>
                             </div>
 

@@ -6,7 +6,6 @@ import { useClasses } from '../hooks/useContent'
 import { discoverApi } from '../api/discoverApi'
 import ContentCard from '../components/ContentCard'
 import CourseCard from '../components/CourseCard'
-import CatalogFilterBar from '../components/CatalogFilterBar'
 import { licenseApi } from '../api/licenseApi'
 
 
@@ -464,6 +463,127 @@ function CategoryFilterDropdown({ allCategories, categoryCounts, selectedCategor
   )
 }
 
+const TYPE_LABEL = { pdf: 'PDF', video: 'Video', game: 'Simulator', '3d': '3D Model', apk: 'Android App' }
+
+function TypeFilterDropdown({ allTypes, typeCounts, selectedType, setSelectedType, isDark }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef(null)
+
+  useEffect(() => {
+    if (!open) return
+    const handler = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [open])
+
+  if (allTypes.length === 0) return null
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setOpen(v => !v)}
+        className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold border transition-all duration-200 active:scale-95 ${
+          selectedType
+            ? isDark
+              ? 'bg-vigno-accent/15 text-vigno-accent border-vigno-accent/40'
+              : 'bg-vigno-accent/10 text-vigno-accent border-vigno-accent/30'
+            : isDark
+            ? 'bg-vigno-bg2/60 text-vigno-txt border-vigno-line/50 hover:border-vigno-accent/40'
+            : 'bg-white text-slate-700 border-slate-200 hover:border-vigno-accent/40 shadow-sm'
+        }`}
+      >
+        <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M3 4.5h14.25M3 9h9.75M3 13.5h9.75m4.5-4.5v12m0 0l-3.75-3.75M17.25 21L21 17.25" />
+        </svg>
+        {selectedType ? (TYPE_LABEL[selectedType] || selectedType) : 'Select Content Type'}
+        {selectedType && (
+          <button
+            onClick={(e) => { e.stopPropagation(); setSelectedType('') }}
+            className="flex items-center justify-center w-4 h-4 rounded-full bg-vigno-accent/20 text-vigno-accent hover:bg-vigno-accent/40 transition-colors"
+            aria-label="Clear type filter"
+          >
+            <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="3">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        )}
+        <svg className={`w-3.5 h-3.5 flex-shrink-0 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+        </svg>
+      </button>
+
+      {open && (
+        <div className={`absolute top-full left-0 mt-2 z-30 w-64 rounded-2xl border shadow-2xl overflow-hidden ${
+          isDark ? 'bg-vigno-card border-vigno-line/60' : 'bg-white border-slate-200/80'
+        }`}>
+          <div className={`flex items-center justify-between gap-3 px-4 py-3 border-b ${isDark ? 'border-vigno-line/40' : 'border-slate-100'}`}>
+            <span className="text-xs font-black uppercase tracking-widest text-vigno-muted">Content Type</span>
+            {selectedType && (
+              <button
+                onClick={() => setSelectedType('')}
+                className="shrink-0 text-[11px] font-bold text-vigno-accent hover:underline px-2 py-0.5 rounded-md hover:bg-vigno-accent/10 transition-colors"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+
+          <div className="max-h-64 overflow-y-auto py-2">
+            {allTypes.map((cat) => {
+              const active = selectedType === cat
+              const count = typeCounts[cat] || 0
+              return (
+                <button
+                  key={cat}
+                  onClick={() => { setSelectedType(active ? '' : cat); setOpen(false) }}
+                  className={`w-full flex items-center justify-between px-4 py-2.5 text-sm transition-colors duration-150 text-left ${
+                    active
+                      ? isDark ? 'bg-vigno-accent/12 text-vigno-accent' : 'bg-vigno-accent/8 text-vigno-accent'
+                      : isDark ? 'text-vigno-txt hover:bg-white/5' : 'text-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <span className={`w-4 h-4 rounded flex-shrink-0 flex items-center justify-center border transition-all duration-150 ${
+                      active
+                        ? 'bg-vigno-accent border-vigno-accent'
+                        : isDark ? 'border-vigno-line/60 bg-transparent' : 'border-slate-300 bg-white'
+                    }`}>
+                      {active && (
+                        <svg className="w-2.5 h-2.5 text-vigno-accent-txt" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="3.5">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l5 5L19.5 6.25" />
+                        </svg>
+                      )}
+                    </span>
+                    <span className="font-semibold">{TYPE_LABEL[cat] || cat}</span>
+                  </div>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                    active
+                      ? 'bg-vigno-accent/20 text-vigno-accent'
+                      : isDark ? 'bg-vigno-line/40 text-vigno-muted' : 'bg-slate-100 text-slate-400'
+                  }`}>
+                    {count}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+
+          <div className={`px-4 py-3 border-t ${isDark ? 'border-vigno-line/40' : 'border-slate-100'}`}>
+            <button
+              onClick={() => setOpen(false)}
+              className="w-full py-2 rounded-xl bg-vigno-accent hover:brightness-110 text-vigno-accent-txt text-xs font-black transition-all"
+            >
+              Apply{selectedType ? ` — ${TYPE_LABEL[selectedType] || selectedType}` : ''}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function Carousel({ children }) {
   const containerRef = useRef(null)
   const [showLeft, setShowLeft] = useState(false)
@@ -545,6 +665,9 @@ export default function Dashboard() {
   const { data: courses, isLoading, isError } = useClasses()
   const [selectedTags, setSelectedTags] = useState(new Set())
   const [selectedCategory, setSelectedCategory] = useState('')
+  const [resSelectedTags, setResSelectedTags] = useState(new Set())
+  const [resSelectedCategory, setResSelectedCategory] = useState('')
+  const [resSelectedType, setResSelectedType] = useState('')
 
   const { data: progressItems, isLoading: isProgressLoading } = useQuery({
     queryKey: ['progress', 'mine', { limit: 4 }],
@@ -574,7 +697,6 @@ export default function Dashboard() {
   // Filter out already purchased courses
   const availableCourses = courses?.filter((course) => {
     const courseSlug = typeof course === 'string' ? course : course.slug
-    if (course && typeof course === 'object' && course.meta?.clientOnly) return false // hide client-only from the public catalog
     return !purchasedCourseKeys.has(courseSlug)
   }) || []
 
@@ -668,9 +790,90 @@ export default function Dashboard() {
     })
   }
 
-  const filteredResources = standaloneResources?.filter(
-    (item) => !purchasedResourceIds.has(item.id)
-  )
+  const availableResources = useMemo(() => {
+    return standaloneResources?.filter((item) => !purchasedResourceIds.has(item.id)) || []
+  }, [standaloneResources, purchasedResourceIds])
+
+  const resAllTags = useMemo(() => {
+    const tagSet = new Set()
+    ;(standaloneResources || []).forEach((item) => {
+      const tags = Array.isArray(item.meta?.tags) ? item.meta.tags : (typeof item.meta?.tags === 'string' && item.meta.tags ? item.meta.tags.split(',').map(t => t.trim()).filter(Boolean) : [])
+      tags.forEach(t => t && tagSet.add(t))
+    })
+    return [...tagSet].sort()
+  }, [standaloneResources])
+
+  const resTagCounts = useMemo(() => {
+    const counts = {}
+    availableResources.forEach((item) => {
+      const tags = Array.isArray(item.meta?.tags) ? item.meta.tags : (typeof item.meta?.tags === 'string' && item.meta.tags ? item.meta.tags.split(',').map(t => t.trim()).filter(Boolean) : [])
+      tags.forEach(t => { if (t) counts[t] = (counts[t] || 0) + 1 })
+    })
+    return counts
+  }, [availableResources])
+
+  const resAllCategories = useMemo(() => {
+    const catSet = new Set()
+    ;(standaloneResources || []).forEach((item) => {
+      if (item.meta?.category) catSet.add(item.meta.category.trim())
+    })
+    return [...catSet].sort()
+  }, [standaloneResources])
+
+  const resCategoryCounts = useMemo(() => {
+    const counts = {}
+    availableResources.forEach((item) => {
+      if (item.meta?.category) {
+        const cat = item.meta.category.trim()
+        if (cat) counts[cat] = (counts[cat] || 0) + 1
+      }
+    })
+    return counts
+  }, [availableResources])
+
+  const resAllTypes = useMemo(() => {
+    const typeSet = new Set()
+    ;(standaloneResources || []).forEach((item) => {
+      if (item.type) typeSet.add(item.type)
+    })
+    return [...typeSet].sort()
+  }, [standaloneResources])
+
+  const resTypeCounts = useMemo(() => {
+    const counts = {}
+    availableResources.forEach((item) => {
+      if (item.type) {
+        counts[item.type] = (counts[item.type] || 0) + 1
+      }
+    })
+    return counts
+  }, [availableResources])
+
+  const filteredResources = useMemo(() => {
+    let result = availableResources
+    if (resSelectedCategory) {
+      result = result.filter(item => (item.meta?.category || '').trim() === resSelectedCategory)
+    }
+    if (resSelectedType) {
+      result = result.filter(item => item.type === resSelectedType)
+    }
+    if (resSelectedTags.size > 0) {
+      result = result.filter((item) => {
+        const tags = Array.isArray(item.meta?.tags) ? item.meta.tags : (typeof item.meta?.tags === 'string' && item.meta.tags ? item.meta.tags.split(',').map(t => t.trim()).filter(Boolean) : [])
+        return tags.some(t => resSelectedTags.has(t))
+      })
+    }
+    return result
+  }, [availableResources, resSelectedCategory, resSelectedTags, resSelectedType])
+
+  const toggleResTag = (tag) => {
+    setResSelectedTags(prev => {
+      const next = new Set(prev)
+      if (next.has(tag)) next.delete(tag)
+      else next.add(tag)
+      return next
+    })
+  }
 
   // Purchased standalone resources — show in "My Resources" section for quick access
   const purchasedResources = licenses?.filter(
@@ -704,32 +907,31 @@ export default function Dashboard() {
           <p className="text-sm text-vigno-muted font-medium mt-1">Recommended for you</p>
         </div>
 
-        {/* Filter bar — Tag Filter + Category Filter + admin catalog filters
-            (Select Content Type / Select Training Program + Apply) ALL side by side. */}
-        <div className="flex items-center gap-3 flex-wrap">
-          {!isLoading && allTags.length > 0 && (
-            <TagFilterDropdown
-              allTags={allTags}
-              tagCounts={tagCounts}
-              selectedTags={selectedTags}
-              setSelectedTags={setSelectedTags}
-              toggleTag={toggleTag}
-              isDark={isDark}
-              availableCourses={availableCourses}
-            />
-          )}
-          {!isLoading && allCategories.length > 0 && (
-            <CategoryFilterDropdown
-              allCategories={allCategories}
-              categoryCounts={categoryCounts}
-              selectedCategory={selectedCategory}
-              setSelectedCategory={setSelectedCategory}
-              isDark={isDark}
-            />
-          )}
-          {/* Admin-managed catalog filters — Content Type, Training Program dropdowns + Apply → /app/browse */}
-          <CatalogFilterBar />
-        </div>
+        {/* Filter bar — Tag Filter + Category Filter side by side */}
+        {!isLoading && (allTags.length > 0 || allCategories.length > 0) && (
+          <div className="flex items-center gap-3 flex-wrap">
+            {allTags.length > 0 && (
+              <TagFilterDropdown
+                allTags={allTags}
+                tagCounts={tagCounts}
+                selectedTags={selectedTags}
+                setSelectedTags={setSelectedTags}
+                toggleTag={toggleTag}
+                isDark={isDark}
+                availableCourses={availableCourses}
+              />
+            )}
+            {allCategories.length > 0 && (
+              <CategoryFilterDropdown
+                allCategories={allCategories}
+                categoryCounts={categoryCounts}
+                selectedCategory={selectedCategory}
+                setSelectedCategory={setSelectedCategory}
+                isDark={isDark}
+              />
+            )}
+          </div>
+        )}
 
         {/* No results state */}
         {!isLoading && (selectedTags.size > 0 || selectedCategory) && filteredCourses.length === 0 && (
@@ -776,6 +978,37 @@ export default function Dashboard() {
           <div>
             <h2 className="text-2xl font-extrabold text-vigno-txt tracking-tight">Learn Trending Topics</h2>
             <p className="text-sm text-vigno-muted font-medium mt-1">Choose among independent topics</p>
+          </div>
+
+          <div className="flex items-center gap-3 flex-wrap">
+            {!showResourcesLoading && resAllTags.length > 0 && (
+              <TagFilterDropdown
+                allTags={resAllTags}
+                tagCounts={resTagCounts}
+                selectedTags={resSelectedTags}
+                setSelectedTags={setResSelectedTags}
+                toggleTag={toggleResTag}
+                isDark={isDark}
+              />
+            )}
+            {!showResourcesLoading && resAllCategories.length > 0 && (
+              <CategoryFilterDropdown
+                allCategories={resAllCategories}
+                categoryCounts={resCategoryCounts}
+                selectedCategory={resSelectedCategory}
+                setSelectedCategory={setResSelectedCategory}
+                isDark={isDark}
+              />
+            )}
+            {!showResourcesLoading && resAllTypes.length > 0 && (
+              <TypeFilterDropdown
+                allTypes={resAllTypes}
+                typeCounts={resTypeCounts}
+                selectedType={resSelectedType}
+                setSelectedType={setResSelectedType}
+                isDark={isDark}
+              />
+            )}
           </div>
 
           {showResourcesLoading && (

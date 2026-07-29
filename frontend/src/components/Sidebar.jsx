@@ -14,7 +14,7 @@ export default function Sidebar() {
   const user = useSelector((s) => s.auth.user)
   const { data: classes, isLoading } = useClasses()
   const { data: settings } = useSiteSettings()
-  const brandName = settings?.brand?.name || 'Aerolearn'
+  const brandName = settings?.brand?.name || 'Vighnesh Inc.'
   const logoEmoji = settings?.brand?.logoEmoji ?? '✈'
   const isAdmin = user?.role === 'admin'
   const isClient = user?.role === 'client'

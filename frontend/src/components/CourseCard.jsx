@@ -122,7 +122,7 @@ export default function CourseCard({ course }) {
     icon: BookSvg,
   }
 
-  const dynamicInstructor = hasMeta && course.meta.instructor ? course.meta.instructor : 'AeroLearn Expert'
+  const dynamicInstructor = hasMeta && course.meta.instructor ? course.meta.instructor : 'Vighnesh Inc. Expert'
   const dynamicPrice = hasMeta && course.meta.price ? course.meta.price : meta.price
   // Only use explicitly admin-set tags — no auto-derived fallbacks
   const dynamicTags = hasMeta && Array.isArray(course.meta.tags) && course.meta.tags.length > 0
@@ -226,22 +226,13 @@ export default function CourseCard({ course }) {
             </p>
           </div>
 
-          <div className="space-y-2">
-            {/* Rating */}
-            <div className="flex items-center gap-1.5 text-xs">
-              <span className="font-extrabold text-amber-500">{meta.rating}</span>
-              <div className="flex text-amber-400 text-[10px]">
-                ★ ★ ★ ★ ★
-              </div>
-              <span className="text-vigno-muted">({meta.reviews})</span>
-            </div>
-
-            {/* Price */}
-            <div className="flex items-baseline gap-1.5">
-              <span className="font-extrabold text-vigno-txt">₹{dynamicPrice}</span>
-              <span className="line-through text-[11px] text-vigno-muted">₹{meta.oldPrice}</span>
-            </div>
+          <div className="pt-1">
+              {/* Price */}
+              <span className="font-extrabold text-vigno-txt text-lg">
+                ₹{dynamicPrice}
+              </span>
           </div>
+
         </div>
       </Link>
 

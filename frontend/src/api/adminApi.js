@@ -88,10 +88,16 @@ export const adminApi = {
     return api.post(`/admin/clients/${id}/grant`, payload).then((r) => r.data)
   },
   listClientGrants(id) {
-    return api.get(`/admin/clients/${id}/grants`).then((r) => r.data.items)
+    return api.get(`/admin/clients/${id}/grants`).then((r) => r.data)
   },
   revokeGrant(id, courseSlug) {
     return api.post(`/admin/clients/${id}/revoke`, { courseSlug }).then((r) => r.data)
+  },
+  grantResource(id, payload) {
+    return api.post(`/admin/clients/${id}/grant-resource`, payload).then((r) => r.data)
+  },
+  revokeResource(id, contentId) {
+    return api.post(`/admin/clients/${id}/revoke-resource`, { contentId }).then((r) => r.data)
   },
 
   // ── Tree / content browse ───────────────────────────────────────────────────

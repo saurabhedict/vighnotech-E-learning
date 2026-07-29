@@ -14,6 +14,7 @@ import SmartSearchBar from './SmartSearchBar'
 import { paymentsApi } from '../api/paymentsApi'
 import { removeCartItem, clearCart } from '../store/cartSlice'
 import { purchaseCourse, purchaseContent } from '../lib/buy'
+import logoIcon from '../assets/logo-icon.svg'
 function NavPanel({ open, onClose, user, isAdmin, isClient, isDark, settings, onLogout }) {
   const panelRef = useRef(null)
   const extraLinks = settings?.header?.extraLinks || []
@@ -137,7 +138,7 @@ export default function Navbar() {
   const user = useSelector((s) => s.auth.user)
   const theme = useSelector((s) => s.ui.theme)
   const { data: settings } = useSiteSettings()
-  const brandName = settings?.brand?.name || 'Aerolearn'
+  const brandName = settings?.brand?.name || 'Vighnesh Inc.'
   const showSearch = settings?.header?.showSearch !== false
   const [panelOpen, setPanelOpen] = useState(false)
 
@@ -166,10 +167,8 @@ export default function Navbar() {
       ].join(' ')}>
 
         {/* Brand — same as the user side */}
-        <NavLink to={isClient ? '/app/library' : '/app'} className="flex items-center shrink-0">
-          <span style={{ fontFamily: "'Caveat', cursive" }} className="text-3xl font-bold select-none text-vigno-txt">
-            {brandName}
-          </span>
+        <NavLink to={isClient ? '/app/library' : '/app'} className="flex items-center shrink-0" title={brandName}>
+          <img src={logoIcon} alt={brandName} className="h-9 w-9 select-none" draggable={false} />
         </NavLink>
 
         {/* Search — grows to fill middle (mic + live suggestions) */}

@@ -282,7 +282,7 @@ function CourseList({ onSelect, isDark }) {
             <label className="text-[10px] font-bold text-vigno-muted uppercase tracking-wider">Instructor</label>
             <input
               type="text"
-              placeholder="e.g. AeroLearn Expert"
+              placeholder="e.g. Vighnesh Inc. Expert"
               value={newInstructor}
               onChange={(e) => setNewInstructor(e.target.value)}
               className="px-3.5 py-2.5 rounded-xl bg-vigno-bg2/60 border border-vigno-line/60 text-sm text-vigno-txt outline-none transition-all w-full"
@@ -471,7 +471,7 @@ function CourseCard({ course, onSelect, onDeleteCourse, onMoveCourse, isFirst, i
               <svg className="w-3.5 h-3.5 shrink-0 text-vigno-muted/70" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
               </svg>
-              <span className="truncate">AeroLearn Expert</span>
+              <span className="truncate">Vighnesh Inc. Expert</span>
             </div>
           )}
         </div>

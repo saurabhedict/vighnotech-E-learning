@@ -5,6 +5,7 @@ import { setCredentials } from '../store/authSlice'
 import { authApi, apiErrorMessage } from '../api/authApi'
 import VerifyContact from '../components/VerifyContact'
 import { useSiteSettings } from '../hooks/useSiteSettings'
+import logoIcon from '../assets/logo-icon.svg'
 
 function PasswordRule({ ok, label }) {
   return (
@@ -21,8 +22,8 @@ export default function Signup() {
   const theme = useSelector((s) => s.ui.theme)
   const isDark = theme === 'dark'
   const { data: settings } = useSiteSettings()
-  const brandName = settings?.brand?.name || 'Aerolearn'
-  const logoEmoji = settings?.brand?.logoEmoji ?? '✈'
+  const brandName = settings?.brand?.name || 'Vighnesh Inc.'
+  const tagline = settings?.brand?.tagline || 'An E-Immersive Learning Platform'
   const signupSubtitle = settings?.auth?.signupSubtitle || `Join the ${brandName} community`
 
   const [step, setStep] = useState(1)
@@ -70,10 +71,9 @@ export default function Signup() {
       <div className="w-full max-w-sm">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center gap-2 mb-2">
-            <span style={{ fontFamily: "'Caveat', cursive" }} className="text-4xl font-bold select-none text-vigno-txt">{brandName}</span>
-          </div>
-          <p className="text-vigno-muted text-xs tracking-widest uppercase">Start your exam preparation journey</p>
+          <img src={logoIcon} alt={brandName} className="w-14 h-14 mx-auto mb-3 select-none" draggable={false} />
+          <h1 className="text-2xl font-bold text-vigno-txt tracking-tight">{brandName}</h1>
+          <p className="text-vigno-muted text-xs tracking-widest uppercase mt-1">{tagline}</p>
         </div>
 
         {/* Card */}
@@ -84,8 +84,6 @@ export default function Signup() {
             : { background: '#ffffff' }
           }
         >
-          <div className="h-1 w-full" style={{ background: 'linear-gradient(90deg, #4da6ff, #f0c040, #4da6ff)' }} />
-
           <div className="p-8">
             {step === 1 ? (
               <>

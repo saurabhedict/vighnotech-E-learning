@@ -328,9 +328,9 @@ export default function SettingsPanel() {
       <div className="space-y-3">
         <div className="flex gap-3 items-end">
           <Field label="Logo icon"><EmojiPicker value={form.brand.logoEmoji} onChange={(v) => setBrand('logoEmoji', v)} /></Field>
-          <div className="flex-1"><Field label="Brand name (navbar, footer, auth pages)"><input className={input} value={form.brand.name} onChange={(e) => setBrand('name', e.target.value)} placeholder="AeroLearn" /></Field></div>
+          <div className="flex-1"><Field label="Brand name (navbar, footer, auth pages)"><input className={input} value={form.brand.name} onChange={(e) => setBrand('name', e.target.value)} placeholder="Vighnesh Inc." /></Field></div>
         </div>
-        <Field label="Tagline (shown on the login page)"><input className={input} value={form.brand.tagline} onChange={(e) => setBrand('tagline', e.target.value)} placeholder="Aviation Training Platform" /></Field>
+        <Field label="Tagline (shown on the login page)"><input className={input} value={form.brand.tagline} onChange={(e) => setBrand('tagline', e.target.value)} placeholder="An E-Immersive Learning Platform" /></Field>
       </div>
     ),
     header: (
@@ -387,7 +387,7 @@ export default function SettingsPanel() {
           ))}
         </div>
         {sections.length === 0 && <p className="text-xs text-vigno-muted">No columns. Add one above.</p>}
-        <Field label="Copyright line — use {year} for the current year"><input className={input} value={form.footer.copyright} onChange={(e) => setFooter('copyright', e.target.value)} placeholder="© {year} AeroLearn. All rights reserved." /></Field>
+        <Field label="Copyright line — use {year} for the current year"><input className={input} value={form.footer.copyright} onChange={(e) => setFooter('copyright', e.target.value)} placeholder="© {year} Vighnesh Inc.. All rights reserved." /></Field>
       </div>
     ),
   }
