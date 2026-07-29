@@ -23,13 +23,21 @@ export async function issueOtp({ email, userId, purpose, channel = 'email', to }
   await Otp.create({ ...identity, email: email || undefined, purpose, channel, codeHash, expiresAt })
 
   const dest = to || email
+  // `viaConsole` = the delivery provider for this channel isn't configured, so the
+  // code was only logged to the server console (never reached the user). Callers
+  // use this to surface the code in the API response on non-prod deployments.
+  let viaConsole
   if (channel === 'sms') {
     await sendSms(dest, `Your ${env.app.name} verification code is ${code}. It expires in ${env.otp.ttlMin} min.`)
+    viaConsole = !env.sms.configured
   } else if (channel === 'whatsapp') {
     await sendWhatsApp(dest, `Your ${env.app.name} verification code is *${code}*. It expires in ${env.otp.ttlMin} min.`)
+    viaConsole = !env.sms.configured
   } else {
     await sendMail(otpEmail(dest, code, purpose))
+    viaConsole = !env.email.configured
   }
+  return { code, viaConsole }
 }
 
 /**

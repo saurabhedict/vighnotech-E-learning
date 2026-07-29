@@ -21,7 +21,7 @@ import { signGameToken } from '../services/gameLicense.js'
 export const getDrmToken = asyncHandler(async (req, res) => {
   const content = await Content.findById(req.params.id)
   if (!content || !content.published) throw notFound('Content not found')
-  if (content.isPaid && req.user.role !== 'admin' && !(await hasActiveLicense(req.user.id, content._id))) throw paymentRequired()
+  if (content.isPaid && !(await hasActiveLicense(req.user.id, content._id))) throw paymentRequired()
   const playback = await getDrmPlayback(content)
   res.json(playback ? { drm: true, ...playback } : { drm: false })
 })
@@ -102,7 +102,7 @@ export const getStreamUrl = asyncHandler(async (req, res) => {
   if (!content || !content.published) throw notFound('Content not found')
   if (content.lane !== 'stream') throw badRequest('This content uses the download lane')
 
-  if (content.isPaid && req.user.role !== 'admin') {
+  if (content.isPaid) {
     const owns = await hasActiveLicense(req.user.id, content._id)
     if (owns === false) throw paymentRequired()
   }
@@ -357,7 +357,7 @@ export const downloadApk = asyncHandler(async (req, res, next) => {
   if (!content) throw notFound('Content not found')
   if (content.lane !== 'download' || content.type !== 'apk') throw badRequest('Not an APK title')
 
-  if (req.user.role !== 'admin') {
+  {
     const owns = await hasActiveLicense(req.user.id, content._id)
     if (!owns) throw paymentRequired()
   }

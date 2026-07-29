@@ -44,8 +44,11 @@ export const getContent = asyncHandler(async (req, res) => {
   const content = await Content.findById(req.params.contentId)
   if (!content || !content.published) throw notFound('Content not found')
 
-  const isAdmin = req.user?.role === 'admin'
-  const owned = content.isPaid && req.user ? (isAdmin || await hasActiveLicense(req.user.id, content._id)) : false
+  // Nothing is free for anyone: paid content (which is now everything except
+  // course lessons, which unlock via the course purchase) requires an active
+  // license — admins included. An admin who needs access buys like a user or
+  // self-issues a license from Admin → Licenses.
+  const owned = content.isPaid && req.user ? await hasActiveLicense(req.user.id, content._id) : false
   const accessible = !content.isPaid || owned
 
   let thumbnailUrl = content.thumbnail || ''

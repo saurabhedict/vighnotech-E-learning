@@ -40,7 +40,14 @@ export default function VerifyContact({ defaultPhone = '', onVerified, phoneOnly
       if (r.alreadyVerified) { setMsg({ ok: true, text: 'Already verified ✓' }); onVerified?.(); return }
       setSent(true)
       setSentTo(r.sentTo || '')
-      setMsg({ ok: true, text: `Code sent via ${channel}${r.sentTo ? ` to ${r.sentTo}` : ''}. (In dev it's printed in the backend console.)` })
+      if (r.devCode) {
+        // Deploy has no email/SMS provider configured → the code can't be delivered,
+        // so the server hands it back for the demo. Fill it in for one-tap verify.
+        setCode(r.devCode)
+        setMsg({ ok: true, text: `Demo code: ${r.devCode} (email delivery isn't configured on this server) — it's filled in below, just press Verify.` })
+      } else {
+        setMsg({ ok: true, text: `Code sent via ${channel}${r.sentTo ? ` to ${r.sentTo}` : ''}. Check your ${channel === 'email' ? 'inbox' : 'phone'}.` })
+      }
     } catch (err) {
       setMsg({ ok: false, text: apiErrorMessage(err, 'Could not send code') })
     } finally { setLoading(false) }

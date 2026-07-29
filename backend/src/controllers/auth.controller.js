@@ -98,11 +98,15 @@ export const login = asyncHandler(async (req, res) => {
   // 2FA gate: password is correct but we don't issue a session yet.
   if (user.twoFAEnabled) {
     const challenge = sign2faChallenge(user)
+    let devCode
     if (user.twoFAMethod === 'email') {
-      await issueOtp({ userId: user._id, email: user.email, purpose: 'login_2fa', sendTo: user.email })
+      const { code, viaConsole } = await issueOtp({ userId: user._id, email: user.email, purpose: 'login_2fa', channel: 'email' })
+      // Demo/staging convenience: with no SMTP configured the code can't reach the
+      // inbox, so return it here (never in real production).
+      if (viaConsole && !env.isProd) devCode = code
     }
     audit(req, 'auth.login.2fa_required', { targetType: 'User', targetId: user._id })
-    return res.json({ twoFARequired: true, method: user.twoFAMethod, challenge })
+    return res.json({ twoFARequired: true, method: user.twoFAMethod, challenge, ...(devCode ? { devCode } : {}) })
   }
 
   user.lastLoginAt = new Date()
@@ -254,9 +258,12 @@ export const sendEmailVerification = asyncHandler(async (req, res) => {
     return res.json({ ok: true, alreadyVerified: true })
   }
 
-  await issueOtp({ userId: user._id, email: user.email, purpose: 'email_verify', channel, to })
+  const { code, viaConsole } = await issueOtp({ userId: user._id, email: user.email, purpose: 'email_verify', channel, to })
   audit(req, 'auth.verify.send', { targetType: 'User', targetId: user._id, meta: { channel } })
-  res.json({ ok: true, channel, sentTo: channel === 'email' ? maskEmail(to) : maskPhone(to) })
+  // Demo/staging convenience: when the email/SMS provider isn't configured the
+  // code only hits the server console, so surface it here (never in real prod).
+  const devCode = viaConsole && !env.isProd ? code : undefined
+  res.json({ ok: true, channel, sentTo: channel === 'email' ? maskEmail(to) : maskPhone(to), ...(devCode ? { devCode } : {}) })
 })
 
 export const verifyEmailSchema = z.object({ code: z.string().min(4) })

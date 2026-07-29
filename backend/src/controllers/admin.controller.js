@@ -259,13 +259,22 @@ export const updateContent = asyncHandler(async (req, res) => {
     content.thumbnail = newThumbnail
   }
 
-  // Force isPaid: true and price: 0 if it's course content
+  // Course content is unlocked by buying the whole course → the lesson itself is
+  // marked paid with price 0. Standalone/individual resources are ALWAYS paid with
+  // an admin-set amount (₹1 or more) — they can never be free.
   if (content.courseKey) {
     content.isPaid = true
     content.price = 0
-  } else if (req.body.price !== undefined) {
-    // For standalone resources, update isPaid based on the updated price
-    content.isPaid = Number(req.body.price) > 0
+  } else {
+    if (req.body.price !== undefined) {
+      const p = Math.round(Number(req.body.price))
+      if (!Number.isFinite(p) || p < 1) {
+        throw badRequest('Individual resources must be priced ₹1 or more — they cannot be free.')
+      }
+      content.price = p
+    }
+    content.isPaid = true
+    if (!content.price || content.price < 1) content.price = 1
   }
 
   await content.save()
@@ -690,13 +699,21 @@ async function getOrCreateStandaloneChapterId() {
 
 export const createStandaloneResource = asyncHandler(async (req, res) => {
   const { title, type, price, identifier } = req.body
+  if (!title || !String(title).trim()) throw badRequest('Resource title is required')
+  if (!CONTENT_TYPES.includes(type)) throw badRequest('Invalid resource type')
+  // Individual resources are ALWAYS paid — the admin sets the amount. A user then
+  // buys it → a license is issued → it shows in their library (My Learning).
+  const priceNum = Math.round(Number(price))
+  if (!Number.isFinite(priceNum) || priceNum < 1) {
+    throw badRequest('Set a price of ₹1 or more — individual resources cannot be free.')
+  }
   const chapterId = await getOrCreateStandaloneChapterId()
   const content = await Content.create({
     chapterId,
     title: title.trim(),
     type,
-    isPaid: Number(price) > 0,
-    price: Number(price) || 0,
+    isPaid: true,
+    price: priceNum,
     courseKey: '', // empty courseKey makes it standalone!
     lane: defaultLaneForType(type),
     // APK product code (Android lane) — the app sends this to /activateapp.

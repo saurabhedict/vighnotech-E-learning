@@ -67,3 +67,15 @@ export function requireRole(...roles) {
     next()
   }
 }
+
+// Inverse role gate — reject specific roles. Use after requireAuth.
+// e.g. blockRole('client') so client accounts (which receive access via admin
+// grants only) can never hit the purchase endpoints.
+export function blockRole(...roles) {
+  return (req, _res, next) => {
+    if (!req.user) return next(unauthorized())
+    if (roles.includes(req.user.role))
+      return next(forbidden('This action is not available for your account type'))
+    next()
+  }
+}

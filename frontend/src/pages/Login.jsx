@@ -48,7 +48,11 @@ export default function Login() {
     setLoading(true)
     try {
       const res = await authApi.login(email, password)
-      if (res.twoFARequired) { setChallenge(res.challenge); setMethod(res.method) }
+      if (res.twoFARequired) {
+        setChallenge(res.challenge); setMethod(res.method)
+        // Demo/staging: server returns the code when email delivery isn't configured.
+        if (res.devCode) { setCode(res.devCode); setNotice(`Demo code: ${res.devCode} (email delivery isn't configured) — filled in below.`) }
+      }
       else finish(res.user, res.token)
     } catch (err) {
       setError(apiErrorMessage(err, 'Login failed'))
@@ -151,6 +155,9 @@ export default function Login() {
                 <p className="text-vigno-muted text-xs mb-4">
                   {method === 'email' ? 'Enter the 6-digit code sent to your email.' : 'Enter the code from your authenticator app.'}
                 </p>
+                {notice && (
+                  <div className="mb-4 text-xs bg-vigno-accent2/10 border border-vigno-accent2/30 text-vigno-accent2 rounded-lg px-3 py-2">{notice}</div>
+                )}
                 {error && (
                   <div className="mb-4 text-xs bg-red-500/10 border border-red-500/30 text-red-300 rounded-lg px-3 py-2">{error}</div>
                 )}

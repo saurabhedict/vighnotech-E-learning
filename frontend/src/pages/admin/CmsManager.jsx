@@ -1517,12 +1517,18 @@ function StandaloneResourcesManager({ isDark }) {
   const handleAddResource = async (e) => {
     e.preventDefault()
     if (!title.trim()) return
+    // Individual resources are always paid — the admin must set an amount (₹1+).
+    const priceNum = Math.round(Number(price))
+    if (!Number.isFinite(priceNum) || priceNum < 1) {
+      alert('Set a price of ₹1 or more — individual resources cannot be free.')
+      return
+    }
     setAdding(true)
     try {
       await adminApi.createStandaloneResource({
         title: title.trim(),
         type,
-        price: Number(price) || 0,
+        price: priceNum,
         ...(type === 'apk' && identifier.trim() ? { identifier: identifier.trim() } : {}),
       })
       setTitle('')
@@ -1635,14 +1641,17 @@ function StandaloneResourcesManager({ isDark }) {
             </div>
           )}
           <div className="flex flex-col gap-1 w-full">
-            <label className="text-[10px] font-bold text-vigno-muted uppercase tracking-wider">Price (INR)</label>
+            <label className="text-[10px] font-bold text-vigno-muted uppercase tracking-wider">Price (INR) <span className="text-vigno-accent">*required</span></label>
             <div className="relative w-full">
               <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-vigno-muted text-sm select-none">₹</span>
               <input
                 type="number"
-                placeholder="Price"
+                min="1"
+                required
+                placeholder="e.g. 99"
                 value={price}
                 onChange={(e) => setPrice(e.target.value)}
+                title="Individual resources are always paid — set the amount a user pays to unlock it."
                 className="w-full pl-8 pr-3.5 py-2.5 rounded-xl bg-vigno-bg2/60 border border-vigno-line/60 text-sm text-vigno-txt outline-none transition-all"
               />
             </div>
@@ -1701,8 +1710,8 @@ function StandaloneResourcesManager({ isDark }) {
                       <div className="flex items-center gap-2 text-xs text-vigno-muted font-medium select-none">
                         <span>{getTypeLabel(res.type)}</span>
                         <span className="text-vigno-muted/40">•</span>
-                        <span className={res.price > 0 ? "text-vigno-accent font-semibold" : "text-emerald-500 font-semibold"}>
-                          {res.price > 0 ? `₹${res.price}` : 'Free'}
+                        <span className={res.price > 0 ? "text-vigno-accent font-semibold" : "text-amber-500 font-semibold"} title={res.price > 0 ? '' : 'This resource has no price — open its ⚙ settings and set an amount so it is no longer free.'}>
+                          {res.price > 0 ? `₹${res.price}` : '⚠ No price set'}
                         </span>
                       </div>
                     </div>

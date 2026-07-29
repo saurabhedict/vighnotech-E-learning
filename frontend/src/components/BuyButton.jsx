@@ -73,6 +73,16 @@ export default function BuyButton({ content, onUnlocked }) {
   }
 
   const inputCls = 'px-3 py-2 rounded-lg bg-vigno-bg2 border border-vigno-line text-sm outline-none'
+
+  // Clients don't purchase anything — their access is provisioned by an admin.
+  if (user?.role === 'client') {
+    return (
+      <div className="w-full max-w-sm text-center text-sm text-vigno-muted bg-white/5 border border-vigno-line rounded-xl px-4 py-3">
+        Access to courses is provided by your administrator. Contact them to request this content.
+      </div>
+    )
+  }
+
   return (
     <div className="flex flex-col items-center gap-3 w-full max-w-sm">
       <div className="text-lg font-bold">
