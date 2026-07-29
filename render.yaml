@@ -101,7 +101,14 @@ services:
       - key: CLOUDFRONT_PRIVATE_KEY
         sync: false
 
-      # ── Email (Gmail SMTP; blank USER/PASS → OTP codes print to server logs) ──
+      # ── Email: Brevo HTTP API (RECOMMENDED on Render) ──────────────────────────
+      # Render BLOCKS outbound SMTP ports (25/465/587), so Gmail SMTP below will NOT
+      # deliver here — it times out. Brevo sends over HTTPS instead, which works.
+      # Setup: brevo.com (free) → verify a sender email → API Keys → paste here, and
+      # set SMTP_FROM to that verified sender. Blank → OTP codes print to server logs.
+      - key: BREVO_API_KEY
+        sync: false
+      # ── Email (Gmail SMTP) — works locally, but NOT from Render (ports blocked) ──
       - key: SMTP_HOST
         value: smtp.gmail.com
       - key: SMTP_PORT
@@ -111,7 +118,7 @@ services:
       - key: SMTP_PASS
         sync: false
       - key: SMTP_FROM
-        sync: false            # e.g. Vigno Smart Class <saurabhtiwari8010@gmail.com>
+        sync: false            # verified sender, e.g. Vigno Smart Class <you@gmail.com>
 
       # ── SMS + WhatsApp OTP (Twilio) — blank → codes print to server logs ──
       - key: TWILIO_ACCOUNT_SID

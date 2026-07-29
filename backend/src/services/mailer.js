@@ -30,6 +30,11 @@ function getTransport() {
 }
 
 export async function sendMail({ to, subject, text, html }) {
+  // Prefer the HTTP API (Brevo): it uses HTTPS/443, so it works on hosts that block
+  // outbound SMTP (Render + most PaaS free tiers). SMTP is the fallback for local dev.
+  if (env.email.viaHttp) {
+    return sendViaBrevo({ to, subject, text, html })
+  }
   const t = getTransport()
   if (!t) {
     // eslint-disable-next-line no-console
@@ -41,6 +46,46 @@ export async function sendMail({ to, subject, text, html }) {
     return { dev: true }
   }
   return t.sendMail({ from: env.email.from, to, subject, text, html })
+}
+
+// Parse an RFC "Name <email@x>" (or bare "email@x") into { name, email }.
+function parseFrom(from) {
+  const m = String(from).match(/^\s*(.*?)\s*<([^>]+)>\s*$/)
+  if (m) return { name: m[1] || undefined, email: m[2].trim() }
+  return { name: undefined, email: String(from).trim() }
+}
+
+// Send one transactional email via Brevo's HTTP API. The sender address (from
+// SMTP_FROM) MUST be a verified sender in the Brevo account, or the API rejects it.
+async function sendViaBrevo({ to, subject, text, html }) {
+  const sender = parseFrom(env.email.from)
+  const ctrl = new AbortController()
+  const timer = setTimeout(() => ctrl.abort(), 12000) // bound the call, just in case
+  try {
+    const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+      method: 'POST',
+      headers: {
+        'api-key': env.email.brevoApiKey,
+        'content-type': 'application/json',
+        accept: 'application/json',
+      },
+      body: JSON.stringify({
+        sender: { email: sender.email, ...(sender.name ? { name: sender.name } : {}) },
+        to: [{ email: to }],
+        subject,
+        ...(html ? { htmlContent: html } : {}),
+        textContent: text || stripHtml(html),
+      }),
+      signal: ctrl.signal,
+    })
+    if (!res.ok) {
+      const body = await res.text().catch(() => '')
+      throw new Error(`Brevo API ${res.status}: ${body.slice(0, 200)}`)
+    }
+    return { http: 'brevo' }
+  } finally {
+    clearTimeout(timer)
+  }
 }
 
 function stripHtml(html = '') {

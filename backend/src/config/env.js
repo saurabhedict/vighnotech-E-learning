@@ -155,8 +155,16 @@ export const env = {
     user: process.env.SMTP_USER || '',
     pass: process.env.SMTP_PASS || '',
     from: process.env.SMTP_FROM || 'Vigno Smart Class <no-reply@vigno.in>',
+    // HTTP email API (Brevo) — sends over HTTPS/443, so it delivers from hosts that
+    // BLOCK outbound SMTP ports (Render and most PaaS free tiers block 25/465/587).
+    // Preferred over SMTP whenever a key is set. Verify your sender in Brevo and put
+    // that address in SMTP_FROM.
+    brevoApiKey: process.env.BREVO_API_KEY || '',
+    get viaHttp() {
+      return !!this.brevoApiKey
+    },
     get configured() {
-      return !!(this.host && this.user && this.pass)
+      return !!(this.brevoApiKey || (this.host && this.user && this.pass))
     },
   },
 
