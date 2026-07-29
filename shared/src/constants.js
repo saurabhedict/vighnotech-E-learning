@@ -17,8 +17,10 @@ export const CONTENT_LANES = Object.values(LANES)
 // Content/file types (must match the secure viewers in the web app).
 //   - game → downloadable PC software (.zip), runs via the desktop launcher
 //   - apk  → downloadable Android app (.apk) for tablets/phones
-// Both are "download lane": encrypted at rest + device-locked via LicenseGuard.
-export const CONTENT_TYPES = ['pdf', 'video', '3d', 'game', 'apk']
+//   - link → a hidden web page opened INSIDE the app through a server-side proxy;
+//            the real URL is never sent to the browser (stream lane)
+// game/apk are "download lane": encrypted at rest + device-locked via LicenseGuard.
+export const CONTENT_TYPES = ['pdf', 'video', '3d', 'game', 'apk', 'link']
 
 // License lifecycle states (stored on the License document).
 export const LICENSE_STATUS = ['active', 'revoked', 'expired']

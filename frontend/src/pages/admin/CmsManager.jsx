@@ -804,6 +804,7 @@ function LessonDetailsEditor({ lesson, onSave }) {
   const [previewText, setPreviewText] = useState(lesson.previewText || '')
   const [thumb, setThumb] = useState(lesson.thumbnailUrl || '')
   const [identifier, setIdentifier] = useState(lesson.identifier || '') // APK activation code
+  const [linkUrl, setLinkUrl] = useState(lesson.externalUrl || '') // 'link' destination
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState('')
 
@@ -835,6 +836,19 @@ function LessonDetailsEditor({ lesson, onSave }) {
             className="w-full px-2 py-1 rounded-md bg-vigno-bg2 border border-vigno-line/50 outline-none font-mono"
           />
           <p className="text-[9px] text-vigno-muted">Must EXACTLY match the code the installed .apk reports on login (case-sensitive, no spaces). Check the server logs for <span className="font-mono">[activateapp] identifier=…</span> to see what your app sends.</p>
+        </div>
+      )}
+      {lesson.type === 'link' && (
+        <div className="space-y-1.5 bg-vigno-accent/5 border border-vigno-accent/30 rounded-lg p-2.5">
+          <label className="text-vigno-accent block font-bold text-[10px] uppercase tracking-wider">Page URL (hidden from users)</label>
+          <input
+            type="url"
+            value={linkUrl}
+            onChange={(e) => setLinkUrl(e.target.value)}
+            placeholder="https://example.com/page"
+            className="w-full px-2 py-1 rounded-md bg-vigno-bg2 border border-vigno-line/50 outline-none font-mono"
+          />
+          <p className="text-[9px] text-vigno-muted">Opens inside the app via a server-side proxy. Users never see or can copy this URL.</p>
         </div>
       )}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -905,7 +919,7 @@ function LessonDetailsEditor({ lesson, onSave }) {
 
       <div className="flex justify-end pt-1">
         <button
-          onClick={() => onSave({ description: desc, previewText, thumbnailUrl: thumb, ...(lesson.type === 'apk' ? { identifier: identifier.trim() } : {}) })}
+          onClick={() => onSave({ description: desc, previewText, thumbnailUrl: thumb, ...(lesson.type === 'apk' ? { identifier: identifier.trim() } : {}), ...(lesson.type === 'link' ? { externalUrl: linkUrl.trim() } : {}) })}
           className="bg-vigno-accent text-vigno-bg1 font-extrabold px-3 py-1.5 rounded-lg text-[11px] flex items-center gap-1.5"
         >
           <CheckIcon className="w-3.5 h-3.5" />
@@ -1521,6 +1535,7 @@ function StandaloneResourcesManager({ isDark }) {
   const [title, setTitle] = useState('')
   const [type, setType] = useState('video')
   const [identifier, setIdentifier] = useState('') // APK product code (Android lane)
+  const [linkUrl, setLinkUrl] = useState('') // destination for a 'link' resource
   const [price, setPrice] = useState('')
   const [adding, setAdding] = useState(false)
   const [metaOpenId, setMetaOpenId] = useState(null)
@@ -1531,10 +1546,15 @@ function StandaloneResourcesManager({ isDark }) {
   const handleAddResource = async (e) => {
     e.preventDefault()
     if (!title.trim()) return
-    // Individual resources are always paid — the admin must set an amount (₹1+).
-    const priceNum = Math.round(Number(price))
-    if (!Number.isFinite(priceNum) || priceNum < 1) {
+    const isLink = type === 'link'
+    // Links can be free (visible on publish); every other resource must be paid (₹1+).
+    const priceNum = Math.max(0, Math.round(Number(price)) || 0)
+    if (!isLink && priceNum < 1) {
       alert('Set a price of ₹1 or more — individual resources cannot be free.')
+      return
+    }
+    if (isLink && !linkUrl.trim()) {
+      alert('Enter the page URL this link should open.')
       return
     }
     setAdding(true)
@@ -1544,10 +1564,12 @@ function StandaloneResourcesManager({ isDark }) {
         type,
         price: priceNum,
         ...(type === 'apk' && identifier.trim() ? { identifier: identifier.trim() } : {}),
+        ...(isLink ? { url: linkUrl.trim() } : {}),
       })
       setTitle('')
       setPrice('')
       setIdentifier('')
+      setLinkUrl('')
       qc.invalidateQueries({ queryKey: ['admin', 'resources'] })
     } catch (err) {
       alert(apiErrorMessage(err, 'Failed to add resource'))
@@ -1596,6 +1618,7 @@ function StandaloneResourcesManager({ isDark }) {
     if (type === '3d') return '3D Model / Animation'
     if (type === 'game') return 'Interactive Game'
     if (type === 'apk') return 'Android App (APK)'
+    if (type === 'link') return 'Web Link (hidden page)'
     return type
   }
 
@@ -1639,6 +1662,7 @@ function StandaloneResourcesManager({ isDark }) {
               <option value="3d">3D Model / Animation</option>
               <option value="game">Interactive Game</option>
               <option value="apk">Android App (APK)</option>
+              <option value="link">Web Link (hidden page)</option>
             </select>
           </div>
           {type === 'apk' && (
@@ -1654,18 +1678,31 @@ function StandaloneResourcesManager({ isDark }) {
               />
             </div>
           )}
+          {type === 'link' && (
+            <div className="flex flex-col gap-1 w-full sm:col-span-2">
+              <label className="text-[10px] font-bold text-vigno-muted uppercase tracking-wider">Page URL <span className="text-vigno-accent">*required</span></label>
+              <input
+                type="url"
+                placeholder="https://example.com/page"
+                value={linkUrl}
+                onChange={(e) => setLinkUrl(e.target.value)}
+                title="Opens hidden inside the app via a server-side proxy — users never see this URL."
+                className="px-3.5 py-2.5 rounded-xl bg-vigno-bg2/60 border border-vigno-line/60 text-sm text-vigno-txt outline-none transition-all w-full"
+              />
+            </div>
+          )}
           <div className="flex flex-col gap-1 w-full">
-            <label className="text-[10px] font-bold text-vigno-muted uppercase tracking-wider">Price (INR) <span className="text-vigno-accent">*required</span></label>
+            <label className="text-[10px] font-bold text-vigno-muted uppercase tracking-wider">Price (INR) {type === 'link' ? <span className="text-vigno-muted">(0 = free)</span> : <span className="text-vigno-accent">*required</span>}</label>
             <div className="relative w-full">
               <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-vigno-muted text-sm select-none">₹</span>
               <input
                 type="number"
-                min="1"
-                required
-                placeholder="e.g. 99"
+                min={type === 'link' ? '0' : '1'}
+                required={type !== 'link'}
+                placeholder={type === 'link' ? '0' : 'e.g. 99'}
                 value={price}
                 onChange={(e) => setPrice(e.target.value)}
-                title="Individual resources are always paid — set the amount a user pays to unlock it."
+                title="Individual resources are always paid — set the amount a user pays to unlock it. Links can be free (0)."
                 className="w-full pl-8 pr-3.5 py-2.5 rounded-xl bg-vigno-bg2/60 border border-vigno-line/60 text-sm text-vigno-txt outline-none transition-all"
               />
             </div>
@@ -1724,8 +1761,8 @@ function StandaloneResourcesManager({ isDark }) {
                       <div className="flex items-center gap-2 text-xs text-vigno-muted font-medium select-none">
                         <span>{getTypeLabel(res.type)}</span>
                         <span className="text-vigno-muted/40">•</span>
-                        <span className={res.price > 0 ? "text-vigno-accent font-semibold" : "text-amber-500 font-semibold"} title={res.price > 0 ? '' : 'This resource has no price — open its ⚙ settings and set an amount so it is no longer free.'}>
-                          {res.price > 0 ? `₹${res.price}` : '⚠ No price set'}
+                        <span className={res.price > 0 ? "text-vigno-accent font-semibold" : res.type === 'link' ? "text-emerald-500 font-semibold" : "text-amber-500 font-semibold"} title={res.price > 0 || res.type === 'link' ? '' : 'This resource has no price — open its ⚙ settings and set an amount so it is no longer free.'}>
+                          {res.price > 0 ? `₹${res.price}` : res.type === 'link' ? 'Free link' : '⚠ No price set'}
                         </span>
                       </div>
                     </div>

@@ -268,6 +268,10 @@ export const updateContent = asyncHandler(async (req, res) => {
   if (content.courseKey) {
     content.isPaid = true
     content.price = 0
+  } else if (content.type === 'link') {
+    // Links may be free (visible on publish). Keep isPaid in sync with the price.
+    if (req.body.price !== undefined) content.price = Math.max(0, Math.round(Number(req.body.price)) || 0)
+    content.isPaid = content.price >= 1
   } else {
     if (req.body.price !== undefined) {
       const p = Math.round(Number(req.body.price))
@@ -701,26 +705,34 @@ async function getOrCreateStandaloneChapterId() {
 }
 
 export const createStandaloneResource = asyncHandler(async (req, res) => {
-  const { title, type, price, identifier } = req.body
+  const { title, type, price, identifier, url } = req.body
   if (!title || !String(title).trim()) throw badRequest('Resource title is required')
   if (!CONTENT_TYPES.includes(type)) throw badRequest('Invalid resource type')
-  // Individual resources are ALWAYS paid — the admin sets the amount. A user then
-  // buys it → a license is issued → it shows in their library (My Learning).
-  const priceNum = Math.round(Number(price))
-  if (!Number.isFinite(priceNum) || priceNum < 1) {
+
+  const isLink = type === 'link'
+  // Links are visible-on-publish and may be FREE; every other individual resource
+  // is ALWAYS paid — the admin sets the amount → buy → license → My Learning.
+  const priceNum = Math.max(0, Math.round(Number(price)) || 0)
+  if (!isLink && priceNum < 1) {
     throw badRequest('Set a price of ₹1 or more — individual resources cannot be free.')
   }
+  if (isLink && (!url || !String(url).trim())) {
+    throw badRequest('A link needs a destination page URL.')
+  }
+
   const chapterId = await getOrCreateStandaloneChapterId()
   const content = await Content.create({
     chapterId,
     title: title.trim(),
     type,
-    isPaid: true,
+    isPaid: isLink ? priceNum > 0 : true,
     price: priceNum,
     courseKey: '', // empty courseKey makes it standalone!
     lane: defaultLaneForType(type),
     // APK product code (Android lane) — the app sends this to /activateapp.
     ...(identifier && String(identifier).trim() ? { identifier: String(identifier).trim() } : {}),
+    // 'link' destination — stored server-side; served only via the hidden proxy.
+    ...(isLink ? { externalUrl: String(url).trim() } : {}),
   })
   audit(req, 'cms.resource.create', { targetType: 'Content', targetId: content._id })
   res.status(201).json(content)

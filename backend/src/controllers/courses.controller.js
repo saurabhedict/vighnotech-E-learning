@@ -3,7 +3,7 @@ import { notFound } from '../utils/ApiError.js'
 import { Content } from '../models/Content.js'
 import { listCourseSlugs, getCourseTree, getModule } from '../services/contentTree.js'
 import { hasActiveLicense } from '../services/licenseAuthority.js'
-import { buildStreamUrl, buildHlsUrl } from '../services/signedUrl.js'
+import { buildStreamUrl, buildHlsUrl, buildLinkViewUrl } from '../services/signedUrl.js'
 import { createMediaUrl } from '../services/storage.js'
 import { cache } from '../services/cache.js'
 
@@ -81,6 +81,13 @@ export const getContent = asyncHandler(async (req, res) => {
 
   if (!accessible) {
     return res.json({ ...base, locked: true })
+  }
+
+  // Link content: hand back a signed, short-lived PROXY url — the real destination
+  // is stored server-side and fetched by the proxy, so it never reaches the browser.
+  if (content.type === 'link') {
+    const viewUrl = buildLinkViewUrl(req, { contentId: content._id.toString(), userId: req.user?.id || 'anon' })
+    return res.json({ ...base, locked: false, link: true, viewUrl })
   }
 
   // Download lane: no inline media — the launcher fetches an encrypted file + key.

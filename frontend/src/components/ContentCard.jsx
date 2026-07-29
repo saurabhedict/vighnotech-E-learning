@@ -6,7 +6,7 @@ import { licenseApi } from '../api/licenseApi'
 import FavoriteButton from './FavoriteButton'
 import UdemyHoverPopover from './UdemyHoverPopover'
 
-const TYPE_LABEL = { pdf: 'PDF', video: 'Video', game: 'Simulator', '3d': '3D Model', apk: 'Android App' }
+const TYPE_LABEL = { pdf: 'PDF', video: 'Video', game: 'Simulator', '3d': '3D Model', apk: 'Android App', link: 'Web Page' }
 
 function LessonIcon({ type, className = "w-10 h-10" }) {
   if (type === 'video') {
@@ -35,6 +35,13 @@ function LessonIcon({ type, className = "w-10 h-10" }) {
     return (
       <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
         <path strokeLinecap="round" strokeLinejoin="round" d="M9 4.5h6a1.5 1.5 0 011.5 1.5v12a1.5 1.5 0 01-1.5 1.5H9A1.5 1.5 0 017.5 18V6A1.5 1.5 0 019 4.5zm2 13.5h2" />
+      </svg>
+    )
+  }
+  if (type === 'link') {
+    return (
+      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 010 5.656l-3 3a4 4 0 01-5.656-5.656l1.5-1.5m6.828-1.328a4 4 0 010-5.656l3-3a4 4 0 015.656 5.656l-1.5 1.5" />
       </svg>
     )
   }
@@ -118,6 +125,7 @@ export default function ContentCard({ item, disablePopover = false }) {
     '3d': 'from-purple-600 to-indigo-950',
     game: 'from-rose-600 to-pink-850',
     apk: 'from-emerald-600 to-green-850',
+    link: 'from-sky-600 to-blue-850',
   }[item.type] || 'from-slate-600 to-slate-850'
 
   const isPlayableResource = !item.courseKey && item.type !== 'pdf'
@@ -188,7 +196,8 @@ export default function ContentCard({ item, disablePopover = false }) {
                     pdf: 'bg-emerald-50 text-emerald-600 border-emerald-200/60 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20',
                     '3d': 'bg-purple-50 text-purple-600 border-purple-200/60 dark:bg-purple-500/10 dark:text-purple-400 dark:border-purple-500/20',
                     game: 'bg-rose-50 text-rose-600 border-rose-200/60 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/20',
-                    apk: 'bg-green-50 text-green-600 border-green-200/60 dark:bg-green-500/10 dark:text-green-400 dark:border-green-500/20'
+                    apk: 'bg-green-50 text-green-600 border-green-200/60 dark:bg-green-500/10 dark:text-green-400 dark:border-green-500/20',
+                    link: 'bg-sky-50 text-sky-600 border-sky-200/60 dark:bg-sky-500/10 dark:text-sky-400 dark:border-sky-500/20'
                   }[item.type] || 'bg-slate-50 text-slate-600 border-slate-200/60 dark:bg-slate-500/10 dark:text-slate-400 dark:border-slate-500/20'
                 }`}>
                   {TYPE_LABEL[item.type] || item.type}

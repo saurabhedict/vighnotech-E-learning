@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, lazy, Suspense } from 'react'
-import { useParams, useSearchParams, Link } from 'react-router-dom'
+import { useParams, useSearchParams, Link, useNavigate } from 'react-router-dom'
 import { useSelector } from 'react-redux'
 import { useContentItem } from '../hooks/useContent'
 import { useSiteSettings } from '../hooks/useSiteSettings'
@@ -26,6 +26,7 @@ export default function ContentViewer() {
   const autoplay = searchParams.get('play') === '1'
   const user = useSelector((s) => s.auth.user)
   const isDark = useSelector((s) => s.ui.theme) === 'dark'
+  const navigate = useNavigate()
   const [showViewer, setShowViewer] = useState(false)
   const { data: item, isLoading, isError, refetch } = useContentItem(contentId)
   const { data: settings } = useSiteSettings()
@@ -92,9 +93,43 @@ export default function ContentViewer() {
   const backTo = isAdmin ? '/app/admin' : (className && moduleId ? `/app/${className}/module/${moduleId}` : '/app/library')
   const backLabel = isAdmin ? 'Back to Admin Dashboard' : (className && moduleId ? 'Back to module' : 'Back to library')
 
+  // 'link' content → open the hidden page in an in-app window (a Back button on top
+  // and the page below), served through our server-side proxy so the real URL is
+  // never exposed to the browser. Paid-but-unowned links fall through to the buy
+  // landing below; once owned/free, getContent returns a signed viewUrl.
+  if (item.type === 'link' && !item.locked && item.viewUrl) {
+    return (
+      <div className="fixed inset-0 z-40 flex flex-col bg-vigno-bg1">
+        <div className="flex items-center gap-3 px-4 py-2.5 border-b border-vigno-line bg-vigno-card shrink-0">
+          <button
+            onClick={() => navigate(-1)}
+            className="inline-flex items-center gap-1.5 text-sm font-bold text-vigno-txt hover:text-vigno-accent2 transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.4" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+            </svg>
+            Back
+          </button>
+          <span className="text-sm font-bold text-vigno-txt truncate">{item.title}</span>
+          <span className="ml-auto text-[10px] text-vigno-muted flex items-center gap-1 select-none">
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+            Secure view
+          </span>
+        </div>
+        <iframe
+          src={item.viewUrl}
+          title={item.title}
+          sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+          referrerPolicy="no-referrer"
+          className="flex-1 w-full border-0 bg-white"
+        />
+      </div>
+    )
+  }
+
   if (showLanding) {
     const displayName = item.title
-    const resourceTypeLabel = { pdf: 'PDF', video: 'Video', game: 'Simulator', '3d': '3D Model', apk: 'Android App' }[item.type] || item.type
+    const resourceTypeLabel = { pdf: 'PDF', video: 'Video', game: 'Simulator', '3d': '3D Model', apk: 'Android App', link: 'Web Page' }[item.type] || item.type
 
     return (
       <div className="space-y-8 pb-16">

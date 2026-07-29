@@ -475,3 +475,71 @@ export const streamLocalFile = asyncHandler(async (req, res, next) => {
 
   pipeWithErrors(await readObjectStream(storageKey), res, next)
 })
+
+// ── 'link' content — hidden web page proxy ───────────────────────────────────
+// SSRF guard: refuse non-http(s) schemes and private/loopback/metadata hosts so a
+// misconfigured link can't be used to reach internal services.
+function assertSafeUrl(raw) {
+  let u
+  try { u = new URL(raw) } catch { throw badRequest('Invalid link URL') }
+  if (!/^https?:$/.test(u.protocol)) throw badRequest('Only http/https links are allowed')
+  const host = u.hostname.toLowerCase().replace(/^\[|\]$/g, '')
+  const priv =
+    host === 'localhost' || host === '0.0.0.0' || host === '::1' || host.endsWith('.local') ||
+    /^127\./.test(host) || /^10\./.test(host) || /^192\.168\./.test(host) ||
+    /^172\.(1[6-9]|2\d|3[01])\./.test(host) || /^169\.254\./.test(host) || /^fe80:/i.test(host)
+  if (priv) throw forbidden('This link host is not allowed')
+}
+
+/**
+ * GET /files/:contentId/link?token=… — server-side proxy for a 'link' content
+ * item. The real destination is stored on the server and NEVER sent to the
+ * browser: the client's in-app viewer only ever talks to THIS endpoint. Access
+ * is proven by the signed token (minted in getContent after the ownership check).
+ */
+export const proxyLink = asyncHandler(async (req, res) => {
+  const content = await Content.findById(req.params.contentId)
+  if (!content || content.type !== 'link') throw notFound('Content not found')
+
+  const result = verifySignedToken(req.query.token)
+  if (!result.valid) throw forbidden(`Signed URL ${result.reason}`)
+  if (result.payload.c !== String(content._id)) throw forbidden('Token does not match this link')
+
+  const target = content.externalUrl
+  if (!target) throw notFound('This link has no destination set')
+  assertSafeUrl(target)
+
+  let upstream
+  try {
+    upstream = await fetch(target, {
+      redirect: 'follow',
+      headers: { 'user-agent': 'Mozilla/5.0 (compatible; VignoLinkViewer/1.0)', accept: 'text/html,application/xhtml+xml,*/*' },
+      signal: AbortSignal.timeout(12000),
+    })
+  } catch (e) {
+    throw badRequest(`Could not load the page (${e.message})`)
+  }
+
+  const ct = upstream.headers.get('content-type') || 'text/html; charset=utf-8'
+  const buf = Buffer.from(await upstream.arrayBuffer())
+
+  // Let ONLY our own app frame this response; strip anything upstream that would
+  // block embedding, and never leak a referrer to the origin.
+  res.removeHeader('X-Frame-Options')
+  res.set('Content-Security-Policy', `frame-ancestors 'self' ${env.clientOrigins.join(' ')}`)
+  res.set('Referrer-Policy', 'no-referrer')
+  res.set('Cache-Control', 'private, no-store')
+  res.set('Content-Type', ct)
+
+  // For HTML, inject <base> so the page's relative assets resolve against the real
+  // origin (only the browser fetches them; the URL is never shown in our UI).
+  if (ct.includes('text/html')) {
+    let html = buf.toString('utf8')
+    const origin = new URL(upstream.url || target).origin
+    const baseTag = `<base href="${origin}/"><meta name="referrer" content="no-referrer">`
+    if (/<head[^>]*>/i.test(html)) html = html.replace(/<head[^>]*>/i, (m) => `${m}${baseTag}`)
+    else html = `<!doctype html><head>${baseTag}</head>${html}`
+    return res.send(html)
+  }
+  return res.send(buf)
+})

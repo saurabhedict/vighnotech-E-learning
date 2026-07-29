@@ -53,6 +53,15 @@ export function buildStreamUrl(req, { contentId, storageKey, userId, ttlSec }) {
   return `${base}/api/files/${contentId}/stream?token=${encodeURIComponent(token)}`
 }
 
+// Build the URL the client's in-app viewer hits to load a 'link' content item.
+// The token proves access (minted after the ownership check); the endpoint fetches
+// the real destination server-side, so the actual URL never reaches the browser.
+export function buildLinkViewUrl(req, { contentId, userId, ttlSec = 3600 }) {
+  const token = createSignedToken({ contentId, userId, ttlSec })
+  const base = `${req.protocol}://${req.get('host')}`
+  return `${base}/api/files/${contentId}/link?token=${encodeURIComponent(token)}`
+}
+
 // The logical S3 prefix that holds a content item's HLS bundle.
 export const hlsBundlePrefix = (contentId) => `hls/${contentId}/`
 
