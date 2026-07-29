@@ -1,7 +1,9 @@
 import crypto from 'node:crypto'
+import bcrypt from 'bcryptjs'
 import { z } from 'zod'
 import ms from '../utils/ms.js'
 import { User } from '../models/User.js'
+import { PendingSignup } from '../models/PendingSignup.js'
 import { asyncHandler } from '../utils/asyncHandler.js'
 import { audit } from '../utils/audit.js'
 import { badRequest, unauthorized, conflict } from '../utils/ApiError.js'
@@ -53,6 +55,7 @@ export const signupSchema = z.object({
   password: z.string().min(8, 'Password must be at least 8 characters'),
   name: z.string().trim().max(80).optional(),
   phone: z.string().trim().max(20).optional(),
+  channel: z.enum(['email', 'sms']).optional(), // how to deliver the registration OTP
 })
 
 export const loginSchema = z.object({
@@ -70,21 +73,86 @@ function issueSession(res, user) {
   return accessToken
 }
 
+// Registration is a two-step OTP flow: /signup stashes the details + sends a code
+// (NO account or session yet), then /verify-signup confirms the code and actually
+// creates the account + logs the user in. This guarantees every new account has a
+// verified email/phone and leaves no unverified users lying around.
 export const signup = asyncHandler(async (req, res) => {
-  const { email, password, name, phone } = req.body
-  const exists = await User.findOne({ email })
-  if (exists) throw conflict('An account with this email already exists')
+  const { email, password, name, phone, channel = 'email' } = req.body
+  if (await User.findOne({ email })) throw conflict('An account with this email already exists')
 
-  const user = new User({ email, name: name || '', phone: phone ? normalizePhone(phone) : '' })
-  await user.setPassword(password)
+  const normPhone = phone ? normalizePhone(phone) : ''
+  if (channel === 'sms' && !normPhone) throw badRequest('Enter your phone number to receive an SMS code')
+
+  const passwordHash = await bcrypt.hash(password, 12)
+  const expiresAt = new Date(Date.now() + 30 * 60_000) // 30 min to complete registration
+  await PendingSignup.findOneAndUpdate(
+    { email },
+    { email, passwordHash, name: name || '', phone: normPhone, channel, expiresAt },
+    { upsert: true, setDefaultsOnInsert: true }
+  )
+
+  const to = channel === 'sms' ? normPhone : email
+  const { code, viaConsole } = await issueOtp({ email, purpose: 'signup', channel, to })
+  const devCode = viaConsole && !env.isProd ? code : undefined
+  audit(req, 'auth.signup.start', { meta: { email, channel } })
+  res.status(200).json({
+    verificationRequired: true,
+    email,
+    channel,
+    sentTo: channel === 'sms' ? maskPhone(to) : maskEmail(email),
+    ...(devCode ? { devCode } : {}),
+  })
+})
+
+// Step 2 of registration: confirm the OTP → create the account → issue a session.
+export const verifySignupSchema = z.object({ email: emailField, code: z.string().min(4) })
+
+export const verifySignup = asyncHandler(async (req, res) => {
+  const { email, code } = req.body
+  const pending = await PendingSignup.findOne({ email })
+  if (!pending) throw badRequest('No pending registration found — please sign up again.')
+
+  const result = await verifyOtp({ email, purpose: 'signup', code })
+  if (!result.ok) throw badRequest(`Verification failed: ${result.reason}`)
+
+  // Guard the (tiny) race where the same email got created between OTP send + verify.
+  if (await User.findOne({ email })) {
+    await PendingSignup.deleteOne({ email })
+    throw conflict('An account with this email already exists')
+  }
+
+  const viaSms = pending.channel === 'sms'
+  const user = new User({
+    email,
+    name: pending.name || '',
+    phone: pending.phone || '',
+    emailVerified: !viaSms,
+    phoneVerified: viaSms,
+  })
+  user.passwordHash = pending.passwordHash // already bcrypt-hashed at /signup
   await recordLoginDevice(req, user)
   await user.save()
+  await PendingSignup.deleteOne({ email })
 
-  // Auto-login; the client then drives account verification via /send-verification
-  // (the user chooses email / SMS / WhatsApp).
-  const token = issueSession(res, user)
-  audit(req, 'auth.signup', { targetType: 'User', targetId: user._id })
-  res.status(201).json({ user: user.toSafeJSON(), token })
+  const fresh = await User.findByIdAndUpdate(user._id, { $inc: { tokenVersion: 1 } }, { new: true })
+  const token = issueSession(res, fresh)
+  audit(req, 'auth.signup.verify', { targetType: 'User', targetId: fresh._id })
+  res.status(201).json({ user: fresh.toSafeJSON(), token })
+})
+
+// Resend the registration OTP (same channel the user picked at /signup).
+export const resendSignupOtpSchema = z.object({ email: emailField })
+
+export const resendSignupOtp = asyncHandler(async (req, res) => {
+  const { email } = req.body
+  const pending = await PendingSignup.findOne({ email })
+  if (!pending) throw badRequest('No pending registration found — please sign up again.')
+  const channel = pending.channel || 'email'
+  const to = channel === 'sms' ? pending.phone : email
+  const { code, viaConsole } = await issueOtp({ email, purpose: 'signup', channel, to })
+  const devCode = viaConsole && !env.isProd ? code : undefined
+  res.json({ ok: true, channel, sentTo: channel === 'sms' ? maskPhone(to) : maskEmail(email), ...(devCode ? { devCode } : {}) })
 })
 
 export const login = asyncHandler(async (req, res) => {

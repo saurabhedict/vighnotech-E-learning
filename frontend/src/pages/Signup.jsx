@@ -3,7 +3,6 @@ import { useNavigate, Link } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
 import { setCredentials } from '../store/authSlice'
 import { authApi, apiErrorMessage } from '../api/authApi'
-import VerifyContact from '../components/VerifyContact'
 import { useSiteSettings } from '../hooks/useSiteSettings'
 import logoIcon from '../assets/logo-icon.svg'
 
@@ -32,6 +31,13 @@ export default function Signup() {
   const [otpMethod, setOtpMethod] = useState('email')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  // Step 2 (OTP verification)
+  const [otp, setOtp] = useState('')
+  const [sentTo, setSentTo] = useState('')
+  const [info, setInfo] = useState('')
+  const [otpError, setOtpError] = useState('')
+  const [otpLoading, setOtpLoading] = useState(false)
+  const [resending, setResending] = useState(false)
 
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }))
 
@@ -49,18 +55,57 @@ export default function Signup() {
     'text-vigno-txt placeholder-vigno-muted/50',
   ].join(' ')
 
+  // Full phone in E.164 (the UI shows a fixed +91 prefix; store digits with it).
+  const fullPhone = () => {
+    const p = form.phone.trim()
+    if (!p) return ''
+    return p.startsWith('+') ? p : '+91' + p.replace(/\D/g, '')
+  }
+
+  // Step 1: send the registration OTP (no account/session is created yet).
   const submit = async (e) => {
     e.preventDefault()
     setError('')
     if (!rules.len) return setError('Password must be at least 8 characters')
+    if (otpMethod === 'sms' && !form.phone.trim()) return setError('Enter your phone number to receive an SMS code')
     setLoading(true)
     try {
-      const { user, token } = await authApi.signup(form.email, form.password, form.name, form.phone)
-      dispatch(setCredentials({ user, token }))
+      const r = await authApi.signup(form.email, form.password, form.name, fullPhone(), otpMethod)
+      setSentTo(r.sentTo || '')
+      setOtp('')
+      if (r.devCode) { setOtp(r.devCode); setInfo(`Demo code: ${r.devCode} (${otpMethod} delivery isn't configured on this server) — filled in below.`) }
+      else setInfo(`We sent a 6-digit code via ${otpMethod}${r.sentTo ? ` to ${r.sentTo}` : ''}.`)
       setStep(2)
     } catch (err) {
       setError(apiErrorMessage(err, 'Signup failed'))
     } finally { setLoading(false) }
+  }
+
+  // Step 2: confirm the OTP → account is created and we're logged in.
+  const verify = async (e) => {
+    e.preventDefault()
+    setOtpError('')
+    if (!otp.trim()) return setOtpError('Enter the verification code')
+    setOtpLoading(true)
+    try {
+      const { user, token } = await authApi.verifySignup(form.email, otp.trim())
+      dispatch(setCredentials({ user, token }))
+      navigate(user.role === 'admin' ? '/app/admin' : '/app')
+    } catch (err) {
+      setOtpError(apiErrorMessage(err, 'Verification failed'))
+    } finally { setOtpLoading(false) }
+  }
+
+  const resend = async () => {
+    setOtpError('')
+    setResending(true)
+    try {
+      const r = await authApi.resendSignupOtp(form.email)
+      if (r.devCode) { setOtp(r.devCode); setInfo(`Demo code: ${r.devCode} — filled in below.`) }
+      else setInfo(`Code re-sent${r.sentTo ? ` to ${r.sentTo}` : ''}.`)
+    } catch (err) {
+      setOtpError(apiErrorMessage(err, 'Could not resend the code'))
+    } finally { setResending(false) }
   }
 
   return (
@@ -212,14 +257,41 @@ export default function Signup() {
               </>
             ) : (
               <div>
-                <h2 className="text-lg font-bold text-vigno-txt mb-1">Verify Account</h2>
-                <div className="flex items-center gap-2 text-sm text-green-300 mb-4 bg-green-500/10 border border-green-500/20 rounded-lg px-3 py-2">
-                  <span>✓</span>
-                  <span>Account created! Let's verify it.</span>
+                <h2 className="text-lg font-bold text-vigno-txt mb-1">Verify your {otpMethod === 'sms' ? 'phone' : 'email'}</h2>
+                <p className="text-vigno-muted text-xs mb-4">
+                  Enter the 6-digit code we sent{sentTo ? <> to <span className="text-vigno-txt font-semibold">{sentTo}</span></> : ''} to finish creating your account.
+                </p>
+
+                {info && (
+                  <div className="mb-3 text-xs bg-vigno-accent2/10 border border-vigno-accent2/30 text-vigno-accent2 rounded-lg px-3 py-2">{info}</div>
+                )}
+                {otpError && (
+                  <div className="mb-3 text-xs bg-red-500/10 border border-red-500/30 text-red-300 rounded-lg px-3 py-2">{otpError}</div>
+                )}
+
+                <form onSubmit={verify} className="space-y-4">
+                  <input
+                    autoFocus
+                    value={otp}
+                    onChange={(e) => setOtp(e.target.value)}
+                    inputMode="numeric"
+                    placeholder="123456"
+                    className={inputCls + ' tracking-[0.4em] text-center text-lg'}
+                  />
+                  <button type="submit" disabled={otpLoading}
+                    className="w-full py-3 rounded-xl font-extrabold text-sm tracking-wide transition-all duration-200 disabled:opacity-60 bg-vigno-accent text-vigno-accent-txt shadow-lg shadow-vigno-accent/20 hover:brightness-110">
+                    {otpLoading ? 'Verifying…' : 'Verify & Create Account'}
+                  </button>
+                </form>
+
+                <div className="flex items-center justify-between mt-4">
+                  <button type="button" onClick={() => { setStep(1); setOtp(''); setInfo(''); setOtpError('') }}
+                    className="text-xs text-vigno-muted hover:text-vigno-txt transition-colors">← Change details</button>
+                  <button type="button" onClick={resend} disabled={resending}
+                    className="text-xs text-vigno-accent2 hover:underline disabled:opacity-60">
+                    {resending ? 'Resending…' : 'Resend code'}
+                  </button>
                 </div>
-                <VerifyContact defaultPhone={form.phone} onVerified={() => navigate('/app')} />
-                <button onClick={() => navigate('/app')}
-                  className="w-full mt-4 text-xs text-vigno-muted hover:text-vigno-txt transition-colors">Skip for now →</button>
               </div>
             )}
           </div>

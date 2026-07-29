@@ -7,9 +7,17 @@ export const authApi = {
     const { data } = await api.post('/auth/login', { email, password })
     return data
   },
-  async signup(email, password, name, phone) {
-    const { data } = await api.post('/auth/signup', { email, password, name, ...(phone ? { phone } : {}) })
+  // Step 1 of registration — sends an OTP; returns { verificationRequired, email, sentTo, devCode? }.
+  async signup(email, password, name, phone, channel = 'email') {
+    const { data } = await api.post('/auth/signup', { email, password, name, channel, ...(phone ? { phone } : {}) })
     return data
+  },
+  // Step 2 — confirm the OTP → creates the account and returns { user, token }.
+  async verifySignup(email, code) {
+    return (await api.post('/auth/verify-signup', { email, code })).data
+  },
+  async resendSignupOtp(email) {
+    return (await api.post('/auth/resend-signup-otp', { email })).data
   },
   async me() {
     const { data } = await api.get('/auth/me')

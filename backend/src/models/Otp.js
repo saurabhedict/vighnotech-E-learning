@@ -12,7 +12,7 @@ const otpSchema = new mongoose.Schema(
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', index: true },
     purpose: {
       type: String,
-      enum: ['email_verify', 'password_reset', 'login_2fa'],
+      enum: ['email_verify', 'password_reset', 'login_2fa', 'signup'],
       required: true,
       index: true,
     },

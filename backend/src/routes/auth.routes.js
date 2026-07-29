@@ -8,7 +8,10 @@ import * as twoFA from '../controllers/twoFactor.controller.js'
 const router = Router()
 
 // ── Core auth ────────────────────────────────────────────────────────────────
+// Registration is a two-step OTP flow: signup (sends code) → verify-signup (creates account).
 router.post('/signup', authLimiter, validate({ body: auth.signupSchema }), auth.signup)
+router.post('/verify-signup', authLimiter, validate({ body: auth.verifySignupSchema }), auth.verifySignup)
+router.post('/resend-signup-otp', authLimiter, validate({ body: auth.resendSignupOtpSchema }), auth.resendSignupOtp)
 router.post('/login', authLimiter, validate({ body: auth.loginSchema }), auth.login)
 router.post('/2fa/verify', authLimiter, validate({ body: auth.verify2faSchema }), auth.verify2fa)
 router.post('/refresh', authLimiter, auth.refresh)

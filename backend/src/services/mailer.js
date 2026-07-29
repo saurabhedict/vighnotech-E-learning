@@ -47,6 +47,7 @@ const PURPOSE_LABEL = {
   email_verify: 'verify your email address',
   password_reset: 'reset your password',
   login_2fa: 'complete your sign-in',
+  signup: 'finish creating your account',
 }
 
 export function otpEmail(to, code, purpose) {
