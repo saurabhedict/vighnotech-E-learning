@@ -2,8 +2,10 @@ import { useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { filtersApi } from '../api/filtersApi'
+import { discoverApi } from '../api/discoverApi'
 import { useClasses } from '../hooks/useContent'
 import CourseCard from '../components/CourseCard'
+import ContentCard from '../components/ContentCard'
 import Breadcrumb from '../components/Breadcrumb'
 import CatalogFilterBar from '../components/CatalogFilterBar'
 
@@ -14,6 +16,7 @@ export default function Browse() {
   const optIds = (params.get('opts') || '').split(',').map((s) => s.trim()).filter(Boolean)
   const { data: cats } = useQuery({ queryKey: ['filters'], queryFn: filtersApi.list })
   const { data: courses, isLoading, isError } = useClasses()
+  const { data: resources } = useQuery({ queryKey: ['resources', 'standalone'], queryFn: discoverApi.standaloneResources })
 
   // Group the chosen option ids by their category, and collect labels to show.
   const { byCat, labels } = useMemo(() => {
@@ -44,11 +47,22 @@ export default function Browse() {
     })
   }, [courses, byCat])
 
+  // Individual resources tagged with the same filter options (same AND/OR logic).
+  const matchedResources = useMemo(() => {
+    if (!Array.isArray(resources)) return []
+    const catIds = Object.keys(byCat)
+    if (catIds.length === 0) return resources
+    return resources.filter((r) => {
+      const rf = Array.isArray(r.filters) ? r.filters.map(String) : []
+      return catIds.every((catId) => byCat[catId].some((oid) => rf.includes(String(oid))))
+    })
+  }, [resources, byCat])
+
   return (
     <div>
       <Breadcrumb trail="Browse" />
-      <h1 className="text-2xl font-extrabold text-vigno-txt tracking-tight mb-1">Browse courses</h1>
-      <p className="text-sm text-vigno-muted mb-5">Refine by content type and training program.</p>
+      <h1 className="text-2xl font-extrabold text-vigno-txt tracking-tight mb-1">Browse catalog</h1>
+      <p className="text-sm text-vigno-muted mb-5">Refine courses and resources by content type and training program.</p>
 
       <div className="mb-6"><CatalogFilterBar /></div>
 
@@ -69,15 +83,27 @@ export default function Browse() {
 
       {!isLoading && !isError && (
         <>
-          <p className="text-xs text-vigno-muted mb-4">{matches.length} course{matches.length === 1 ? '' : 's'}</p>
-          <div className="flex flex-wrap gap-6">
-            {matches.map((c) => (
-              <CourseCard key={typeof c === 'string' ? c : (c.slug || c._id)} course={c} />
-            ))}
-          </div>
-          {matches.length === 0 && (
-            <div className="py-12 text-center rounded-2xl border-2 border-dashed border-vigno-line/40">
-              <p className="text-vigno-muted text-sm">No courses match these filters yet.</p>
+          {/* Courses */}
+          <h2 className="text-sm font-bold text-vigno-txt mb-3">Courses <span className="text-vigno-muted font-medium">· {matches.length}</span></h2>
+          {matches.length === 0 ? (
+            <p className="text-sm text-vigno-muted mb-9">No courses match these filters.</p>
+          ) : (
+            <div className="flex flex-wrap gap-6 mb-10">
+              {matches.map((c) => (
+                <CourseCard key={typeof c === 'string' ? c : (c.slug || c._id)} course={c} />
+              ))}
+            </div>
+          )}
+
+          {/* Individual resources tagged with the same filters */}
+          <h2 className="text-sm font-bold text-vigno-txt mb-3">Individual resources <span className="text-vigno-muted font-medium">· {matchedResources.length}</span></h2>
+          {matchedResources.length === 0 ? (
+            <p className="text-sm text-vigno-muted">No resources match these filters.</p>
+          ) : (
+            <div className="flex flex-wrap gap-6">
+              {matchedResources.map((r) => (
+                <ContentCard key={r.id} item={r} />
+              ))}
             </div>
           )}
         </>

@@ -12,7 +12,7 @@ import { createMediaUrl } from '../services/storage.js'
 // Only the fields resolveCard() needs — keeps list payloads small and avoids
 // pulling heavy/secret-ish content fields (hls, drm, storageKey, tags…). Includes
 // thumbnail + preview fields so the redesigned cards still render their imagery.
-const CARD_FIELDS = 'title type lane isPaid price courseKey thumbnail thumbnailStorageKey previewText description'
+const CARD_FIELDS = 'title type lane isPaid price courseKey thumbnail thumbnailStorageKey previewText description filters'
 
 const resolveCard = async (c) => {
   let thumbnailStorageKey = c.thumbnailStorageKey || ''
@@ -41,6 +41,7 @@ const resolveCard = async (c) => {
     thumbnailUrl: thumbnail || '',
     previewText: c.previewText || '',
     description: c.description || '',
+    filters: Array.isArray(c.filters) ? c.filters.map(String) : [],
   }
 }
 

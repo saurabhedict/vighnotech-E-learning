@@ -64,6 +64,9 @@ const contentSchema = new mongoose.Schema(
     durationSec: { type: Number },
     sizeBytes: { type: Number },
     tags: { type: [String], default: [] },
+    // Catalog filter option IDs assigned to this item (same categories/options as
+    // courses use in meta.filters) — so individual resources are filterable too.
+    filters: { type: [String], default: [], index: true },
     thumbnail: { type: String, default: '' },
     thumbnailStorageKey: { type: String, default: '' },
     previewText: { type: String, default: '' },
@@ -97,6 +100,7 @@ contentSchema.methods.toCatalogJSON = function toCatalogJSON() {
     durationSec: this.durationSec,
     thumbnailUrl: this.thumbnail,
     previewText: this.previewText,
+    filters: this.filters || [],
   }
 }
 

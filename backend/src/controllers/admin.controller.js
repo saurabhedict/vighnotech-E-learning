@@ -242,7 +242,7 @@ export const createContent = asyncHandler(async (req, res) => {
 export const updateContent = asyncHandler(async (req, res) => {
   const content = await Content.findById(req.params.id)
   if (!content) throw notFound('Content not found')
-  const allowed = ['title', 'description', 'type', 'lane', 'isPaid', 'price', 'externalUrl', 'order', 'published', 'tags', 'thumbnail', 'previewText', 'identifier']
+  const allowed = ['title', 'description', 'type', 'lane', 'isPaid', 'price', 'externalUrl', 'order', 'published', 'tags', 'thumbnail', 'previewText', 'identifier', 'filters']
   for (const k of allowed) if (req.body[k] !== undefined) content[k] = req.body[k]
   // The APK activation lookup matches on a trimmed identifier — store it trimmed so
   // a stray space pasted into the CMS can never cause a "404 unknown identifier".

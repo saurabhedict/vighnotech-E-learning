@@ -805,6 +805,7 @@ function LessonDetailsEditor({ lesson, onSave }) {
   const [thumb, setThumb] = useState(lesson.thumbnailUrl || '')
   const [identifier, setIdentifier] = useState(lesson.identifier || '') // APK activation code
   const [linkUrl, setLinkUrl] = useState(lesson.externalUrl || '') // 'link' destination
+  const [filterSel, setFilterSel] = useState(Array.isArray(lesson.filters) ? lesson.filters : []) // catalog filter tags
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState('')
 
@@ -917,9 +918,16 @@ function LessonDetailsEditor({ lesson, onSave }) {
         </div>
       </div>
 
+      {/* Catalog filter tags — same categories/options courses use, so this resource
+          shows up under the matching catalog filters. */}
+      <div className="space-y-2 bg-black/10 border border-vigno-line/45 rounded-xl p-3">
+        <label className="text-[10px] text-vigno-muted font-bold block uppercase tracking-wider">Catalog Filters / Tags</label>
+        <CourseFilterPicker selected={filterSel} onChange={setFilterSel} />
+      </div>
+
       <div className="flex justify-end pt-1">
         <button
-          onClick={() => onSave({ description: desc, previewText, thumbnailUrl: thumb, ...(lesson.type === 'apk' ? { identifier: identifier.trim() } : {}), ...(lesson.type === 'link' ? { externalUrl: linkUrl.trim() } : {}) })}
+          onClick={() => onSave({ description: desc, previewText, thumbnailUrl: thumb, filters: filterSel, ...(lesson.type === 'apk' ? { identifier: identifier.trim() } : {}), ...(lesson.type === 'link' ? { externalUrl: linkUrl.trim() } : {}) })}
           className="bg-vigno-accent text-vigno-bg1 font-extrabold px-3 py-1.5 rounded-lg text-[11px] flex items-center gap-1.5"
         >
           <CheckIcon className="w-3.5 h-3.5" />
