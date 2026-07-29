@@ -23,29 +23,31 @@ export async function issueOtp({ email, userId, purpose, channel = 'email', to }
   await Otp.create({ ...identity, email: email || undefined, purpose, channel, codeHash, expiresAt })
 
   const dest = to || email
-  // `viaConsole` = the delivery provider for this channel isn't configured, so the
-  // code was only logged to the server console. Callers may use this hint.
-  const viaConsole = channel === 'email' ? !env.email.configured : !env.sms.configured
-
-  // Deliver in the BACKGROUND. A slow or timing-out SMTP/Twilio handshake must NEVER
-  // make the user wait on "Sending…", so we do NOT await it — the OTP is already
-  // persisted (above) and the request returns immediately. Delivery failures are
-  // logged; non-prod callers also return the code so the flow never stalls.
-  const deliver = async () => {
+  // Try to deliver the code to the user's real inbox/phone. `delivered` = it went
+  // out via a configured provider; false = the provider is unconfigured OR the send
+  // failed (bad creds, host blocks outbound SMTP, timeout…). Callers surface the
+  // code as a fallback ONLY when it was NOT delivered (non-prod) — so a working
+  // provider means the user gets the code in their inbox and types it in. The
+  // transport timeouts in mailer.js bound how long a broken provider can stall this.
+  let delivered = false
+  try {
     if (channel === 'sms') {
       await sendSms(dest, `Your ${env.app.name} verification code is ${code}. It expires in ${env.otp.ttlMin} min.`)
+      delivered = env.sms.configured
     } else if (channel === 'whatsapp') {
       await sendWhatsApp(dest, `Your ${env.app.name} verification code is *${code}*. It expires in ${env.otp.ttlMin} min.`)
+      delivered = env.sms.configured
     } else {
       await sendMail(otpEmail(dest, code, purpose))
+      delivered = env.email.configured
     }
-  }
-  deliver().catch((err) => {
+  } catch (err) {
     // eslint-disable-next-line no-console
     console.warn(`[otp] ${channel} delivery failed: ${err?.message}`)
-  })
-
-  return { code, viaConsole }
+    if (env.isProd) throw err // production must not silently drop the code
+    delivered = false
+  }
+  return { code, delivered }
 }
 
 /**

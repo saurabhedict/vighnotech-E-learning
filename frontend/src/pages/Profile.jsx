@@ -74,7 +74,7 @@ function ChangePassword() {
       setMsg({ ok: true, text: 'Password changed. Other sessions were signed out.' })
       setCur(''); setNext('')
     } catch (err) { setMsg({ ok: false, text: apiErrorMessage(err, 'Could not change password') }) }
-    finally { setLoading(false) }
+    finally { setLoading('') }
   }
   return (
     <form onSubmit={submit}>
@@ -107,7 +107,7 @@ function AddPhone() {
       dispatch(setUser(r.user))
       setMsg({ ok: true, text: 'Number saved. Close this and tap “Verify” to confirm it.' })
     } catch (err) { setMsg({ ok: false, text: apiErrorMessage(err, 'Could not save number') }) }
-    finally { setLoading(false) }
+    finally { setLoading('') }
   }
 
   const numCls = 'flex-1 px-3 py-2.5 rounded-lg bg-vigno-bg2 border border-vigno-line text-sm outline-none tracking-wider'
@@ -161,7 +161,9 @@ function TwoFactor({ onVerifyEmail }) {
   const [pwd, setPwd] = useState('')
   const [backup, setBackup] = useState(null)
   const [msg, setMsg] = useState(null)
-  const [loading, setLoading] = useState(false)
+  // Which action is in flight ('' = idle). Per-action so only the clicked button
+  // shows a spinner (a shared boolean made every button show "…" at once).
+  const [loading, setLoading] = useState('')
 
   const refreshUser = async () => {
     try { dispatch(setUser(await authApi.me())) }
@@ -169,47 +171,47 @@ function TwoFactor({ onVerifyEmail }) {
   }
 
   const regenerate = async (e) => {
-    e.preventDefault(); setMsg(null); setLoading(true)
+    e.preventDefault(); setMsg(null); setLoading('regenerate')
     try {
       const r = await authApi.twoFA.regenerateBackupCodes(pwd); setPwd('')
       setBackup(r.backupCodes)
       setMsg({ ok: true, text: 'New backup codes generated — save them.' })
     } catch (err) { setMsg({ ok: false, text: apiErrorMessage(err, 'Could not regenerate') }) }
-    finally { setLoading(false) }
+    finally { setLoading('') }
   }
 
   const startTotp = async () => {
-    setMsg(null); setLoading(true)
+    setMsg(null); setLoading('totp')
     try { setSetup(await authApi.twoFA.setupTotp()) }
     catch (err) { setMsg({ ok: false, text: apiErrorMessage(err) }) }
-    finally { setLoading(false) }
+    finally { setLoading('') }
   }
   const enableTotp = async (e) => {
-    e.preventDefault(); setMsg(null); setLoading(true)
+    e.preventDefault(); setMsg(null); setLoading('totp-enable')
     try {
       const r = await authApi.twoFA.enableTotp(code.trim())
       setBackup(r.backupCodes); setSetup(null); setCode('')
       await refreshUser()
       setMsg({ ok: true, text: 'Authenticator 2FA enabled.' })
     } catch (err) { setMsg({ ok: false, text: apiErrorMessage(err, 'Could not enable') }) }
-    finally { setLoading(false) }
+    finally { setLoading('') }
   }
   const enableEmail = async () => {
-    setMsg(null); setLoading(true)
+    setMsg(null); setLoading('email')
     try {
       const r = await authApi.twoFA.enableEmail()
       setBackup(r.backupCodes); await refreshUser()
       setMsg({ ok: true, text: 'Email 2FA enabled.' })
     } catch (err) { setMsg({ ok: false, text: apiErrorMessage(err, 'Could not enable email 2FA') }) }
-    finally { setLoading(false) }
+    finally { setLoading('') }
   }
   const disable = async (e) => {
-    e.preventDefault(); setMsg(null); setLoading(true)
+    e.preventDefault(); setMsg(null); setLoading('disable')
     try {
       await authApi.twoFA.disable(pwd); setPwd(''); setBackup(null); await refreshUser()
       setMsg({ ok: true, text: '2FA disabled.' })
     } catch (err) { setMsg({ ok: false, text: apiErrorMessage(err, 'Could not disable') }) }
-    finally { setLoading(false) }
+    finally { setLoading('') }
   }
 
   if (user?.twoFAEnabled) {
@@ -219,8 +221,8 @@ function TwoFactor({ onVerifyEmail }) {
         <p className="text-sm text-green-300 mb-3 text-center">✓ Two-factor is ON ({user.twoFAMethod === 'totp' ? 'authenticator app' : 'email codes'}).</p>
         <input type="password" value={pwd} onChange={(e) => setPwd(e.target.value)} placeholder="Confirm password" className={input + ' w-full mb-2'} />
         <div className="flex gap-2 justify-center flex-wrap">
-          <button disabled={loading || !pwd} onClick={disable} className={btnGhost}>{loading ? '…' : 'Disable 2FA'}</button>
-          <button disabled={loading || !pwd} onClick={regenerate} className={btnGhost}>{loading ? '…' : 'Regenerate backup codes'}</button>
+          <button disabled={!!loading || !pwd} onClick={disable} className={btnGhost}>{loading === 'disable' ? '…' : 'Disable 2FA'}</button>
+          <button disabled={!!loading || !pwd} onClick={regenerate} className={btnGhost}>{loading === 'regenerate' ? '…' : 'Regenerate backup codes'}</button>
         </div>
         <BackupCodes codes={backup} />
       </div>
@@ -241,7 +243,7 @@ function TwoFactor({ onVerifyEmail }) {
               <div className="text-sm font-semibold">Authenticator app</div>
               <div className="text-xs text-vigno-muted">Google Authenticator / Authy — works offline.</div>
             </div>
-            <button onClick={startTotp} disabled={loading} className={btn}>{loading ? '…' : 'Set up'}</button>
+            <button onClick={startTotp} disabled={!!loading} className={btn}>{loading === 'totp' ? '…' : 'Set up'}</button>
           </div>
 
           {/* Email OTP codes */}
@@ -256,7 +258,7 @@ function TwoFactor({ onVerifyEmail }) {
               </div>
             </div>
             {user?.emailVerified
-              ? <button onClick={enableEmail} disabled={loading} className={btn}>{loading ? '…' : 'Enable'}</button>
+              ? <button onClick={enableEmail} disabled={!!loading} className={btn}>{loading === 'email' ? '…' : 'Enable'}</button>
               : <button type="button" onClick={onVerifyEmail} className="text-xs font-semibold text-vigno-accent2 hover:underline whitespace-nowrap">Verify email first →</button>}
           </div>
         </div>
@@ -268,7 +270,7 @@ function TwoFactor({ onVerifyEmail }) {
           <p className="text-sm mb-2">2. Enter the 6-digit code it shows:</p>
           <div className="flex gap-2 items-start">
             <input value={code} onChange={(e) => setCode(e.target.value)} placeholder="123456" className={input + ' max-w-[160px] tracking-widest'} />
-            <button disabled={loading} className={btn}>{loading ? 'Enabling…' : 'Enable'}</button>
+            <button disabled={!!loading} className={btn}>{loading === 'totp-enable' ? 'Enabling…' : 'Enable'}</button>
             <button type="button" onClick={() => setSetup(null)} className={btnGhost}>Cancel</button>
           </div>
         </form>
@@ -339,7 +341,7 @@ function DeleteAccount() {
       navigate('/')
     } catch (err) {
       setMsg({ ok: false, text: apiErrorMessage(err, 'Could not delete account') })
-    } finally { setLoading(false) }
+    } finally { setLoading('') }
   }
 
   return (

@@ -17,6 +17,11 @@ function getTransport() {
       port: env.email.port,
       secure: env.email.port === 465, // 465 = implicit TLS, else STARTTLS
       auth: { user: env.email.user, pass: env.email.pass },
+      // Fail fast instead of hanging ~30s when the host blocks outbound SMTP
+      // (common on PaaS free tiers) or the server is unreachable.
+      connectionTimeout: 8000,
+      greetingTimeout: 8000,
+      socketTimeout: 10000,
     })
   } else {
     transport = null // dev console fallback
