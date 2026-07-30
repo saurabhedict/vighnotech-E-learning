@@ -805,6 +805,7 @@ function LessonDetailsEditor({ lesson, onSave }) {
   const [thumb, setThumb] = useState(lesson.thumbnailUrl || '')
   const [identifier, setIdentifier] = useState(lesson.identifier || '') // APK activation code
   const [linkUrl, setLinkUrl] = useState(lesson.externalUrl || '') // 'link' destination
+  const [linkExternal, setLinkExternal] = useState(!!lesson.linkExternal) // open in new tab
   const [filterSel, setFilterSel] = useState(Array.isArray(lesson.filters) ? lesson.filters : []) // catalog filter tags
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState('')
@@ -850,6 +851,10 @@ function LessonDetailsEditor({ lesson, onSave }) {
             className="w-full px-2 py-1 rounded-md bg-vigno-bg2 border border-vigno-line/50 outline-none font-mono"
           />
           <p className="text-[9px] text-vigno-muted">Opens inside the app via a server-side proxy. Users never see or can copy this URL.</p>
+          <label className="flex items-start gap-2 mt-1 cursor-pointer text-[10px] text-vigno-muted">
+            <input type="checkbox" checked={linkExternal} onChange={(e) => setLinkExternal(e.target.checked)} className="mt-0.5 accent-vigno-accent" />
+            <span>Open in a new tab (external) — use for web-apps like Figma / Adobe XD that can’t be embedded. The URL becomes visible. Unchecked = hidden secure viewer.</span>
+          </label>
         </div>
       )}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -927,7 +932,7 @@ function LessonDetailsEditor({ lesson, onSave }) {
 
       <div className="flex justify-end pt-1">
         <button
-          onClick={() => onSave({ description: desc, previewText, thumbnailUrl: thumb, filters: filterSel, ...(lesson.type === 'apk' ? { identifier: identifier.trim() } : {}), ...(lesson.type === 'link' ? { externalUrl: linkUrl.trim() } : {}) })}
+          onClick={() => onSave({ description: desc, previewText, thumbnailUrl: thumb, filters: filterSel, ...(lesson.type === 'apk' ? { identifier: identifier.trim() } : {}), ...(lesson.type === 'link' ? { externalUrl: linkUrl.trim(), linkExternal } : {}) })}
           className="bg-vigno-accent text-vigno-bg1 font-extrabold px-3 py-1.5 rounded-lg text-[11px] flex items-center gap-1.5"
         >
           <CheckIcon className="w-3.5 h-3.5" />
@@ -1544,6 +1549,7 @@ function StandaloneResourcesManager({ isDark }) {
   const [type, setType] = useState('video')
   const [identifier, setIdentifier] = useState('') // APK product code (Android lane)
   const [linkUrl, setLinkUrl] = useState('') // destination for a 'link' resource
+  const [linkExternal, setLinkExternal] = useState(false) // open in new tab vs secure proxy
   const [price, setPrice] = useState('')
   const [adding, setAdding] = useState(false)
   const [metaOpenId, setMetaOpenId] = useState(null)
@@ -1572,12 +1578,13 @@ function StandaloneResourcesManager({ isDark }) {
         type,
         price: priceNum,
         ...(type === 'apk' && identifier.trim() ? { identifier: identifier.trim() } : {}),
-        ...(isLink ? { url: linkUrl.trim() } : {}),
+        ...(isLink ? { url: linkUrl.trim(), linkExternal } : {}),
       })
       setTitle('')
       setPrice('')
       setIdentifier('')
       setLinkUrl('')
+      setLinkExternal(false)
       qc.invalidateQueries({ queryKey: ['admin', 'resources'] })
     } catch (err) {
       alert(apiErrorMessage(err, 'Failed to add resource'))
@@ -1697,6 +1704,10 @@ function StandaloneResourcesManager({ isDark }) {
                 title="Opens hidden inside the app via a server-side proxy — users never see this URL."
                 className="px-3.5 py-2.5 rounded-xl bg-vigno-bg2/60 border border-vigno-line/60 text-sm text-vigno-txt outline-none transition-all w-full"
               />
+              <label className="flex items-start gap-2 mt-1 cursor-pointer text-[11px] text-vigno-muted">
+                <input type="checkbox" checked={linkExternal} onChange={(e) => setLinkExternal(e.target.checked)} className="mt-0.5 accent-vigno-accent" />
+                <span>Open in a new tab (external). Use for web-apps like Figma / Adobe XD / Google Docs that can’t be embedded — the URL becomes visible. Leave unchecked to keep it hidden in the secure viewer.</span>
+              </label>
             </div>
           )}
           <div className="flex flex-col gap-1 w-full">

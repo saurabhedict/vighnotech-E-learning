@@ -7,7 +7,7 @@ const onProg = (cb) => (e) => { if (cb && e.total) cb(Math.round((e.loaded / e.t
 // Uploads the file first (using the existing S3 presigned flow), then returns
 // a plain metadata object ready to POST.
 async function prepareResource(resourceData, onProgress) {
-  const { type, title, file, url, quizJson, opts, price, identifier } = resourceData
+  const { type, title, file, url, quizJson, opts, price, identifier, linkExternal } = resourceData
   let fileUrl = url || null
 
   if (file) {
@@ -31,6 +31,8 @@ async function prepareResource(resourceData, onProgress) {
     // APK product code (Android lane) — was being dropped here, so it never
     // reached the server and stayed "" in the DB. Pass it through (trimmed).
     ...(identifier && String(identifier).trim() ? { identifier: String(identifier).trim() } : {}),
+    // 'link' open mode (secure proxy vs open-in-new-tab).
+    ...(linkExternal !== undefined ? { linkExternal: !!linkExternal } : {}),
   }
 }
 

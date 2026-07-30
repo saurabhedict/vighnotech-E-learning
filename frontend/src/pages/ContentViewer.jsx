@@ -97,6 +97,29 @@ export default function ContentViewer() {
   // and the page below), served through our server-side proxy so the real URL is
   // never exposed to the browser. Paid-but-unowned links fall through to the buy
   // landing below; once owned/free, getContent returns a signed viewUrl.
+  // External link → open the real page in a NEW TAB. For web-apps (Figma/XD/Docs)
+  // that can't run inside the proxy. The admin opted into revealing the URL here.
+  if (item.type === 'link' && !item.locked && item.external && item.url) {
+    return (
+      <div className="max-w-2xl mx-auto py-16 text-center space-y-5">
+        <div className="text-sm text-vigno-muted">
+          <Link to="/app" className="text-vigno-accent2 hover:underline">Dashboard</Link> › {item.title}
+        </div>
+        <div className="text-5xl">🔗</div>
+        <h1 className="text-2xl font-black text-vigno-txt">{item.title}</h1>
+        {item.description && <p className="text-sm text-vigno-muted max-w-md mx-auto leading-relaxed">{item.description}</p>}
+        <p className="text-xs text-vigno-muted max-w-md mx-auto">This resource opens in a new browser tab.</p>
+        <div className="flex items-center justify-center gap-3 pt-2">
+          <button onClick={() => navigate(-1)} className="px-4 py-2.5 rounded-xl border border-vigno-line text-sm font-semibold text-vigno-txt hover:bg-white/5 transition-colors">← Back</button>
+          <a href={item.url} target="_blank" rel="noopener noreferrer" className="px-5 py-2.5 rounded-xl bg-vigno-accent text-vigno-accent-txt font-black text-sm hover:brightness-110 inline-flex items-center gap-2 transition-all">
+            Open “{item.title}” ↗
+          </a>
+        </div>
+      </div>
+    )
+  }
+
+  // Secure in-app viewer (proxy) — URL stays hidden.
   if (item.type === 'link' && !item.locked && item.viewUrl) {
     return (
       <div className="fixed inset-0 z-40 flex flex-col bg-vigno-bg1">

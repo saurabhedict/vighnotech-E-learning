@@ -42,8 +42,12 @@ const contentSchema = new mongoose.Schema(
       rawKey: { type: String, default: '', select: false },
       error: { type: String, default: '' },
     },
-    // For external HLS/test streams used in the demo viewer.
+    // For external HLS/test streams used in the demo viewer, and the destination
+    // of a 'link' content item.
     externalUrl: { type: String, default: '' },
+    // 'link' open mode: false = secure in-app proxy (URL hidden); true = open the
+    // real URL in a new tab (for web-apps like Figma/XD that can't be embedded).
+    linkExternal: { type: Boolean, default: false },
 
     // Adaptive HLS transcode (AWS MediaConvert). When `status === 'ready'`, the
     // stream lane serves `masterKey` (the multi-bitrate .m3u8) instead of the raw

@@ -83,9 +83,14 @@ export const getContent = asyncHandler(async (req, res) => {
     return res.json({ ...base, locked: true })
   }
 
-  // Link content: hand back a signed, short-lived PROXY url — the real destination
-  // is stored server-side and fetched by the proxy, so it never reaches the browser.
+  // Link content. Secure mode (default): a signed, short-lived PROXY url — the real
+  // destination stays server-side, never reaching the browser. External mode: the
+  // page is a web-app that can't be embedded, so we return the real URL to open in
+  // a new tab (the admin opted into revealing it for this link).
   if (content.type === 'link') {
+    if (content.linkExternal) {
+      return res.json({ ...base, locked: false, link: true, external: true, url: content.externalUrl })
+    }
     const viewUrl = buildLinkViewUrl(req, { contentId: content._id.toString(), userId: req.user?.id || 'anon' })
     return res.json({ ...base, locked: false, link: true, viewUrl })
   }

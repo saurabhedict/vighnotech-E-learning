@@ -242,7 +242,7 @@ export const createContent = asyncHandler(async (req, res) => {
 export const updateContent = asyncHandler(async (req, res) => {
   const content = await Content.findById(req.params.id)
   if (!content) throw notFound('Content not found')
-  const allowed = ['title', 'description', 'type', 'lane', 'isPaid', 'price', 'externalUrl', 'order', 'published', 'tags', 'thumbnail', 'previewText', 'identifier', 'filters']
+  const allowed = ['title', 'description', 'type', 'lane', 'isPaid', 'price', 'externalUrl', 'order', 'published', 'tags', 'thumbnail', 'previewText', 'identifier', 'filters', 'linkExternal']
   for (const k of allowed) if (req.body[k] !== undefined) content[k] = req.body[k]
   // The APK activation lookup matches on a trimmed identifier — store it trimmed so
   // a stray space pasted into the CMS can never cause a "404 unknown identifier".
@@ -705,7 +705,7 @@ async function getOrCreateStandaloneChapterId() {
 }
 
 export const createStandaloneResource = asyncHandler(async (req, res) => {
-  const { title, type, price, identifier, url } = req.body
+  const { title, type, price, identifier, url, linkExternal } = req.body
   if (!title || !String(title).trim()) throw badRequest('Resource title is required')
   if (!CONTENT_TYPES.includes(type)) throw badRequest('Invalid resource type')
 
@@ -731,8 +731,9 @@ export const createStandaloneResource = asyncHandler(async (req, res) => {
     lane: defaultLaneForType(type),
     // APK product code (Android lane) — the app sends this to /activateapp.
     ...(identifier && String(identifier).trim() ? { identifier: String(identifier).trim() } : {}),
-    // 'link' destination — stored server-side; served only via the hidden proxy.
-    ...(isLink ? { externalUrl: String(url).trim() } : {}),
+    // 'link' destination — stored server-side; served only via the hidden proxy
+    // (unless linkExternal, where it opens in a new tab for un-embeddable web-apps).
+    ...(isLink ? { externalUrl: String(url).trim(), linkExternal: !!linkExternal } : {}),
   })
   audit(req, 'cms.resource.create', { targetType: 'Content', targetId: content._id })
   res.status(201).json(content)

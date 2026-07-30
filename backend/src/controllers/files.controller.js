@@ -532,13 +532,17 @@ export const proxyLink = asyncHandler(async (req, res) => {
   res.set('Content-Type', ct)
 
   // For HTML, inject <base> so the page's relative assets resolve against the real
-  // origin (only the browser fetches them; the URL is never shown in our UI).
+  // origin (only the browser fetches them; the URL is never shown in our UI). Also
+  // neutralise history.pushState/replaceState — SPAs call them with THEIR own-origin
+  // URL, which throws a cross-origin SecurityError inside our proxy document and
+  // crashes the page. Swallowing that keeps history-using pages from breaking.
   if (ct.includes('text/html')) {
     let html = buf.toString('utf8')
     const origin = new URL(upstream.url || target).origin
-    const baseTag = `<base href="${origin}/"><meta name="referrer" content="no-referrer">`
-    if (/<head[^>]*>/i.test(html)) html = html.replace(/<head[^>]*>/i, (m) => `${m}${baseTag}`)
-    else html = `<!doctype html><head>${baseTag}</head>${html}`
+    const guard = `<script>(function(){try{var h=window.history;['pushState','replaceState'].forEach(function(m){var o=h[m];h[m]=function(){try{return o.apply(h,arguments)}catch(e){}}});}catch(e){}})();</script>`
+    const inject = `<base href="${origin}/"><meta name="referrer" content="no-referrer">${guard}`
+    if (/<head[^>]*>/i.test(html)) html = html.replace(/<head[^>]*>/i, (m) => `${m}${inject}`)
+    else html = `<!doctype html><head>${inject}</head>${html}`
     return res.send(html)
   }
   return res.send(buf)
