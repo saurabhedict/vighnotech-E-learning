@@ -10,7 +10,7 @@ const { spawn, execSync } = require('node:child_process')
 const { pipeline } = require('node:stream/promises')
 const yauzl = require('yauzl')
 
-const API = process.env.VIGNO_API || 'https://vigno-smart-class-api.onrender.com/api'
+const API = process.env.VIGNO_API || 'https://learning-and-content-management-proto.onrender.com/api'
 const DATA_DIR = path.join(app.getPath('userData'), 'vigno')
 const DL_DIR = path.join(DATA_DIR, 'downloads')
 
