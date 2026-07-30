@@ -20,6 +20,23 @@ const PUB = path.join(KEY_DIR, 'game-license-public.pem')
 let keys = null
 function loadKeys() {
   if (keys) return keys
+  // 1) Prefer a key injected via env (deployment-friendly; survives an ephemeral
+  //    filesystem). This is REQUIRED in the cloud: the file below is gitignored, so
+  //    without an env key each deploy would generate its own throwaway keypair and
+  //    the game — built against ONE fixed public key — rejects every token.
+  const envPriv = env.security.gameLicensePrivateKey
+  if (envPriv) {
+    const privateKey = envPriv
+    // Derive the public half from the private key when not supplied, so the two
+    // can never drift apart.
+    const publicKey =
+      env.security.gameLicensePublicKey ||
+      crypto.createPublicKey(privateKey).export({ type: 'spki', format: 'pem' })
+    keys = { privateKey, publicKey, source: 'env' }
+    logKeyInfo()
+    return keys
+  }
+  // 2) Fall back to a file at LICENSE_KEY_DIR (dev/local), generating one if absent.
   fs.mkdirSync(KEY_DIR, { recursive: true })
   if (!fs.existsSync(PRIV)) {
     const { privateKey, publicKey } = crypto.generateKeyPairSync('rsa', {
@@ -30,8 +47,21 @@ function loadKeys() {
     fs.writeFileSync(PRIV, privateKey)
     fs.writeFileSync(PUB, publicKey)
   }
-  keys = { privateKey: fs.readFileSync(PRIV, 'utf8'), publicKey: fs.readFileSync(PUB, 'utf8') }
+  keys = { privateKey: fs.readFileSync(PRIV, 'utf8'), publicKey: fs.readFileSync(PUB, 'utf8'), source: 'file' }
+  logKeyInfo()
   return keys
+}
+
+// Log the active signing key's source + public modulus prefix on first use. This
+// makes a key mismatch (game "Invalid license signature") diagnosable at a glance:
+// compare the modulus here with the one baked into the game / served at
+// /.well-known/game-license-public-key.
+function logKeyInfo() {
+  try {
+    const mod = crypto.createPublicKey(keys.publicKey).export({ format: 'jwk' }).n
+    // eslint-disable-next-line no-console
+    console.log(`[gameLicense] signing key source=${keys.source} modulus=${mod.slice(0, 16)}…`)
+  } catch { /* non-fatal */ }
 }
 
 const b64url = (buf) => Buffer.from(buf).toString('base64url')

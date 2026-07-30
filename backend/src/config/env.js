@@ -70,6 +70,15 @@ export const env = {
     // that blends in, e.g. app.dat — the game's guard script must read the same name).
     gameLicenseTtlMinutes: num(process.env.GAME_LICENSE_TTL_MINUTES, 120),
     licenseGuardFile: process.env.LICENSE_GUARD_FILE || 'app.dat',
+    // Signing keypair for the in-game LicenseGuard token. The keyDir FILE is
+    // dev-only and gitignored, so it NEVER reaches a cloud deploy — without this,
+    // each deploy silently generates a THROWAWAY keypair the game can't verify
+    // (game quits with "Invalid license signature"). Set GAME_LICENSE_PRIVATE_KEY
+    // on the server to the SAME key whose public half is baked into the game build.
+    // Paste the full PEM (multi-line, or single-line with \n). If the public key is
+    // omitted it's derived from the private one. Takes precedence over the file.
+    gameLicensePrivateKey: (process.env.GAME_LICENSE_PRIVATE_KEY || '').replace(/\\n/g, '\n'),
+    gameLicensePublicKey: (process.env.GAME_LICENSE_PUBLIC_KEY || '').replace(/\\n/g, '\n'),
   },
 
   razorpay: {
