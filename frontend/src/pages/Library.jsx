@@ -239,7 +239,7 @@ export default function Library() {
         </div>
         <div>
           <h1 className="text-3xl md:text-4xl font-black tracking-tight text-vigno-txt">My Learning</h1>
-          <p className="text-sm font-medium text-vigno-muted mt-1.5">All your purchased courses and study materials in one organized space</p>
+          <p className="text-sm font-medium text-vigno-muted mt-1.5">{isClient ? 'The courses your provider has assigned to you, all in one place' : 'All your purchased courses and study materials in one organized space'}</p>
         </div>
       </div>
 
@@ -277,7 +277,24 @@ export default function Library() {
           {licenses.isLoading && <p className="text-vigno-muted text-sm py-8 text-center">Loading your courses…</p>}
           {licenses.isError && <p className="text-red-300 text-sm py-8 text-center">Failed to load purchases.</p>}
           
-          {!licenses.isLoading && courseKeys.length === 0 && individualResourceLicenses.length === 0 && (
+          {/* CLIENT empty state: no catalog/browse — access is granted by the provider/admin. */}
+          {!licenses.isLoading && isClient && courseKeys.length === 0 && individualResourceLicenses.length === 0 && (
+            <div className={`text-center py-20 rounded-2xl border-2 border-dashed ${isDark ? 'border-vigno-line/40 bg-vigno-bg2/30' : 'border-vigno-line/60 bg-white/10'}`}>
+              <div className="flex justify-center mb-4">
+                <div className="w-16 h-16 rounded-full bg-vigno-accent/10 flex items-center justify-center">
+                  <BookSvg className="w-8 h-8 text-vigno-muted" />
+                </div>
+              </div>
+              <p className="text-lg font-extrabold text-vigno-txt mb-2">No courses assigned yet</p>
+              <p className="text-sm text-vigno-muted max-w-md mx-auto">
+                Your account doesn’t have any courses yet. Courses are assigned to you by your provider —
+                please contact your provider or administrator to get access.
+              </p>
+            </div>
+          )}
+
+          {/* Normal user empty state: prompt to explore the catalog. */}
+          {!licenses.isLoading && !isClient && courseKeys.length === 0 && individualResourceLicenses.length === 0 && (
             <div className={`text-center py-20 rounded-2xl border-2 border-dashed ${isDark ? 'border-vigno-line/40 bg-vigno-bg2/30' : 'border-vigno-line/60 bg-white/10'}`}>
               <div className="flex justify-center mb-4">
                 <div className="w-16 h-16 rounded-full bg-vigno-accent/10 flex items-center justify-center">
