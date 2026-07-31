@@ -78,6 +78,16 @@ export const adminApi = {
   deleteUser(id) {
     return api.delete(`/admin/users/${id}`).then((r) => r.data)
   },
+  // Active login "places" (web / launcher / apk) for a user.
+  listUserSessions(id) {
+    return api.get(`/admin/users/${id}/sessions`).then((r) => r.data)
+  },
+  revokeUserSession(id, sid) {
+    return api.delete(`/admin/users/${id}/sessions/${sid}`).then((r) => r.data)
+  },
+  revokeAllUserSessions(id) {
+    return api.delete(`/admin/users/${id}/sessions`).then((r) => r.data)
+  },
 
   // ── Clients (admin-provisioned accounts + direct course grants) ──────────────
   createClient(payload) {

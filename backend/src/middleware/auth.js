@@ -15,10 +15,11 @@ function readToken(req) {
 }
 
 /**
- * Verify the access token AND enforce a single active session: the token's
- * version must match the user's current tokenVersion, which is bumped on every
- * login (so logging in elsewhere invalidates this token), password change and
- * logout-all. Returns { id, role, email } or null.
+ * Verify the access token and enforce the per-session gate: the token's `sid`
+ * must still be a live login "place" in user.sessions (evicted-by-cap / revoked /
+ * logged-out sessions are rejected). Legacy tokens with no `sid` (minted before
+ * multi-session) fall back to the single-session tokenVersion check so nobody is
+ * force-logged-out on deploy. Returns { id, role, email, sid? } or null.
  */
 async function resolveUser(req) {
   const token = readToken(req)
@@ -30,10 +31,32 @@ async function resolveUser(req) {
     return null
   }
   if (p.typ !== 'access') return null
-  const user = await User.findById(p.sub).select('tokenVersion role email').lean()
+  const user = await User.findById(p.sub).select('tokenVersion role email sessions').lean()
   if (!user) return null
-  if ((user.tokenVersion || 0) !== (p.ver || 0)) return null // signed in elsewhere / revoked
+
+  if (p.sid) {
+    const sess = (user.sessions || []).find((s) => s.sid === p.sid)
+    if (!sess) return null // evicted by the cap / revoked / logged out
+    if (sess.expiresAt && new Date(sess.expiresAt).getTime() < Date.now()) {
+      pruneSession(user._id, p.sid) // 72h hard lifetime reached
+      return null
+    }
+    touchSession(user._id, p.sid, sess.lastSeenAt)
+    return { id: String(user._id), role: user.role, email: user.email, sid: p.sid }
+  }
+  if ((user.tokenVersion || 0) !== (p.ver || 0)) return null // legacy single-session gate
   return { id: String(user._id), role: user.role, email: user.email }
+}
+
+// Throttled (~60s) last-active bump — fire-and-forget so auth stays fast.
+function touchSession(userId, sid, lastSeenAt) {
+  if (lastSeenAt && Date.now() - new Date(lastSeenAt).getTime() < 60_000) return
+  User.updateOne({ _id: userId, 'sessions.sid': sid }, { $set: { 'sessions.$.lastSeenAt': new Date() } }).catch(() => {})
+}
+
+// Drop an expired session so it stops counting toward the cap (fire-and-forget).
+function pruneSession(userId, sid) {
+  User.updateOne({ _id: userId }, { $pull: { sessions: { sid } } }).catch(() => {})
 }
 
 // Hard gate — 401 if not authenticated (or the session was superseded).

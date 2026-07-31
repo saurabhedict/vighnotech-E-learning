@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { CONTENT_TYPES, CONTENT_LANES, USER_ROLES, ROLES, defaultLaneForType } from '@vigno/shared'
+import { env } from '../config/env.js'
 import { asyncHandler } from '../utils/asyncHandler.js'
 import { audit } from '../utils/audit.js'
 import { badRequest, notFound, forbidden } from '../utils/ApiError.js'
@@ -18,6 +19,7 @@ import { AuditLog } from '../models/AuditLog.js'
 import { Favorite } from '../models/Favorite.js'
 import { Progress } from '../models/Progress.js'
 import { AppActivation } from '../models/AppActivation.js'
+import { revokeSession, revokeAllSessions } from '../services/sessions.js'
 import { saveBuffer, saveEncryptedBuffer, saveEncryptedFromObject, removeObject, statObject, directUploadSupported, createDirectUpload, createMediaUrl } from '../services/storage.js'
 import { submitHlsJob, mediaConvertEnabled } from '../services/mediaconvert.js'
 import { deriveContentKey, newSalt } from '../services/contentCrypto.js'
@@ -588,6 +590,51 @@ export const deleteUser = asyncHandler(async (req, res) => {
   ])
   await target.deleteOne()
   audit(req, 'admin.user.delete', { targetType: 'User', targetId: target._id, meta: { email: target.email } })
+  res.json({ ok: true })
+})
+
+// ── User sessions (logged-in "places") ───────────────────────────────────────
+// GET /admin/users/:id/sessions — every place this account is signed in, newest
+// first, with device detail. Expired entries are hidden (they're already dead).
+export const getUserSessions = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.params.id).select('email name sessions')
+  if (!user) throw notFound('User not found')
+  const now = Date.now()
+  const sessions = (user.sessions || [])
+    .filter((s) => !s.expiresAt || new Date(s.expiresAt).getTime() > now)
+    .sort((a, b) => new Date(b.lastSeenAt) - new Date(a.lastSeenAt))
+    .map((s) => ({
+      sid: s.sid,
+      kind: s.kind,
+      label: s.label,
+      ua: s.ua,
+      ip: s.ip,
+      deviceModel: s.deviceModel,
+      createdAt: s.createdAt,
+      lastSeenAt: s.lastSeenAt,
+      expiresAt: s.expiresAt,
+    }))
+  res.json({ sessions, max: env.security.maxSessionsPerUser })
+})
+
+// DELETE /admin/users/:id/sessions/:sid — log the user out of ONE place.
+export const revokeUserSession = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.params.id).select('+sessions')
+  if (!user) throw notFound('User not found')
+  const removed = await revokeSession(user, req.params.sid)
+  await user.save()
+  audit(req, 'admin.user.session.revoke', { targetType: 'User', targetId: user._id, meta: { sid: req.params.sid, kind: removed?.kind } })
+  res.json({ ok: true, removed: !!removed })
+})
+
+// DELETE /admin/users/:id/sessions — log the user out EVERYWHERE.
+export const revokeAllUserSessions = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.params.id).select('+sessions')
+  if (!user) throw notFound('User not found')
+  await revokeAllSessions(user)
+  user.tokenVersion = (user.tokenVersion || 0) + 1
+  await user.save()
+  audit(req, 'admin.user.session.revoke_all', { targetType: 'User', targetId: user._id })
   res.json({ ok: true })
 })
 

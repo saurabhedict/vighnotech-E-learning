@@ -18,6 +18,9 @@ const appActivationSchema = new mongoose.Schema(
     identifier: { type: String, required: true, index: true }, // the app's product code
     deviceId: { type: String, required: true }, // the single bound device (the lock key)
     status: { type: String, enum: ['active', 'deregistered'], default: 'active', index: true },
+    // Links this activation to the unified login session (User.sessions[].sid) so it
+    // counts toward the concurrent "places" cap and can be revoked from one place.
+    sid: { type: String, default: '', index: true },
 
     // Device metadata the APK sends on activation (all optional, stored as-is).
     androidId: { type: String, default: '' },

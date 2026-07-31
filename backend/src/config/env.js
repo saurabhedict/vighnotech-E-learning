@@ -56,7 +56,13 @@ export const env = {
   // Anti-piracy / account-security policy for the download lane.
   security: {
     // Max devices a user may register (the "home devices" cap). Deauthorize to swap.
-    maxDevicesPerUser: num(process.env.MAX_DEVICES_PER_USER, 3),
+    maxDevicesPerUser: num(process.env.MAX_DEVICES_PER_USER, 6),
+    // Max concurrent login "places" per account (web + launcher + apk combined).
+    // A 7th login evicts the least-recently-active session.
+    maxSessionsPerUser: num(process.env.MAX_SESSIONS_PER_USER, 6),
+    // Hard lifetime of a login session: it auto-logs-out this long after sign-in,
+    // regardless of activity. Any ms()-parseable string (e.g. '72h').
+    sessionTtl: process.env.SESSION_TTL || '72h',
     // Distinct rejected devices on one license before it's flagged for review.
     licenseFlagThreshold: num(process.env.LICENSE_FLAG_THRESHOLD, 3),
     // Require 2FA enabled to buy downloadable software (games/launcher titles).

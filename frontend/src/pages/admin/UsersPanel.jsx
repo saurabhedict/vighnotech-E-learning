@@ -9,10 +9,95 @@ function fmtDate(d) {
   return d ? new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'
 }
 
+const SESSION_KIND = {
+  web: { icon: '🌐', label: 'Web browser' },
+  launcher: { icon: '💻', label: 'Desktop launcher' },
+  apk: { icon: '📱', label: 'Android app' },
+}
+
+function fmtWhen(d) {
+  if (!d) return '—'
+  const t = new Date(d)
+  const diff = (Date.now() - t.getTime()) / 1000
+  if (diff < 60) return 'just now'
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`
+  return t.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+}
+
+// Admin view of a user's concurrent login "places" (web / launcher / apk), with
+// per-place and log-out-everywhere controls.
+function SessionsPanel({ userId, email }) {
+  const qc = useQueryClient()
+  const [err, setErr] = useState(null)
+  const [busySid, setBusySid] = useState('')
+  const q = useQuery({ queryKey: ['admin', 'user', userId, 'sessions'], queryFn: () => adminApi.listUserSessions(userId) })
+  const sessions = q.data?.sessions || []
+  const max = q.data?.max || 6
+  const invalidate = () => qc.invalidateQueries({ queryKey: ['admin', 'user', userId, 'sessions'] })
+
+  const revoke = async (sid) => {
+    setErr(null); setBusySid(sid)
+    try { await adminApi.revokeUserSession(userId, sid); invalidate() }
+    catch (e) { setErr(apiErrorMessage(e, 'Could not log out that place')) }
+    finally { setBusySid('') }
+  }
+  const revokeAll = async () => {
+    if (!window.confirm(`Log ${email} out of ALL places (web, launcher and app)?`)) return
+    setErr(null); setBusySid('*')
+    try { await adminApi.revokeAllUserSessions(userId); invalidate() }
+    catch (e) { setErr(apiErrorMessage(e, 'Could not log out')) }
+    finally { setBusySid('') }
+  }
+
+  return (
+    <div className="border-t border-vigno-line/60 px-4 py-3 bg-vigno-bg2/30 rounded-b-2xl">
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-[11px] font-extrabold uppercase tracking-widest text-vigno-muted">
+          Active sessions ({sessions.length}/{max})
+        </p>
+        {sessions.length > 0 && (
+          <button onClick={revokeAll} disabled={!!busySid} className="text-[11px] font-bold text-red-400 hover:text-red-300 disabled:opacity-40">
+            {busySid === '*' ? 'Logging out…' : 'Log out everywhere'}
+          </button>
+        )}
+      </div>
+      {q.isLoading && <p className="text-xs text-vigno-muted">Loading sessions…</p>}
+      {err && <p className="text-xs text-red-400 mb-2">{err}</p>}
+      {!q.isLoading && sessions.length === 0 && <p className="text-xs text-vigno-muted italic">No active sessions.</p>}
+      <div className="space-y-1.5">
+        {sessions.map((s) => (
+          <div key={s.sid} className="flex items-center justify-between gap-3 text-xs bg-vigno-card border border-vigno-line/50 rounded-lg px-3 py-2">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <span className="text-base shrink-0">{(SESSION_KIND[s.kind] || {}).icon || '🔓'}</span>
+              <div className="min-w-0">
+                <div className="font-bold text-vigno-txt truncate">{s.label || (SESSION_KIND[s.kind] || {}).label || s.kind}</div>
+                <div className="text-vigno-muted truncate">
+                  {(SESSION_KIND[s.kind] || {}).label || s.kind}{s.ip ? ` · ${s.ip}` : ''} · active {fmtWhen(s.lastSeenAt)}
+                </div>
+                <div className="text-vigno-muted/70 truncate">signed in {fmtWhen(s.createdAt)} · auto-logout {fmtWhen(s.expiresAt)}</div>
+              </div>
+            </div>
+            <button
+              onClick={() => revoke(s.sid)}
+              disabled={!!busySid}
+              className="text-[11px] font-bold text-red-400 hover:text-red-300 hover:bg-red-400/10 px-2.5 py-1 rounded-md disabled:opacity-40 shrink-0"
+            >
+              {busySid === s.sid ? '…' : 'Log out'}
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 function UserCard({ u, isSelf, onRole, onDelete, busy }) {
   const verified = u.emailVerified || u.phoneVerified
+  const [showSessions, setShowSessions] = useState(false)
   return (
-    <div className="flex items-center gap-4 bg-vigno-card border border-vigno-line rounded-2xl px-4 py-3">
+    <div className="bg-vigno-card border border-vigno-line rounded-2xl">
+      <div className="flex items-center gap-4 px-4 py-3">
       <div className="flex-none">
         <Avatar user={u} size={44} verified={verified} />
       </div>
@@ -84,8 +169,19 @@ function UserCard({ u, isSelf, onRole, onDelete, busy }) {
         </div>
       </div>
 
-      {!isSelf && (
         <div className="flex flex-col gap-1.5 flex-none">
+          <button
+            onClick={() => setShowSessions((v) => !v)}
+            className="text-xs font-semibold rounded-lg border border-vigno-line text-vigno-muted px-3 py-1.5 hover:text-vigno-txt hover:bg-white/5 flex items-center justify-center gap-1.5"
+          >
+            <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+              <rect x="2" y="3" width="20" height="14" rx="2" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M8 21h8M12 17v4" />
+            </svg>
+            <span>{showSessions ? 'Hide' : 'Sessions'}</span>
+          </button>
+          {!isSelf && (
+            <>
           <button
             onClick={() => onRole(u)}
             disabled={busy}
@@ -117,8 +213,11 @@ function UserCard({ u, isSelf, onRole, onDelete, busy }) {
             </svg>
             <span>Delete</span>
           </button>
+            </>
+          )}
         </div>
-      )}
+      </div>
+      {showSessions && <SessionsPanel userId={u._id} email={u.email} />}
     </div>
   )
 }

@@ -14,7 +14,7 @@ const API = process.env.VIGNO_API || 'https://learning-and-content-management-pr
 const DATA_DIR = path.join(app.getPath('userData'), 'vigno')
 const DL_DIR = path.join(DATA_DIR, 'downloads')
 
-const session = { token: null, user: null, deviceId: null }
+const session = { token: null, refreshToken: null, user: null, deviceId: null }
 
 const ensureDirs = () => fs.mkdirSync(DL_DIR, { recursive: true })
 const encPath = (cid) => path.join(DL_DIR, `${cid}.enc`)
@@ -31,15 +31,41 @@ function wipeCachedKeys() {
   } catch { /* dir may not exist yet */ }
 }
 
-async function api(pathname, { method = 'GET', token, body, raw } = {}) {
-  const headers = {}
+async function api(pathname, { method = 'GET', token, body, raw, _retried } = {}) {
+  const headers = { 'X-Vigno-Client': 'launcher' } // tags this login "place" as the desktop launcher
   if (body) headers['Content-Type'] = 'application/json'
   if (token) headers.Authorization = `Bearer ${token}`
   const res = await fetch(`${API}${pathname}`, { method, headers, body: body ? JSON.stringify(body) : undefined })
+  // The 15-min access token expires long before a play session; silently refresh
+  // once (our session survives up to the server's 72h cap) and retry.
+  if (res.status === 401 && token && token === session.token && !_retried && session.refreshToken) {
+    if (await tryRefresh()) return api(pathname, { method, token: session.token, body, raw, _retried: true })
+  }
   if (raw) return { status: res.status, buf: Buffer.from(await res.arrayBuffer()) }
   let data = null
   try { data = await res.json() } catch { /* */ }
   return { status: res.status, data }
+}
+
+// Exchange the stored refresh token for a fresh access token. Returns true on
+// success. Native clients get the refresh token in the login body (no cookie jar).
+async function tryRefresh() {
+  if (!session.refreshToken) return false
+  try {
+    const res = await fetch(`${API}/auth/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Vigno-Client': 'launcher' },
+      body: JSON.stringify({ refreshToken: session.refreshToken }),
+    })
+    if (res.status !== 200) return false
+    const data = await res.json()
+    if (!data?.token) return false
+    session.token = data.token
+    if (data.refreshToken) session.refreshToken = data.refreshToken
+    return true
+  } catch {
+    return false
+  }
 }
 
 // Device fingerprint: hash of stable host/CPU/OS identifiers (console "home device").
@@ -135,6 +161,7 @@ ipcMain.handle('login', async (_e, { email, password }) => {
   if (r.data?.twoFARequired) return { twoFA: true, challenge: r.data.challenge, method: r.data.method }
   if (r.status !== 200) throw new Error(r.data?.error?.message || 'Login failed')
   session.token = r.data.token
+  session.refreshToken = r.data.refreshToken || null
   session.user = r.data.user
   return { user: r.data.user }
 })
@@ -143,6 +170,7 @@ ipcMain.handle('verify2fa', async (_e, { challenge, code }) => {
   const r = await api('/auth/2fa/verify', { method: 'POST', body: { challenge, code } })
   if (r.status !== 200) throw new Error(r.data?.error?.message || 'Invalid code')
   session.token = r.data.token
+  session.refreshToken = r.data.refreshToken || null
   session.user = r.data.user
   return { user: r.data.user }
 })
@@ -320,7 +348,7 @@ ipcMain.handle('play', async (_e, { contentId, jti }) => {
   return { ok: true, online, launched: true, exe: path.basename(exe) }
 })
 
-ipcMain.handle('logout', () => {
+ipcMain.handle('logout', async () => {
   // End any running games and wipe every decrypted temp dir (incl. app.dat) so
   // nothing licensed to this session survives the logout.
   for (const run of activeRuns) {
@@ -329,7 +357,10 @@ ipcMain.handle('logout', () => {
   }
   activeRuns.clear()
   sweepTempGames()
+  // Best-effort: tell the server to drop this launcher place from the registry.
+  if (session.token) { try { await api('/auth/logout', { method: 'POST', token: session.token }) } catch { /* */ } }
   session.token = null
+  session.refreshToken = null
   session.user = null
   session.deviceId = null
   return { ok: true }

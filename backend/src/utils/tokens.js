@@ -7,7 +7,9 @@ import { env } from '../config/env.js'
 
 export function signAccessToken(user) {
   return jwt.sign(
-    { sub: user.id, role: user.role, email: user.email, ver: user.tokenVersion ?? 0, typ: 'access' },
+    // `sid` binds the token to one login "place" (see middleware/auth.js). Omitted
+    // for legacy callers → the tokenVersion single-session check applies instead.
+    { sub: user.id, role: user.role, email: user.email, ver: user.tokenVersion ?? 0, ...(user.sid ? { sid: user.sid } : {}), typ: 'access' },
     env.jwt.accessSecret,
     { expiresIn: env.jwt.accessTtl }
   )
@@ -15,7 +17,7 @@ export function signAccessToken(user) {
 
 export function signRefreshToken(user) {
   return jwt.sign(
-    { sub: user.id, ver: user.tokenVersion ?? 0, typ: 'refresh' },
+    { sub: user.id, ver: user.tokenVersion ?? 0, ...(user.sid ? { sid: user.sid } : {}), typ: 'refresh' },
     env.jwt.refreshSecret,
     { expiresIn: env.jwt.refreshTtl }
   )

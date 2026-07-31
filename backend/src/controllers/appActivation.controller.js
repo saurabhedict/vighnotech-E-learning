@@ -9,6 +9,7 @@ import { Content } from '../models/Content.js'
 import { License } from '../models/License.js'
 import { AppActivation } from '../models/AppActivation.js'
 import { hasActiveLicense } from '../services/licenseAuthority.js'
+import { addSessionAndReconcile, sessionInfoFromReq } from '../services/sessions.js'
 
 /**
  * Android (APK) activation API — the routes the installed app (built by the app
@@ -18,9 +19,9 @@ import { hasActiveLicense } from '../services/licenseAuthority.js'
 
 const APP_TOKEN_TTL = '30d' // the app caches this and reuses it for /verifyapp
 
-function signAppToken({ userId, contentId, deviceId, identifier }) {
+function signAppToken({ userId, contentId, deviceId, identifier, sid }) {
   return jwt.sign(
-    { sub: String(userId), cid: String(contentId), did: deviceId, idn: identifier, typ: 'app' },
+    { sub: String(userId), cid: String(contentId), did: deviceId, idn: identifier, ...(sid ? { sid } : {}), typ: 'app' },
     env.jwt.accessSecret,
     { expiresIn: APP_TOKEN_TTL }
   )
@@ -80,7 +81,7 @@ export const activateApp = asyncHandler(async (req, res) => {
   console.log(`[activateapp] email=${normEmail(email)} identifier=${JSON.stringify(identifier)} device=${String(deviceId).slice(0, 12)}`)
 
   // 1) Authenticate the account.
-  const user = await User.findOne({ email: normEmail(email) }).select('+passwordHash')
+  const user = await User.findOne({ email: normEmail(email) }).select('+passwordHash +sessions')
   if (!user || !(await user.comparePassword(password))) {
     // eslint-disable-next-line no-console
     console.warn(`[activateapp] 401 bad credentials for ${normEmail(email)}`)
@@ -111,10 +112,19 @@ export const activateApp = asyncHandler(async (req, res) => {
 
   const meta = metaFrom(req.body)
   const now = new Date()
+
+  // Register this APK as one of the account's concurrent "places". Reuse the
+  // existing live session if this activation already has one; otherwise mint a new
+  // session (which may evict the least-recently-active place, per the cap).
+  let sid = act?.sid && (user.sessions || []).some((s) => s.sid === act.sid) ? act.sid : ''
+  if (sid) user.touchSession(sid)
+  else sid = await addSessionAndReconcile(user, sessionInfoFromReq(req, { kind: 'apk', deviceModel: meta.deviceModel, label: meta.deviceModel || 'Android device' }))
+  await user.save()
+
   if (!act) {
     act = await AppActivation.create({
       userId: user._id, contentId: content._id, identifier: content.identifier,
-      deviceId, status: 'active', activatedAt: now, lastSeenAt: now, ...meta,
+      deviceId, status: 'active', sid, activatedAt: now, lastSeenAt: now, ...meta,
     })
   } else {
     // Same device (re-activate/refresh) or re-binding after a deregister.
@@ -126,11 +136,12 @@ export const activateApp = asyncHandler(async (req, res) => {
     if (rebind) act.activatedAt = now
     act.deregisteredAt = null
     Object.assign(act, meta)
+    act.sid = sid
     await act.save()
   }
 
   const license = await License.findOne({ userId: user._id, contentId: content._id, status: 'active' }).sort({ expiresAt: -1 })
-  const token = signAppToken({ userId: user._id, contentId: content._id, deviceId, identifier: content.identifier })
+  const token = signAppToken({ userId: user._id, contentId: content._id, deviceId, identifier: content.identifier, sid })
   audit(req, 'app.activate', { targetType: 'Content', targetId: content._id, meta: { userId: user._id.toString(), deviceId } })
 
   res.json({
@@ -164,6 +175,19 @@ export const verifyApp = asyncHandler(async (req, res) => {
   if (!act || act.status !== 'active') return res.json({ valid: false, reason: 'not_activated' })
   if (act.deviceId !== deviceId) return res.json({ valid: false, reason: 'device_mismatch' })
   if (!(await hasActiveLicense(payload.sub, payload.cid))) return res.json({ valid: false, reason: 'license_inactive' })
+
+  // Unified session gate (tokens minted after multi-session carry a `sid`): the
+  // place must still be live and within its 72h lifetime. Legacy tokens (no sid)
+  // skip this and rely on the AppActivation checks above.
+  if (payload.sid) {
+    const uDoc = await User.findById(payload.sub).select('sessions')
+    const sess = (uDoc?.sessions || []).find((s) => s.sid === payload.sid)
+    if (!sess || (sess.expiresAt && new Date(sess.expiresAt).getTime() < Date.now())) {
+      return res.json({ valid: false, reason: 'not_activated' })
+    }
+    // Keep this apk place "recently active" so a new login doesn't evict it.
+    User.updateOne({ _id: payload.sub, 'sessions.sid': payload.sid }, { $set: { 'sessions.$.lastSeenAt': new Date() } }).catch(() => {})
+  }
 
   act.lastSeenAt = new Date()
   await act.save()
@@ -208,6 +232,11 @@ export const deregisterApp = asyncHandler(async (req, res) => {
   act.status = 'deregistered'
   act.deregisteredAt = new Date()
   await act.save()
+  // Also drop the linked login "place" so it stops counting toward the cap.
+  if (act.sid) {
+    const u = await User.findById(userId).select('+sessions')
+    if (u) { u.removeSession(act.sid); await u.save() }
+  }
   audit(req, 'app.deregister', { targetType: 'Content', targetId: contentId, meta: { userId: String(userId) } })
   res.json({ success: true })
 })

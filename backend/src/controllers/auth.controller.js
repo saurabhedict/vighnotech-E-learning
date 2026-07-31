@@ -11,6 +11,7 @@ import { env } from '../config/env.js'
 import {
   signAccessToken,
   signRefreshToken,
+  verifyAccessToken,
   verifyRefreshToken,
   sign2faChallenge,
   verify2faChallenge,
@@ -22,6 +23,16 @@ import { issueOtp, verifyOtp } from '../services/otpService.js'
 import { sendMail, newDeviceEmail } from '../services/mailer.js'
 import { normalizePhone } from '../services/sms.js'
 import { verifyTotp, consumeBackupCode } from '../services/twoFactor.js'
+import { addSessionAndReconcile, revokeSession, revokeAllSessions, sessionInfoFromReq } from '../services/sessions.js'
+
+// Native clients (launcher / apk) can't hold an httpOnly cookie, so we also hand
+// them the refresh token in the response body to persist + refresh with. Browsers
+// get it only as the httpOnly cookie (never exposed to JS).
+const isNativeClient = (req) => {
+  const h = String(req.headers['x-vigno-client'] || '').toLowerCase()
+  if (h === 'launcher' || h === 'apk') return true
+  return /electron|vigno[- ]?launcher/i.test(String(req.headers['user-agent'] || ''))
+}
 
 // Detect a new login device (hash of ip+user-agent). On first sight, email the
 // user a "new sign-in" alert. `user` must be loaded with +loginDevices.
@@ -65,12 +76,12 @@ export const loginSchema = z.object({
 
 // Issue both cookies AND return the access token in the body so the existing
 // Bearer-based frontend keeps working without changes.
-function issueSession(res, user) {
-  const accessToken = signAccessToken({ id: user._id.toString(), role: user.role, email: user.email, tokenVersion: user.tokenVersion })
-  const refreshToken = signRefreshToken({ id: user._id.toString(), tokenVersion: user.tokenVersion })
+function issueSession(res, user, sid) {
+  const accessToken = signAccessToken({ id: user._id.toString(), role: user.role, email: user.email, tokenVersion: user.tokenVersion, sid })
+  const refreshToken = signRefreshToken({ id: user._id.toString(), tokenVersion: user.tokenVersion, sid })
   res.cookie(ACCESS_COOKIE, accessToken, cookieOpts(ms(env.jwt.accessTtl)))
   res.cookie(REFRESH_COOKIE, refreshToken, cookieOpts(ms(env.jwt.refreshTtl)))
-  return accessToken
+  return { accessToken, refreshToken }
 }
 
 // Registration is a two-step OTP flow: /signup stashes the details + sends a code
@@ -132,13 +143,13 @@ export const verifySignup = asyncHandler(async (req, res) => {
   })
   user.passwordHash = pending.passwordHash // already bcrypt-hashed at /signup
   await recordLoginDevice(req, user)
+  const sid = await addSessionAndReconcile(user, sessionInfoFromReq(req))
   await user.save()
   await PendingSignup.deleteOne({ email })
 
-  const fresh = await User.findByIdAndUpdate(user._id, { $inc: { tokenVersion: 1 } }, { new: true })
-  const token = issueSession(res, fresh)
-  audit(req, 'auth.signup.verify', { targetType: 'User', targetId: fresh._id })
-  res.status(201).json({ user: fresh.toSafeJSON(), token })
+  const { accessToken: token, refreshToken } = issueSession(res, user, sid)
+  audit(req, 'auth.signup.verify', { targetType: 'User', targetId: user._id })
+  res.status(201).json({ user: user.toSafeJSON(), token, ...(isNativeClient(req) ? { refreshToken } : {}) })
 })
 
 // Resend the registration OTP (same channel the user picked at /signup).
@@ -157,7 +168,7 @@ export const resendSignupOtp = asyncHandler(async (req, res) => {
 
 export const login = asyncHandler(async (req, res) => {
   const { email, password } = req.body
-  const user = await User.findOne({ email }).select('+passwordHash +loginDevices')
+  const user = await User.findOne({ email }).select('+passwordHash +loginDevices +sessions')
   if (!user || !(await user.comparePassword(password))) {
     audit(req, 'auth.login.fail', { meta: { email } })
     throw unauthorized('Invalid email or password')
@@ -179,14 +190,14 @@ export const login = asyncHandler(async (req, res) => {
 
   user.lastLoginAt = new Date()
   await recordLoginDevice(req, user)
+  // Register this login as one of up to maxSessionsPerUser concurrent "places";
+  // a login past the cap evicts the least-recently-active one.
+  const sid = await addSessionAndReconcile(user, sessionInfoFromReq(req))
   await user.save()
-  // Atomically bump tokenVersion (single active session): two concurrent logins
-  // can't both survive, and we get the authoritative new value for the tokens.
-  const fresh = await User.findByIdAndUpdate(user._id, { $inc: { tokenVersion: 1 } }, { new: true })
 
-  const token = issueSession(res, fresh)
-  audit(req, 'auth.login', { targetType: 'User', targetId: fresh._id })
-  res.json({ user: fresh.toSafeJSON(), token })
+  const { accessToken: token, refreshToken } = issueSession(res, user, sid)
+  audit(req, 'auth.login', { targetType: 'User', targetId: user._id })
+  res.json({ user: user.toSafeJSON(), token, ...(isNativeClient(req) ? { refreshToken } : {}) })
 })
 
 // Second step of a 2FA login: exchange the challenge + code for a session.
@@ -203,7 +214,7 @@ export const verify2fa = asyncHandler(async (req, res) => {
   } catch {
     throw unauthorized('2FA session expired — please sign in again')
   }
-  const user = await User.findById(payload.sub).select('+totpSecret +backupCodes +loginDevices')
+  const user = await User.findById(payload.sub).select('+totpSecret +backupCodes +loginDevices +sessions')
   if (!user || !user.twoFAEnabled) throw unauthorized('2FA not active')
 
   // Per-account lockout: caps TOTP/backup-code brute force regardless of source IP.
@@ -233,12 +244,12 @@ export const verify2fa = asyncHandler(async (req, res) => {
   user.twoFALockUntil = null
   user.lastLoginAt = new Date()
   await recordLoginDevice(req, user)
+  const sid = await addSessionAndReconcile(user, sessionInfoFromReq(req))
   await user.save()
-  const fresh = await User.findByIdAndUpdate(user._id, { $inc: { tokenVersion: 1 } }, { new: true })
 
-  const token = issueSession(res, fresh)
-  audit(req, 'auth.login.2fa_ok', { targetType: 'User', targetId: fresh._id })
-  res.json({ user: fresh.toSafeJSON(), token })
+  const { accessToken: token, refreshToken } = issueSession(res, user, sid)
+  audit(req, 'auth.login.2fa_ok', { targetType: 'User', targetId: user._id })
+  res.json({ user: user.toSafeJSON(), token, ...(isNativeClient(req) ? { refreshToken } : {}) })
 })
 
 export const me = asyncHandler(async (req, res) => {
@@ -258,24 +269,59 @@ export const refresh = asyncHandler(async (req, res) => {
     throw unauthorized('Invalid refresh token')
   }
 
-  const user = await User.findById(payload.sub)
-  if (!user || user.tokenVersion !== payload.ver) throw unauthorized('Session expired')
+  const user = await User.findById(payload.sub).select('+sessions')
+  if (!user) throw unauthorized('Session expired')
 
-  const accessToken = issueSession(res, user)
-  res.json({ user: user.toSafeJSON(), token: accessToken })
+  let sid = payload.sid
+  if (sid) {
+    // Per-session: the sid must still be live and within its 72h lifetime.
+    const sess = (user.sessions || []).find((s) => s.sid === sid)
+    if (!sess) throw unauthorized('Session expired')
+    if (sess.expiresAt && new Date(sess.expiresAt).getTime() < Date.now()) {
+      user.removeSession(sid)
+      await user.save()
+      throw unauthorized('Session expired')
+    }
+    user.touchSession(sid)
+    await user.save()
+  } else {
+    // Legacy refresh token (pre-multi-session): honour the single-session gate,
+    // then upgrade this client to a real tracked session going forward.
+    if (user.tokenVersion !== payload.ver) throw unauthorized('Session expired')
+    sid = await addSessionAndReconcile(user, sessionInfoFromReq(req))
+    await user.save()
+  }
+
+  const { accessToken, refreshToken } = issueSession(res, user, sid)
+  res.json({ user: user.toSafeJSON(), token: accessToken, ...(isNativeClient(req) ? { refreshToken } : {}) })
 })
 
 export const logout = asyncHandler(async (req, res) => {
+  // Remove ONLY this place from the registry. logout isn't behind requireAuth, so
+  // read the sid straight from the presented access token (cookie or Bearer).
+  const token = req.cookies?.[ACCESS_COOKIE] || (req.headers.authorization?.startsWith('Bearer ') ? req.headers.authorization.slice(7) : null)
+  if (token) {
+    try {
+      const p = verifyAccessToken(token)
+      if (p?.sub && p?.sid) {
+        const user = await User.findById(p.sub).select('+sessions')
+        if (user) { await revokeSession(user, p.sid); await user.save() }
+      }
+    } catch { /* expired/invalid — still clear cookies below */ }
+  }
   res.clearCookie(ACCESS_COOKIE, cookieOpts(0))
   res.clearCookie(REFRESH_COOKIE, cookieOpts(0))
   audit(req, 'auth.logout')
   res.json({ ok: true })
 })
 
-// Invalidate ALL sessions (e.g. after a password change / stolen account).
+// Invalidate ALL sessions/places (e.g. after a password change / stolen account).
 export const logoutAll = asyncHandler(async (req, res) => {
-  const user = await User.findByIdAndUpdate(req.user.id, { $inc: { tokenVersion: 1 } }, { new: true })
+  const user = await User.findById(req.user.id).select('+sessions')
   if (!user) throw unauthorized()
+  await revokeAllSessions(user)
+  user.tokenVersion = (user.tokenVersion || 0) + 1 // also kills any legacy tokens
+  await user.save()
   res.clearCookie(ACCESS_COOKIE, cookieOpts(0))
   res.clearCookie(REFRESH_COOKIE, cookieOpts(0))
   audit(req, 'auth.logout_all', { targetType: 'User', targetId: user._id })
@@ -289,17 +335,18 @@ export const changePasswordSchema = z.object({
 
 export const changePassword = asyncHandler(async (req, res) => {
   const { currentPassword, newPassword } = req.body
-  const user = await User.findById(req.user.id).select('+passwordHash')
+  const user = await User.findById(req.user.id).select('+passwordHash +sessions')
   if (!user || !(await user.comparePassword(currentPassword)))
     throw badRequest('Current password is incorrect')
   await user.setPassword(newPassword)
+  // Sign out every OTHER place, then keep THIS device signed in with a fresh session.
+  await revokeAllSessions(user)
+  user.tokenVersion = (user.tokenVersion || 0) + 1
+  const sid = await addSessionAndReconcile(user, sessionInfoFromReq(req))
   await user.save()
-  // Sign out OTHER sessions (atomic bump) but keep THIS device in by re-issuing
-  // a fresh session carrying the new version.
-  const fresh = await User.findByIdAndUpdate(user._id, { $inc: { tokenVersion: 1 } }, { new: true })
-  const token = issueSession(res, fresh)
-  audit(req, 'auth.password_change', { targetType: 'User', targetId: fresh._id })
-  res.json({ ok: true, token })
+  const { accessToken: token, refreshToken } = issueSession(res, user, sid)
+  audit(req, 'auth.password_change', { targetType: 'User', targetId: user._id })
+  res.json({ ok: true, token, ...(isNativeClient(req) ? { refreshToken } : {}) })
 })
 
 // ── Account verification (multi-channel OTP: email / sms / whatsapp) ──────────
@@ -383,8 +430,9 @@ export const resetPassword = asyncHandler(async (req, res) => {
   const result = await verifyOtp({ userId: user._id, purpose: 'password_reset', code })
   if (!result.ok) throw badRequest(`Reset failed: ${result.reason}`)
   await user.setPassword(newPassword)
+  await revokeAllSessions(user) // sign out every place — user signs in fresh
+  user.tokenVersion = (user.tokenVersion || 0) + 1
   await user.save()
-  await User.findByIdAndUpdate(user._id, { $inc: { tokenVersion: 1 } }) // invalidate all existing sessions
   audit(req, 'auth.password_reset', { targetType: 'User', targetId: user._id })
   res.json({ ok: true })
 })
