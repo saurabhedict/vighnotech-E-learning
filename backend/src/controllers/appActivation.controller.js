@@ -2,7 +2,7 @@ import { z } from 'zod'
 import jwt from 'jsonwebtoken'
 import { asyncHandler } from '../utils/asyncHandler.js'
 import { audit } from '../utils/audit.js'
-import { badRequest, unauthorized, notFound, paymentRequired, conflict } from '../utils/ApiError.js'
+import { badRequest, unauthorized, notFound, paymentRequired, conflict, forbidden } from '../utils/ApiError.js'
 import { env } from '../config/env.js'
 import { User } from '../models/User.js'
 import { Content } from '../models/Content.js'
@@ -87,6 +87,11 @@ export const activateApp = asyncHandler(async (req, res) => {
     console.warn(`[activateapp] 401 bad credentials for ${normEmail(email)}`)
     throw unauthorized('Invalid email or password')
   }
+  if (user.blocked) {
+    // eslint-disable-next-line no-console
+    console.warn(`[activateapp] 403 blocked account ${normEmail(email)}`)
+    throw forbidden('Your account has been blocked. Please contact the administrator.')
+  }
 
   // 2) Resolve the app by its admin-assigned identifier.
   const content = await Content.findOne({ identifier: identifier.trim(), type: 'apk', published: true })
@@ -170,6 +175,10 @@ export const verifyApp = asyncHandler(async (req, res) => {
   if (!payload) return res.json({ valid: false, reason: 'invalid_token' })
   if (payload.did !== deviceId) return res.json({ valid: false, reason: 'device_mismatch' })
   if (identifier && payload.idn !== identifier) return res.json({ valid: false, reason: 'identifier_mismatch' })
+
+  // Hard account ban — the app must stop everywhere.
+  const owner = await User.findById(payload.sub).select('blocked')
+  if (!owner || owner.blocked) return res.json({ valid: false, reason: 'blocked' })
 
   const act = await AppActivation.findOne({ userId: payload.sub, contentId: payload.cid })
   if (!act || act.status !== 'active') return res.json({ valid: false, reason: 'not_activated' })

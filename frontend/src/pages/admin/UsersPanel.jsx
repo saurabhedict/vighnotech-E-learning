@@ -92,7 +92,7 @@ function SessionsPanel({ userId, email }) {
   )
 }
 
-function UserCard({ u, isSelf, onRole, onDelete, busy }) {
+function UserCard({ u, isSelf, onRole, onDelete, onBlock, busy }) {
   const verified = u.emailVerified || u.phoneVerified
   const [showSessions, setShowSessions] = useState(false)
   return (
@@ -107,6 +107,9 @@ function UserCard({ u, isSelf, onRole, onDelete, busy }) {
           <span className="font-semibold truncate">{u.name || '(no name)'}</span>
           {u.role === 'admin' && (
             <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-vigno-accent/25 text-vigno-accent2">ADMIN</span>
+          )}
+          {u.blocked && (
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-500/20 text-red-400">BLOCKED</span>
           )}
           {isSelf && <span className="text-[10px] text-vigno-muted">(you)</span>}
         </div>
@@ -183,6 +186,18 @@ function UserCard({ u, isSelf, onRole, onDelete, busy }) {
           {!isSelf && (
             <>
           <button
+            onClick={() => onBlock(u)}
+            disabled={busy}
+            className={`text-xs font-semibold rounded-lg border px-3 py-1.5 disabled:opacity-40 flex items-center justify-center gap-1.5 ${u.blocked ? 'border-emerald-500/50 text-emerald-400 hover:bg-emerald-500/10' : 'border-amber-500/50 text-amber-400 hover:bg-amber-500/10'}`}
+          >
+            <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.2">
+              {u.blocked
+                ? <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 10.5V6.75a4.5 4.5 0 119 0v3.75M3.75 21.75h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H3.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+                : <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />}
+            </svg>
+            <span>{u.blocked ? 'Unblock' : 'Block'}</span>
+          </button>
+          <button
             onClick={() => onRole(u)}
             disabled={busy}
             className="text-xs font-semibold rounded-lg border border-vigno-accent2/50 text-vigno-accent2 px-3 py-1.5 hover:bg-vigno-accent2/10 disabled:opacity-40 flex items-center justify-center gap-1.5"
@@ -254,6 +269,18 @@ export default function UsersPanel() {
     finally { setBusy(false) }
   }
 
+  const onBlock = async (u) => {
+    const blocking = !u.blocked
+    if (blocking && !window.confirm(`Block ${u.email}? They'll be signed out and denied access everywhere — web, launcher and app.`)) return
+    setMsg(null); setBusy(true)
+    try {
+      await adminApi.setUserBlocked(u._id, blocking)
+      setMsg({ ok: true, text: blocking ? `Blocked ${u.email} — access revoked everywhere` : `Unblocked ${u.email}` })
+      refresh()
+    } catch (e) { setMsg({ ok: false, text: apiErrorMessage(e, 'Could not update block status') }) }
+    finally { setBusy(false) }
+  }
+
   const input = 'px-3 py-2 rounded-lg bg-vigno-bg2 border border-vigno-line text-sm outline-none'
   return (
     <div>
@@ -271,7 +298,7 @@ export default function UsersPanel() {
 
       <div className="flex flex-col gap-2.5">
         {users.data?.map((u) => (
-          <UserCard key={u._id} u={u} isSelf={u._id === me?.id} onRole={onRole} onDelete={onDelete} busy={busy} />
+          <UserCard key={u._id} u={u} isSelf={u._id === me?.id} onRole={onRole} onDelete={onDelete} onBlock={onBlock} busy={busy} />
         ))}
       </div>
     </div>

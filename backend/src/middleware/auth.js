@@ -31,8 +31,9 @@ async function resolveUser(req) {
     return null
   }
   if (p.typ !== 'access') return null
-  const user = await User.findById(p.sub).select('tokenVersion role email sessions').lean()
+  const user = await User.findById(p.sub).select('tokenVersion role email sessions blocked').lean()
   if (!user) return null
+  if (user.blocked) return null // hard-banned — deny every authed request
 
   if (p.sid) {
     const sess = (user.sessions || []).find((s) => s.sid === p.sid)

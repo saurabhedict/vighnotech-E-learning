@@ -6,7 +6,7 @@ import { User } from '../models/User.js'
 import { PendingSignup } from '../models/PendingSignup.js'
 import { asyncHandler } from '../utils/asyncHandler.js'
 import { audit } from '../utils/audit.js'
-import { badRequest, unauthorized, conflict } from '../utils/ApiError.js'
+import { badRequest, unauthorized, conflict, forbidden } from '../utils/ApiError.js'
 import { env } from '../config/env.js'
 import {
   signAccessToken,
@@ -173,6 +173,10 @@ export const login = asyncHandler(async (req, res) => {
     audit(req, 'auth.login.fail', { meta: { email } })
     throw unauthorized('Invalid email or password')
   }
+  if (user.blocked) {
+    audit(req, 'auth.login.blocked', { targetType: 'User', targetId: user._id })
+    throw forbidden('Your account has been blocked. Please contact the administrator.')
+  }
 
   // 2FA gate: password is correct but we don't issue a session yet.
   if (user.twoFAEnabled) {
@@ -271,6 +275,7 @@ export const refresh = asyncHandler(async (req, res) => {
 
   const user = await User.findById(payload.sub).select('+sessions')
   if (!user) throw unauthorized('Session expired')
+  if (user.blocked) throw forbidden('Your account has been blocked.')
 
   let sid = payload.sid
   if (sid) {

@@ -12,6 +12,11 @@ const userSchema = new mongoose.Schema(
     passwordHash: { type: String, required: true, select: false },
     name: { type: String, trim: true, default: '' },
     role: { type: String, enum: USER_ROLES, default: ROLES.USER, index: true },
+    // Hard account ban. When true, EVERY lane is denied — web, launcher (.exe),
+    // apk, license/key/download — and all active sessions are cleared. Enforced in
+    // middleware/auth.js (all authed routes), login/refresh, and the apk endpoints.
+    blocked: { type: Boolean, default: false, index: true },
+    blockedAt: { type: Date, default: null },
 
     // Profile photo URL. New uploads go to S3 (served via /api/files/local/<key>);
     // older avatars may be a Cloudinary URL or an inline data URL (still rendered).
@@ -147,6 +152,7 @@ userSchema.methods.toSafeJSON = function toSafeJSON() {
     name: this.name,
     avatar: this.avatar,
     role: this.role,
+    blocked: !!this.blocked,
     twoFAEnabled: this.twoFAEnabled,
     twoFAMethod: this.twoFAMethod,
     emailVerified: this.emailVerified,

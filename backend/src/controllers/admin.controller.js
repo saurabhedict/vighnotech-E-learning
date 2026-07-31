@@ -539,7 +539,7 @@ export const listUsers = asyncHandler(async (req, res) => {
   const limit = Math.min(Number(req.query.limit) || 50, 200)
   const [users, total] = await Promise.all([
     User.find(filter)
-      .select('email name phone role emailVerified phoneVerified twoFAEnabled createdAt lastLoginAt avatar')
+      .select('email name phone role emailVerified phoneVerified twoFAEnabled createdAt lastLoginAt avatar blocked blockedAt')
       .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
       .limit(limit)
@@ -569,6 +569,30 @@ export const setUserRole = asyncHandler(async (req, res) => {
   if (roleChanged) await User.findByIdAndUpdate(target._id, { $inc: { tokenVersion: 1 } })
   audit(req, 'admin.user.role', { targetType: 'User', targetId: target._id, meta: { role } })
   res.json({ ok: true, user: { id: target._id, email: target.email, role: target.role } })
+})
+
+// ── Block / unblock a user ───────────────────────────────────────────────────
+// A hard ban: blocking denies EVERY lane (web, launcher, apk, license/key/download)
+// and immediately clears all the user's sessions + apk activations. Unblocking just
+// lets them sign in again (they start fresh — nothing is auto-restored).
+export const setUserBlockedSchema = z.object({ blocked: z.boolean() })
+
+export const setUserBlocked = asyncHandler(async (req, res) => {
+  const target = await User.findById(req.params.id).select('+sessions')
+  if (!target) throw notFound('User not found')
+  const { blocked } = req.body
+  if (target._id.toString() === req.user.id) throw forbidden('You cannot block your own account')
+  if (blocked && target.role === ROLES.ADMIN) throw forbidden('Cannot block an admin — demote them first')
+
+  target.blocked = blocked
+  target.blockedAt = blocked ? new Date() : null
+  if (blocked) {
+    await revokeAllSessions(target) // sign out web + launcher + apk everywhere
+    target.tokenVersion = (target.tokenVersion || 0) + 1 // kill any legacy tokens too
+  }
+  await target.save()
+  audit(req, blocked ? 'admin.user.block' : 'admin.user.unblock', { targetType: 'User', targetId: target._id, meta: { email: target.email } })
+  res.json({ ok: true, blocked: target.blocked })
 })
 
 // DELETE /admin/users/:id — remove a user and their personal records.

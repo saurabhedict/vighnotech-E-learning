@@ -75,6 +75,10 @@ export const adminApi = {
   setUserRole(id, role) {
     return api.patch(`/admin/users/${id}/role`, { role }).then((r) => r.data)
   },
+  // Block/unblock a user — a hard ban across web, launcher and apk.
+  setUserBlocked(id, blocked) {
+    return api.patch(`/admin/users/${id}/block`, { blocked }).then((r) => r.data)
+  },
   deleteUser(id) {
     return api.delete(`/admin/users/${id}`).then((r) => r.data)
   },
