@@ -79,8 +79,7 @@ function LauncherHelpModal({ active, onClose, launcherDownloadUrl, launcherVersi
           {launcherDownloadUrl ? (
             <a
               href={launcherDownloadUrl}
-              target="_blank"
-              rel="noopener noreferrer"
+              download
               className="inline-flex flex-1 items-center justify-center rounded-xl bg-vigno-accent px-4 py-3 text-sm font-black text-vigno-accent-txt hover:brightness-110"
             >
               Install Launcher{launcherVersion ? ` v${launcherVersion}` : ''}
@@ -108,8 +107,7 @@ function LauncherPrompt({ active, launcherDownloadUrl, launcherVersion, onHelp }
       {launcherDownloadUrl ? (
         <a
           href={launcherDownloadUrl}
-          target="_blank"
-          rel="noopener noreferrer"
+          download
           className="group relative inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-8 py-3.5 text-sm font-bold text-white overflow-hidden transition-all hover:scale-105 hover:shadow-[0_0_20px_rgba(37,99,235,0.4)] focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-slate-900 w-full sm:w-auto"
         >
           <span className="absolute inset-0 bg-gradient-to-r from-blue-600 via-blue-500 to-blue-600 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />

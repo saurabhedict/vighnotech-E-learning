@@ -360,8 +360,7 @@ export default function ContentViewer() {
                   <div className="flex flex-col items-center gap-1.5">
                     <a
                       href={launcherDownloadUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                      download
                       className="bg-vigno-accent text-[#1a0d0f] font-bold px-5 py-2.5 rounded-lg text-sm hover:brightness-110 inline-flex items-center gap-2"
                     >
                       ⬇ Install the Launcher{launcher.version ? ` (v${launcher.version})` : ''}
