@@ -1,6 +1,7 @@
 import mongoose from 'mongoose'
 import bcrypt from 'bcryptjs'
 import { USER_ROLES, ROLES } from '@vigno/shared'
+import { encryptClientPassword } from '../services/clientCredential.js'
 
 const userSchema = new mongoose.Schema(
   {
@@ -26,6 +27,10 @@ const userSchema = new mongoose.Schema(
     twoFAMethod: { type: String, enum: ['totp', 'email', null], default: null },
     // TOTP shared secret — never serialized.
     totpSecret: { type: String, select: false, default: null },
+    // Reversible-encrypted password — CLIENTS ONLY (admin-managed accounts an admin
+    // may view/reset). Kept in sync by setPassword(). Never serialized. Null for
+    // normal users/admins (their password lives only as the one-way bcrypt hash).
+    clientPasswordEnc: { type: String, select: false, default: null },
     // One-time recovery codes (hashed). [{ codeHash, usedAt }]
     backupCodes: { type: [{ codeHash: String, usedAt: Date }], select: false, default: [] },
     // Per-account 2FA brute-force guard (IP-independent).
@@ -53,6 +58,9 @@ const userSchema = new mongoose.Schema(
 
 userSchema.methods.setPassword = async function setPassword(plain) {
   this.passwordHash = await bcrypt.hash(plain, 12)
+  // Clients are admin-managed: keep a reversible copy so an admin can view/reset it.
+  // Every password path (create, self-change, reset, admin-set) runs through here.
+  if (this.role === ROLES.CLIENT) this.clientPasswordEnc = encryptClientPassword(plain)
 }
 
 userSchema.methods.comparePassword = function comparePassword(plain) {

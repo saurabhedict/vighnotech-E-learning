@@ -8,6 +8,7 @@ import { TreeNode } from '../models/TreeNode.js'
 import { Content } from '../models/Content.js'
 import { License } from '../models/License.js'
 import { issueLicense } from '../services/licenseAuthority.js'
+import { decryptClientPassword } from '../services/clientCredential.js'
 
 /**
  * Client accounts — admin-provisioned, no payment. A client sees ONLY the courses
@@ -45,17 +46,47 @@ export const createClient = asyncHandler(async (req, res) => {
 
 // ── GET /admin/clients — list client accounts (+ active grant count) ────────
 export const listClients = asyncHandler(async (req, res) => {
-  const clients = await User.find({ role: ROLES.CLIENT }).sort({ createdAt: -1 }).select('_id email name createdAt').lean()
+  const clients = await User.find({ role: ROLES.CLIENT }).sort({ createdAt: -1 }).select('_id email name createdAt +clientPasswordEnc').lean()
   const items = await Promise.all(
     clients.map(async (c) => ({
       id: c._id,
       email: c.email,
       name: c.name,
       createdAt: c.createdAt,
+      // Whether a viewable password is stored (clients created before this feature,
+      // or whose password predates it, need a reset first). The value is NEVER sent.
+      hasStoredPassword: !!c.clientPasswordEnc,
       activeLicenses: await License.countDocuments({ userId: c._id, status: 'active' }),
     }))
   )
   res.json({ items })
+})
+
+// ── POST /admin/clients/:id/reveal-password — view a client's password ──────
+// Gated by the admin re-entering THEIR OWN password. Returns the decrypted client
+// password. Audited every time.
+export const revealPasswordSchema = z.object({ adminPassword: z.string().min(1) })
+export const revealClientPassword = asyncHandler(async (req, res) => {
+  const admin = await User.findById(req.user.id).select('+passwordHash')
+  if (!admin || !(await admin.comparePassword(req.body.adminPassword))) throw badRequest('Incorrect admin password')
+  const client = await User.findOne({ _id: req.params.id, role: ROLES.CLIENT }).select('+clientPasswordEnc')
+  if (!client) throw notFound('Client not found')
+  const password = decryptClientPassword(client.clientPasswordEnc)
+  if (!password) throw badRequest('No viewable password stored for this client — set a new one to enable viewing')
+  audit(req, 'client.password.reveal', { targetType: 'User', targetId: client._id, meta: { email: client.email } })
+  res.json({ password })
+})
+
+// ── POST /admin/clients/:id/set-password — admin changes a client's password ──
+export const setClientPasswordSchema = z.object({ password: z.string().min(6).max(200) })
+export const setClientPassword = asyncHandler(async (req, res) => {
+  const client = await User.findOne({ _id: req.params.id, role: ROLES.CLIENT }).select('+passwordHash +clientPasswordEnc')
+  if (!client) throw notFound('Client not found')
+  await client.setPassword(req.body.password) // updates hash + the reversible copy
+  client.tokenVersion = (client.tokenVersion || 0) + 1 // sign the client out of existing sessions
+  await client.save()
+  audit(req, 'client.password.set', { targetType: 'User', targetId: client._id, meta: { email: client.email } })
+  res.json({ ok: true })
 })
 
 // ── DELETE /admin/clients/:id — remove a client + all their grants ──────────

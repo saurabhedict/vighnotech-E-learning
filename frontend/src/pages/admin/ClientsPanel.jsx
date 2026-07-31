@@ -18,6 +18,89 @@ const TYPE_LABEL = {
   apk: 'Android App', image: 'Image', audio: 'Audio', quiz: 'Quiz', link: 'Link',
 }
 
+// ── Client login credentials (view/change password) ────────────────────────────
+// Password is stored reversibly for CLIENTS only. Revealing it requires the admin
+// to re-enter their OWN password; changing it signs the client out of open sessions.
+function ClientCredentials({ client }) {
+  const qc = useQueryClient()
+  const [mode, setMode] = useState(null) // null | 'reveal' | 'change'
+  const [adminPwd, setAdminPwd] = useState('')
+  const [revealed, setRevealed] = useState('')
+  const [newPwd, setNewPwd] = useState('')
+  const [msg, setMsg] = useState(null)
+
+  const reset = () => { setMode(null); setAdminPwd(''); setRevealed(''); setNewPwd(''); setMsg(null) }
+
+  const reveal = useMutation({
+    mutationFn: () => adminApi.revealClientPassword(client.id, adminPwd),
+    onSuccess: (pw) => { setRevealed(pw); setAdminPwd(''); setMode(null); setMsg(null) },
+    onError: (e) => setMsg({ ok: false, text: apiErrorMessage(e, 'Could not reveal password') }),
+  })
+
+  const change = useMutation({
+    mutationFn: () => adminApi.setClientPassword(client.id, newPwd),
+    onSuccess: () => {
+      setMsg({ ok: true, text: 'Password updated — the client was signed out of existing sessions.' })
+      setNewPwd(''); setMode(null); setRevealed('')
+      qc.invalidateQueries({ queryKey: ['admin', 'clients'] })
+    },
+    onError: (e) => setMsg({ ok: false, text: apiErrorMessage(e, 'Could not update password') }),
+  })
+
+  return (
+    <div className="rounded-xl bg-vigno-bg2/40 border border-vigno-line/40 p-4 space-y-3">
+      <p className="text-[11px] font-extrabold text-vigno-muted uppercase tracking-widest">Login credentials</p>
+      <div className="flex flex-wrap items-center gap-2.5 text-sm">
+        <span className="text-vigno-muted w-20">Email</span>
+        <span className="font-mono text-vigno-txt">{client.email}</span>
+      </div>
+      <div className="flex flex-wrap items-center gap-2.5 text-sm">
+        <span className="text-vigno-muted w-20">Password</span>
+        {revealed ? (
+          <>
+            <span className="font-mono text-vigno-txt bg-vigno-bg1/60 px-2 py-1 rounded select-all">{revealed}</span>
+            <button onClick={() => navigator.clipboard?.writeText(revealed)} className="text-xs font-bold text-vigno-accent hover:underline">Copy</button>
+            <button onClick={reset} className="text-xs font-bold text-vigno-muted hover:text-vigno-txt">Hide</button>
+          </>
+        ) : (
+          <>
+            <span className="font-mono text-vigno-txt tracking-[0.2em]">••••••••</span>
+            {client.hasStoredPassword ? (
+              <button onClick={() => { setMode(mode === 'reveal' ? null : 'reveal'); setMsg(null) }} className="text-xs font-bold text-vigno-accent hover:underline">
+                {mode === 'reveal' ? 'Cancel' : 'Reveal'}
+              </button>
+            ) : (
+              <span className="text-xs text-vigno-muted italic">not viewable yet — set a new password to enable</span>
+            )}
+          </>
+        )}
+        <span className="text-vigno-line/60">·</span>
+        <button onClick={() => { setMode(mode === 'change' ? null : 'change'); setMsg(null) }} className="text-xs font-bold text-vigno-muted hover:text-vigno-accent">
+          {mode === 'change' ? 'Cancel' : 'Change password'}
+        </button>
+      </div>
+
+      {/* Reveal — admin re-authenticates with their own password */}
+      {mode === 'reveal' && !revealed && (
+        <div className="flex flex-wrap items-end gap-2">
+          <input type="password" autoComplete="new-password" placeholder="Your admin password" value={adminPwd} onChange={(e) => setAdminPwd(e.target.value)} className={input} />
+          <button disabled={!adminPwd || reveal.isPending} onClick={() => reveal.mutate()} className={btn}>{reveal.isPending ? 'Verifying…' : 'Verify & show'}</button>
+        </div>
+      )}
+
+      {/* Change password */}
+      {mode === 'change' && (
+        <div className="flex flex-wrap items-end gap-2">
+          <input type="text" placeholder="New password (min 6)" value={newPwd} onChange={(e) => setNewPwd(e.target.value)} className={input} />
+          <button disabled={newPwd.length < 6 || change.isPending} onClick={() => change.mutate()} className={btn}>{change.isPending ? 'Updating…' : 'Update password'}</button>
+        </div>
+      )}
+
+      {msg && <p className={`text-xs ${msg.ok ? 'text-green-400' : 'text-red-400'}`}>{msg.text}</p>}
+    </div>
+  )
+}
+
 // ── Client row ────────────────────────────────────────────────────────────────
 function ClientRow({ client, courses, resources, onDeleted }) {
   const qc = useQueryClient()
@@ -130,6 +213,9 @@ function ClientRow({ client, courses, resources, onDeleted }) {
 
       {open && (
         <div className="border-t border-vigno-line/40 p-4 space-y-5">
+          {/* Login credentials (view/change password) */}
+          <ClientCredentials client={client} />
+
           {/* Tabs */}
           <div className="flex items-center gap-1 bg-vigno-bg2/60 rounded-xl p-1 w-fit">
             <button

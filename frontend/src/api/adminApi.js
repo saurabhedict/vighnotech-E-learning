@@ -89,6 +89,14 @@ export const adminApi = {
   deleteClient(id) {
     return api.delete(`/admin/clients/${id}`).then((r) => r.data)
   },
+  // Reveal a client's password — requires the admin's own password.
+  revealClientPassword(id, adminPassword) {
+    return api.post(`/admin/clients/${id}/reveal-password`, { adminPassword }).then((r) => r.data.password)
+  },
+  // Set/change a client's password.
+  setClientPassword(id, password) {
+    return api.post(`/admin/clients/${id}/set-password`, { password }).then((r) => r.data)
+  },
   grantCourse(id, payload) {
     return api.post(`/admin/clients/${id}/grant`, payload).then((r) => r.data)
   },

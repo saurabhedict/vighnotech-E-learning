@@ -79,6 +79,11 @@ export const env = {
     // omitted it's derived from the private one. Takes precedence over the file.
     gameLicensePrivateKey: (process.env.GAME_LICENSE_PRIVATE_KEY || '').replace(/\\n/g, '\n'),
     gameLicensePublicKey: (process.env.GAME_LICENSE_PUBLIC_KEY || '').replace(/\\n/g, '\n'),
+    // Reversible-encryption key for CLIENT passwords ONLY (admin-managed accounts
+    // whose password an admin may view/reset). Normal users/admins are NEVER stored
+    // this way. MUST be set and STABLE in prod — changing it makes already-stored
+    // client passwords unreadable. Set CLIENT_PW_SECRET on every deployment.
+    clientPwSecret: process.env.CLIENT_PW_SECRET || 'dev-client-pw-secret',
   },
 
   razorpay: {
