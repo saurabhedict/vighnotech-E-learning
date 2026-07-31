@@ -875,7 +875,10 @@ export default function Dashboard() {
         <FilterSidebar categories={allCategories} types={resAllTypes} selected={flt} onApply={setFlt} isDark={isDark} />
         <div className="flex-1 min-w-0 space-y-8">
 
-      {/* Courses List Section */}
+      {/* Courses List Section — hidden entirely when there are no courses
+          available to recommend (none uploaded, or all already purchased),
+          so the heading never appears above an empty carousel. */}
+      {(isLoading || isError || availableCourses.length > 0) && (
       <section className="space-y-4">
         <div>
           <h2 className="text-2xl font-extrabold text-vigno-txt tracking-tight">What to learn next</h2>
@@ -920,6 +923,7 @@ export default function Dashboard() {
           </Carousel>
         )}
       </section>
+      )}
 
       {/* Learn Trending Topics Section */}
       {(showResourcesLoading || (filteredResources && filteredResources.length > 0)) && (
