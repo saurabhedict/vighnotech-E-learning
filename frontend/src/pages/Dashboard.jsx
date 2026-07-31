@@ -7,6 +7,7 @@ import { discoverApi } from '../api/discoverApi'
 import ContentCard from '../components/ContentCard'
 import CourseCard from '../components/CourseCard'
 import FilterSidebar from '../components/FilterSidebar'
+import Avatar from '../components/Avatar'
 import { licenseApi } from '../api/licenseApi'
 
 
@@ -859,9 +860,8 @@ export default function Dashboard() {
       {/* Welcome Banner */}
       <div className={`flex flex-col md:flex-row items-start md:items-center justify-between p-6 rounded-2xl border ${isDark ? 'bg-gradient-to-r from-vigno-accent/15 via-vigno-bg2/40 to-transparent border-vigno-line/40' : 'bg-gradient-to-r from-vigno-accent/10 via-white/80 to-transparent border-vigno-line/60 shadow-sm'}`}>
         <div className="flex items-center gap-4">
-          <div className="w-16 h-16 rounded-full bg-vigno-accent/20 flex items-center justify-center text-3xl font-black text-vigno-accent shadow-inner border border-vigno-accent/30">
-            {user?.name ? user.name.charAt(0).toUpperCase() : 'U'}
-          </div>
+          {/* Profile photo if set, otherwise the user's first initial. */}
+          <Avatar user={user} size={64} className="shadow-inner" />
           <div>
             <h1 className="text-2xl font-extrabold text-vigno-txt leading-tight tracking-tight">
               Welcome, {user?.name ? user.name.split(' ')[0] : 'there'}

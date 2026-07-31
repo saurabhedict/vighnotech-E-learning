@@ -1,11 +1,18 @@
+import { useState, useEffect } from 'react'
+
 // Shows the user's photo (or their initial), with an optional blue verified tick.
+// If the photo URL fails to load (missing / stale host / cross-env), we fall back
+// to the initial instead of showing a broken image.
 export default function Avatar({ user, size = 40, verified = false, className = '' }) {
   const initial = (user?.name || user?.email || '?').trim().charAt(0).toUpperCase()
+  const [imgError, setImgError] = useState(false)
+  // Reset the error flag when the avatar URL changes (e.g. after a new upload).
+  useEffect(() => { setImgError(false) }, [user?.avatar])
   const style = { width: size, height: size }
   const tickSize = Math.max(14, Math.round(size * 0.32))
 
-  const inner = user?.avatar ? (
-    <img src={user.avatar} alt="" style={style} className={'rounded-full object-cover border border-vigno-line ' + className} />
+  const inner = user?.avatar && !imgError ? (
+    <img src={user.avatar} alt="" style={style} onError={() => setImgError(true)} className={'rounded-full object-cover border border-vigno-line ' + className} />
   ) : (
     <div
       style={{ ...style, fontSize: Math.round(size * 0.42) }}
