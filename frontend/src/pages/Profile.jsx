@@ -384,6 +384,8 @@ export default function Profile() {
   const [modal, setModal] = useState(null)
   const close = () => setModal(null)
   const verified = user?.emailVerified || user?.phoneVerified
+  // Clients can't delete their own account — access is managed by their provider/admin.
+  const isClient = user?.role === 'client'
 
   return (
     <div className="max-w-3xl">
@@ -534,18 +536,20 @@ export default function Profile() {
         </div>
       </Card>
 
-      {/* Danger zone */}
-      <section className="max-w-2xl border border-red-500/40 bg-red-500/5 rounded-2xl p-5 mb-6">
-        <h2 className="text-base font-bold mb-1 text-red-300 flex items-center gap-1.5">
-          <svg className="w-5 h-5 text-red-300 shrink-0" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-          </svg>
-          <span>Danger Zone</span>
-        </h2>
-        <p className="text-xs text-vigno-muted mb-3">Permanently delete your account and all associated data.</p>
-        <button onClick={() => setModal('delete')}
-          className="bg-red-500/80 hover:bg-red-500 text-white font-bold px-4 py-2 rounded-lg text-sm">Delete Account</button>
-      </section>
+      {/* Danger zone — hidden for clients (they can't delete their own account). */}
+      {!isClient && (
+        <section className="max-w-2xl border border-red-500/40 bg-red-500/5 rounded-2xl p-5 mb-6">
+          <h2 className="text-base font-bold mb-1 text-red-300 flex items-center gap-1.5">
+            <svg className="w-5 h-5 text-red-300 shrink-0" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <span>Danger Zone</span>
+          </h2>
+          <p className="text-xs text-vigno-muted mb-3">Permanently delete your account and all associated data.</p>
+          <button onClick={() => setModal('delete')}
+            className="bg-red-500/80 hover:bg-red-500 text-white font-bold px-4 py-2 rounded-lg text-sm">Delete Account</button>
+        </section>
+      )}
 
       {modal === 'password' && <Modal title="Change Password" onClose={close}><ChangePassword /></Modal>}
       {modal === '2fa' && <Modal title="Two-Factor Authentication" width={460} onClose={close}><TwoFactor onVerifyEmail={() => setModal('verify')} /></Modal>}
@@ -553,7 +557,7 @@ export default function Profile() {
       {modal === 'verify' && <Modal title="Verify Account" onClose={close}><VerifyContact defaultPhone={user?.phone || ''} onVerified={close} /></Modal>}
       {modal === 'addPhone' && <Modal title={user?.phone ? 'Edit Phone Number' : 'Add Phone Number'} overflowVisible onClose={close}><AddPhone /></Modal>}
       {modal === 'verifyPhone' && <Modal title="Verify Phone Number" onClose={close}><VerifyContact phoneOnly defaultPhone={user?.phone || ''} onVerified={close} /></Modal>}
-      {modal === 'delete' && <Modal title="Delete Account" onClose={close}><DeleteAccount /></Modal>}
+      {!isClient && modal === 'delete' && <Modal title="Delete Account" onClose={close}><DeleteAccount /></Modal>}
     </div>
   )
 }
