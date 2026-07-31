@@ -193,6 +193,8 @@ function fmt(d) {
 export default function Library() {
   const theme = useSelector((s) => s.ui.theme)
   const isDark = theme === 'dark'
+  // Clients don't see the Purchase History tab yet (kept in code for future use).
+  const isClient = useSelector((s) => s.auth.user?.role) === 'client'
   const licenses = useQuery({ queryKey: ['licenses', 'mine'], queryFn: licenseApi.mine })
   const purchases = useQuery({ queryKey: ['purchases', 'mine'], queryFn: paymentsApi.mine })
   const { data: allCourses, isLoading: coursesLoading } = useClasses()
@@ -246,8 +248,12 @@ export default function Library() {
         {[
           { key: 'courses', label: 'My purchases' },
           { key: 'licenses', label: 'All Licenses' },
+          // Temporarily hidden for CLIENT logins only — re-enable later by removing
+          // the filter below. The tab's data + render block are left fully intact.
           { key: 'purchases', label: 'Purchase History' },
-        ].map((t) => {
+        ]
+          .filter((t) => !(isClient && t.key === 'purchases'))
+          .map((t) => {
           const isActive = tab === t.key
           return (
             <button
