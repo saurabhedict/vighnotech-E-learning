@@ -500,28 +500,33 @@ export default function Profile() {
             sub="Update your password"
             onClick={() => setModal('password')}
           />
-          <ActionTile
-            icon={
-              <svg className="w-5 h-5 text-orange-400 mx-auto shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.57-.598-3.75h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
-              </svg>
-            }
-            label="Two-Factor Authentication"
-            sub={user?.twoFAEnabled ? `On · ${user.twoFAMethod === 'totp' ? 'authenticator app' : 'email codes'}` : 'Off — add a second step'}
-            onClick={() => setModal('2fa')}
-          />
-          <ActionTile
-            icon={
-              <svg className="w-5 h-5 text-blue-400 mx-auto shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                <rect x="2" y="3" width="20" height="13" rx="2" />
-                <path d="M2 16h20M12 16v4M8 20h8" />
-              </svg>
-            }
-            label="My Devices"
-            sub="Devices bound for downloads"
-            onClick={() => setModal('devices')}
-          />
-          {!verified && (
+          {/* 2FA + device management aren't available to clients — password change only. */}
+          {!isClient && (
+            <ActionTile
+              icon={
+                <svg className="w-5 h-5 text-orange-400 mx-auto shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.57-.598-3.75h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
+                </svg>
+              }
+              label="Two-Factor Authentication"
+              sub={user?.twoFAEnabled ? `On · ${user.twoFAMethod === 'totp' ? 'authenticator app' : 'email codes'}` : 'Off — add a second step'}
+              onClick={() => setModal('2fa')}
+            />
+          )}
+          {!isClient && (
+            <ActionTile
+              icon={
+                <svg className="w-5 h-5 text-blue-400 mx-auto shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <rect x="2" y="3" width="20" height="13" rx="2" />
+                  <path d="M2 16h20M12 16v4M8 20h8" />
+                </svg>
+              }
+              label="My Devices"
+              sub="Devices bound for downloads"
+              onClick={() => setModal('devices')}
+            />
+          )}
+          {!isClient && !verified && (
             <ActionTile
               icon={
                 <svg className="w-5 h-5 text-green-400 mx-auto shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
@@ -552,9 +557,9 @@ export default function Profile() {
       )}
 
       {modal === 'password' && <Modal title="Change Password" onClose={close}><ChangePassword /></Modal>}
-      {modal === '2fa' && <Modal title="Two-Factor Authentication" width={460} onClose={close}><TwoFactor onVerifyEmail={() => setModal('verify')} /></Modal>}
-      {modal === 'devices' && <Modal title="My Devices" width={460} onClose={close}><Devices /></Modal>}
-      {modal === 'verify' && <Modal title="Verify Account" onClose={close}><VerifyContact defaultPhone={user?.phone || ''} onVerified={close} /></Modal>}
+      {!isClient && modal === '2fa' && <Modal title="Two-Factor Authentication" width={460} onClose={close}><TwoFactor onVerifyEmail={() => setModal('verify')} /></Modal>}
+      {!isClient && modal === 'devices' && <Modal title="My Devices" width={460} onClose={close}><Devices /></Modal>}
+      {!isClient && modal === 'verify' && <Modal title="Verify Account" onClose={close}><VerifyContact defaultPhone={user?.phone || ''} onVerified={close} /></Modal>}
       {modal === 'addPhone' && <Modal title={user?.phone ? 'Edit Phone Number' : 'Add Phone Number'} overflowVisible onClose={close}><AddPhone /></Modal>}
       {modal === 'verifyPhone' && <Modal title="Verify Phone Number" onClose={close}><VerifyContact phoneOnly defaultPhone={user?.phone || ''} onVerified={close} /></Modal>}
       {!isClient && modal === 'delete' && <Modal title="Delete Account" onClose={close}><DeleteAccount /></Modal>}

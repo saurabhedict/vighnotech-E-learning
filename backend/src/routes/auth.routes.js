@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { validate } from '../middleware/validate.js'
-import { requireAuth } from '../middleware/auth.js'
+import { requireAuth, blockRole } from '../middleware/auth.js'
 import { authLimiter } from '../middleware/rateLimit.js'
 import * as auth from '../controllers/auth.controller.js'
 import * as twoFA from '../controllers/twoFactor.controller.js'
@@ -30,11 +30,13 @@ router.post('/forgot-password', authLimiter, validate({ body: auth.forgotPasswor
 router.post('/reset-password', authLimiter, validate({ body: auth.resetPasswordSchema }), auth.resetPassword)
 
 // ── Two-factor authentication ────────────────────────────────────────────────
+// Clients can't use 2FA — block enabling/setup for them (status/disable stay harmless).
+const noClients = blockRole('client')
 router.get('/2fa/status', requireAuth, twoFA.status)
-router.post('/2fa/totp/setup', requireAuth, twoFA.setupTotp)
-router.post('/2fa/totp/enable', requireAuth, validate({ body: twoFA.enableSchema }), twoFA.enableTotp)
-router.post('/2fa/email/enable', requireAuth, twoFA.enableEmail2fa)
+router.post('/2fa/totp/setup', requireAuth, noClients, twoFA.setupTotp)
+router.post('/2fa/totp/enable', requireAuth, noClients, validate({ body: twoFA.enableSchema }), twoFA.enableTotp)
+router.post('/2fa/email/enable', requireAuth, noClients, twoFA.enableEmail2fa)
 router.post('/2fa/disable', requireAuth, validate({ body: twoFA.disableSchema }), twoFA.disable2fa)
-router.post('/2fa/backup-codes', requireAuth, validate({ body: twoFA.disableSchema }), twoFA.regenerateBackupCodes)
+router.post('/2fa/backup-codes', requireAuth, noClients, validate({ body: twoFA.disableSchema }), twoFA.regenerateBackupCodes)
 
 export default router
