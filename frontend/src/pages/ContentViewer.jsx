@@ -4,6 +4,7 @@ import { useSelector } from 'react-redux'
 import { useContentItem } from '../hooks/useContent'
 import { useSiteSettings } from '../hooks/useSiteSettings'
 import { discoverApi } from '../api/discoverApi'
+import { secureDownloadUrl } from '../lib/downloadUrl'
 import api from '../api/axiosClient'
 import BuyButton from '../components/BuyButton'
 import FavoriteButton from '../components/FavoriteButton'
@@ -34,7 +35,7 @@ export default function ContentViewer() {
   // Prefer an admin-set external URL; else our own S3-hosted installer via the
   // public redirect endpoint (built off the API base so it works in any env).
   const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000/api'
-  const launcherDownloadUrl = launcher.url || (launcher.hasInstaller ? `${apiBase}/settings/launcher-download` : '')
+  const launcherDownloadUrl = secureDownloadUrl(launcher.url || (launcher.hasInstaller ? `${apiBase}/settings/launcher-download` : ''))
 
   const accessible = !!item && !item.locked && !item.requiresLauncher
   const isStandalone = !!item && !item.courseKey
@@ -360,7 +361,6 @@ export default function ContentViewer() {
                   <div className="flex flex-col items-center gap-1.5">
                     <a
                       href={launcherDownloadUrl}
-                      download
                       className="bg-vigno-accent text-[#1a0d0f] font-bold px-5 py-2.5 rounded-lg text-sm hover:brightness-110 inline-flex items-center gap-2"
                     >
                       ⬇ Install the Launcher{launcher.version ? ` (v${launcher.version})` : ''}
