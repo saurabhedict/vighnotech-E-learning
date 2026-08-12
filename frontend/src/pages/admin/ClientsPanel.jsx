@@ -455,10 +455,16 @@ function ClientRow({ client, courses, resources, onDeleted }) {
                           {g.expired ? '✕ Expired' : `✓ Until ${fmtDate(g.expiresAt)}`}
                         </span>
                         <button
-                          onClick={() => revokeResource.mutate(g.contentId?.toString())}
-                          className="text-xs font-bold text-red-400 hover:text-red-300 hover:bg-red-400/10 px-2.5 py-1 rounded-lg transition-all"
+                          type="button"
+                          title={`Remove ${g.title} from this client`}
+                          disabled={revokeResource.isPending}
+                          onClick={() => {
+                            if (window.confirm(`Remove "${g.title}" from this client?`)) revokeResource.mutate(g.contentId?.toString())
+                          }}
+                          className="flex items-center gap-1 text-xs font-bold text-red-400 hover:text-red-300 hover:bg-red-400/10 disabled:opacity-60 px-2.5 py-1 rounded-lg transition-all"
                         >
-                          Revoke
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M6 7h12m-9 0V5.5A1.5 1.5 0 0110.5 4h3A1.5 1.5 0 0115 5.5V7m-7 0 .75 12.25A1.75 1.75 0 0010.5 21h3a1.75 1.75 0 001.75-1.75L16 7M10 11v6m4-6v6" /></svg>
+                          Delete resource
                         </button>
                         <button
                           type="button"
