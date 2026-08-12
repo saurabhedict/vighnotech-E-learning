@@ -113,7 +113,8 @@ function ClientRow({ client, courses, resources, onDeleted }) {
   const [courseMsg, setCourseMsg] = useState(null)
 
   // Resource grant state
-  const [resourceId, setResourceId] = useState('')
+  const [resourceIds, setResourceIds] = useState([])
+  const [resourceMenuOpen, setResourceMenuOpen] = useState(false)
   const [resourceValidity, setResourceValidity] = useState('')
   const [resourceMsg, setResourceMsg] = useState(null)
 
@@ -146,10 +147,15 @@ function ClientRow({ client, courses, resources, onDeleted }) {
   })
 
   const grantResource = useMutation({
-    mutationFn: () => adminApi.grantResource(client.id, { contentId: resourceId, expiresAt: resourceValidity ? `${resourceValidity}T23:59:59` : undefined }),
-    onSuccess: (r) => {
-      setResourceMsg({ ok: true, text: `Granted "${r.title}"${r.expiresAt ? ' until ' + fmtDate(r.expiresAt) : ' (no expiry)'}` })
-      setResourceId(''); setResourceValidity('')
+    mutationFn: () => Promise.all(resourceIds.map((contentId) => adminApi.grantResource(client.id, {
+      contentId,
+      expiresAt: resourceValidity ? `${resourceValidity}T23:59:59` : undefined,
+    }))),
+    onSuccess: (results) => {
+      const count = results.length
+      const expiry = results[0]?.expiresAt ? ' until ' + fmtDate(results[0].expiresAt) : ' (no expiry)'
+      setResourceMsg({ ok: true, text: `Granted ${count} resource${count === 1 ? '' : 's'}${expiry}` })
+      setResourceIds([]); setResourceValidity(''); setResourceMenuOpen(false)
       qc.invalidateQueries({ queryKey: ['admin', 'client', client.id, 'grants'] })
       qc.invalidateQueries({ queryKey: ['admin', 'clients'] })
     },
@@ -163,6 +169,10 @@ function ClientRow({ client, courses, resources, onDeleted }) {
       qc.invalidateQueries({ queryKey: ['admin', 'clients'] })
     },
   })
+
+  const toggleResource = (id) => {
+    setResourceIds((current) => current.includes(id) ? current.filter((selectedId) => selectedId !== id) : [...current, id])
+  }
 
   const totalGrants = courseGrants.length + resourceGrants.length
 
@@ -319,20 +329,47 @@ function ClientRow({ client, courses, resources, onDeleted }) {
               <div className="rounded-xl bg-vigno-bg2/40 border border-vigno-line/40 p-4 space-y-3">
                 <p className="text-[11px] font-extrabold text-vigno-muted uppercase tracking-widest">Grant an individual resource</p>
                 <div className="flex flex-wrap items-end gap-3">
-                  <select value={resourceId} onChange={(e) => setResourceId(e.target.value)} className={input + ' min-w-[260px]'}>
-                    <option value="">Select resource…</option>
-                    {(resources || []).map((r) => (
-                      <option key={r._id} value={r._id}>
-                        {TYPE_ICON[r.type] || '📦'} {r.title} — {TYPE_LABEL[r.type] || r.type}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="relative min-w-[260px] flex-1">
+                    <button
+                      type="button"
+                      onClick={() => setResourceMenuOpen((open) => !open)}
+                      aria-haspopup="listbox"
+                      aria-expanded={resourceMenuOpen}
+                      className={input + ' flex min-h-[42px] w-full items-center justify-between gap-3 text-left'}
+                    >
+                      <span className={resourceIds.length ? 'text-vigno-txt' : 'text-vigno-muted'}>
+                        {resourceIds.length ? `${resourceIds.length} resource${resourceIds.length === 1 ? '' : 's'} selected` : 'Select resources…'}
+                      </span>
+                      <svg className={`h-4 w-4 shrink-0 transition-transform ${resourceMenuOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="m6 9 6 6 6-6" /></svg>
+                    </button>
+                    {resourceMenuOpen && (
+                      <div role="listbox" aria-multiselectable="true" className="absolute left-0 right-0 top-full z-30 mt-1 max-h-64 overflow-y-auto rounded-lg border border-vigno-line bg-vigno-bg2 p-1 shadow-xl">
+                        {(resources || []).length === 0 ? (
+                          <p className="px-3 py-2 text-xs text-vigno-muted">No individual resources available.</p>
+                        ) : (resources || []).map((r) => {
+                          const id = String(r._id)
+                          const checked = resourceIds.includes(id)
+                          return (
+                            <label key={id} role="option" aria-selected={checked} className="flex cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-sm text-vigno-txt hover:bg-vigno-accent/10">
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={() => toggleResource(id)}
+                                className="h-4 w-4 shrink-0 rounded-sm accent-vigno-accent"
+                              />
+                              <span className="min-w-0 truncate">{TYPE_ICON[r.type] || '📦'} {r.title} <span className="text-xs text-vigno-muted">— {TYPE_LABEL[r.type] || r.type}</span></span>
+                            </label>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
                   <div className="flex flex-col gap-1">
                     <label className="text-[10px] text-vigno-muted font-semibold">Valid until (blank = default)</label>
                     <input type="date" min={tomorrow()} value={resourceValidity} onChange={(e) => setResourceValidity(e.target.value)} className={input} />
                   </div>
                   <button
-                    disabled={!resourceId || grantResource.isPending}
+                    disabled={resourceIds.length === 0 || grantResource.isPending}
                     onClick={() => { setResourceMsg(null); grantResource.mutate() }}
                     className={btn}
                   >
