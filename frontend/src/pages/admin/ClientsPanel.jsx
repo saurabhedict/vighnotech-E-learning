@@ -108,7 +108,8 @@ function ClientRow({ client, courses, resources, onDeleted }) {
   const [tab, setTab] = useState('courses') // 'courses' | 'resources'
 
   // Course grant state
-  const [courseSlug, setCourseSlug] = useState('')
+  const [courseSlugs, setCourseSlugs] = useState([])
+  const [courseMenuOpen, setCourseMenuOpen] = useState(false)
   const [courseValidity, setCourseValidity] = useState('')
   const [courseMsg, setCourseMsg] = useState(null)
 
@@ -128,10 +129,15 @@ function ClientRow({ client, courses, resources, onDeleted }) {
   const resourceGrants = grantsQ.data?.resourceGrants || []
 
   const grantCourse = useMutation({
-    mutationFn: () => adminApi.grantCourse(client.id, { courseSlug, expiresAt: courseValidity ? `${courseValidity}T23:59:59` : undefined }),
-    onSuccess: (r) => {
-      setCourseMsg({ ok: true, text: `Granted "${r.courseName}" (${r.grantedLessons} lessons)${r.expiresAt ? ' until ' + fmtDate(r.expiresAt) : ' (no expiry)'}` })
-      setCourseSlug(''); setCourseValidity('')
+    mutationFn: () => Promise.all(courseSlugs.map((courseSlug) => adminApi.grantCourse(client.id, {
+      courseSlug,
+      expiresAt: courseValidity ? `${courseValidity}T23:59:59` : undefined,
+    }))),
+    onSuccess: (results) => {
+      const count = results.length
+      const expiry = results[0]?.expiresAt ? ' until ' + fmtDate(results[0].expiresAt) : ' (no expiry)'
+      setCourseMsg({ ok: true, text: `Granted ${count} course${count === 1 ? '' : 's'}${expiry}` })
+      setCourseSlugs([]); setCourseValidity(''); setCourseMenuOpen(false)
       qc.invalidateQueries({ queryKey: ['admin', 'client', client.id, 'grants'] })
       qc.invalidateQueries({ queryKey: ['admin', 'clients'] })
     },
@@ -172,6 +178,10 @@ function ClientRow({ client, courses, resources, onDeleted }) {
 
   const toggleResource = (id) => {
     setResourceIds((current) => current.includes(id) ? current.filter((selectedId) => selectedId !== id) : [...current, id])
+  }
+
+  const toggleCourse = (slug) => {
+    setCourseSlugs((current) => current.includes(slug) ? current.filter((selectedSlug) => selectedSlug !== slug) : [...current, slug])
   }
 
   const totalGrants = courseGrants.length + resourceGrants.length
@@ -264,21 +274,49 @@ function ClientRow({ client, courses, resources, onDeleted }) {
               <div className="rounded-xl bg-vigno-bg2/40 border border-vigno-line/40 p-4 space-y-3">
                 <p className="text-[11px] font-extrabold text-vigno-muted uppercase tracking-widest">Grant a course</p>
                 <div className="flex flex-wrap items-end gap-3">
-                  <select value={courseSlug} onChange={(e) => setCourseSlug(e.target.value)} className={input}>
-                    <option value="">Select course…</option>
-                    {(courses || []).map((c) => {
-                      const slug = typeof c === 'string' ? c : (c?.slug || c?.courseKey || '')
-                      const label = typeof c === 'string' ? c.replace(/_/g, ' ') : (c?.name || String(slug).replace(/_/g, ' '))
-                      const clientOnly = typeof c === 'object' && c?.meta?.clientOnly
-                      return <option key={slug} value={slug}>{label}{clientOnly ? ' — client-only' : ''}</option>
-                    })}
-                  </select>
+                  <div className="relative min-w-[260px] flex-1">
+                    <button
+                      type="button"
+                      onClick={() => setCourseMenuOpen((open) => !open)}
+                      aria-haspopup="listbox"
+                      aria-expanded={courseMenuOpen}
+                      className={input + ' flex min-h-[42px] w-full items-center justify-between gap-3 text-left'}
+                    >
+                      <span className={courseSlugs.length ? 'text-vigno-txt' : 'text-vigno-muted'}>
+                        {courseSlugs.length ? `${courseSlugs.length} course${courseSlugs.length === 1 ? '' : 's'} selected` : 'Select courses…'}
+                      </span>
+                      <svg className={`h-4 w-4 shrink-0 transition-transform ${courseMenuOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="m6 9 6 6 6-6" /></svg>
+                    </button>
+                    {courseMenuOpen && (
+                      <div role="listbox" aria-multiselectable="true" className="absolute left-0 right-0 top-full z-30 mt-1 max-h-64 overflow-y-auto rounded-lg border border-vigno-line bg-vigno-bg2 p-1 shadow-xl">
+                        {(courses || []).length === 0 ? (
+                          <p className="px-3 py-2 text-xs text-vigno-muted">No courses available.</p>
+                        ) : (courses || []).map((c) => {
+                          const slug = typeof c === 'string' ? c : (c?.slug || c?.courseKey || '')
+                          const label = typeof c === 'string' ? c.replace(/_/g, ' ') : (c?.name || String(slug).replace(/_/g, ' '))
+                          const clientOnly = typeof c === 'object' && c?.meta?.clientOnly
+                          const checked = courseSlugs.includes(slug)
+                          return (
+                            <label key={slug} role="option" aria-selected={checked} className="flex cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-sm text-vigno-txt hover:bg-vigno-accent/10">
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={() => toggleCourse(slug)}
+                                className="h-4 w-4 shrink-0 rounded-sm accent-vigno-accent"
+                              />
+                              <span className="min-w-0 truncate">{label}{clientOnly ? <span className="text-xs text-vigno-muted"> — client-only</span> : null}</span>
+                            </label>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
                   <div className="flex flex-col gap-1">
                     <label className="text-[10px] text-vigno-muted font-semibold">Valid until (blank = default)</label>
                     <input type="date" min={tomorrow()} value={courseValidity} onChange={(e) => setCourseValidity(e.target.value)} className={input} />
                   </div>
                   <button
-                    disabled={!courseSlug || grantCourse.isPending}
+                    disabled={courseSlugs.length === 0 || grantCourse.isPending}
                     onClick={() => { setCourseMsg(null); grantCourse.mutate() }}
                     className={btn}
                   >
