@@ -358,6 +358,17 @@ function ClientRow({ client, courses, resources, onDeleted }) {
                           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M6 7h12m-9 0V5.5A1.5 1.5 0 0110.5 4h3A1.5 1.5 0 0115 5.5V7m-7 0 .75 12.25A1.75 1.75 0 0010.5 21h3a1.75 1.75 0 001.75-1.75L16 7M10 11v6m4-6v6" /></svg>
                           Delete course
                         </button>
+                        <button
+                          type="button"
+                          title={`Revoke ${g.courseName} from this client`}
+                          disabled={revokeCourse.isPending}
+                          onClick={() => {
+                            if (window.confirm(`Revoke "${g.courseName}" from this client?`)) revokeCourse.mutate(g.courseSlug)
+                          }}
+                          className="text-xs font-bold text-red-400 hover:text-red-300 hover:bg-red-400/10 disabled:opacity-60 px-2.5 py-1 rounded-lg transition-all"
+                        >
+                          Revoke
+                        </button>
                       </div>
                     </div>
                   ))}
@@ -446,6 +457,17 @@ function ClientRow({ client, courses, resources, onDeleted }) {
                         <button
                           onClick={() => revokeResource.mutate(g.contentId?.toString())}
                           className="text-xs font-bold text-red-400 hover:text-red-300 hover:bg-red-400/10 px-2.5 py-1 rounded-lg transition-all"
+                        >
+                          Revoke
+                        </button>
+                        <button
+                          type="button"
+                          title={`Revoke ${g.title} from this client`}
+                          disabled={revokeResource.isPending}
+                          onClick={() => {
+                            if (window.confirm(`Revoke "${g.title}" from this client?`)) revokeResource.mutate(g.contentId?.toString())
+                          }}
+                          className="text-xs font-bold text-red-400 hover:text-red-300 hover:bg-red-400/10 disabled:opacity-60 px-2.5 py-1 rounded-lg transition-all"
                         >
                           Revoke
                         </button>
